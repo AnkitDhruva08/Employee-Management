@@ -37,7 +37,7 @@ const Register = () => {
         localStorage.setItem("token", data.tokens.access);
         console.log('Registration successful');
         // Redirect the user directly to the company dashboard
-        navigate('/company-dashboard');  
+        navigate('/dashboard');  
       } else {
         setError("This username or email already exists");
       }

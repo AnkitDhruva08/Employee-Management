@@ -1,17 +1,18 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from core.views.company_views import CompanyViewSet,InsertRoleView
+from core.views.company_views import CompanyViewSet
+from core.views.role_views import InsertRoleView, RoleDropdownView
 from core.views.employee_views import EmployeeViewSet
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.event_views import EventViewSet, HolidayViewSet
-from core.views.auth_views import CompanyLoginView, CompanyRegisterView
+from core.views.auth_views import LoginView, CompanyRegisterView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
  
 
-from core.views.dashboard_views import DashboardCompanyView,AdminDashboardView, EmployeeDashboardView
+from core.views.dashboard_views import DashboardView
 
 router = DefaultRouter()
 
@@ -26,17 +27,19 @@ urlpatterns = [
     path('', include(router.urls)),
 
     # Custom endpoints
-    path('company-login/', CompanyLoginView.as_view(), name='company-login'),
+    path('login/', LoginView.as_view(), name='login'),
+
+    #  Register Company 
     path('register/', CompanyRegisterView.as_view(), name='company-register'),
 
     # insert Roles 
     path('roles/', InsertRoleView.as_view(), name='roles'),
+    # role dropdownlist
+    path('roles-dropdown/', RoleDropdownView.as_view(), name='roles-dropdown'),
 
 
     # dashboard 
-    path('dashboard/company/',DashboardCompanyView.as_view(), name='company-dashboard'),
-    path('dashboard/admin/', AdminDashboardView.as_view(), name='admin-dashboard'),
-    path('dashboard/employee/', EmployeeDashboardView.as_view(), name='employee-dashboard'),
+    path('dashboard/',DashboardView.as_view(), name='dashboard'),
 
     # JWT token endpoints
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

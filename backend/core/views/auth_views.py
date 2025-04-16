@@ -5,58 +5,66 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password
 from rest_framework.permissions import AllowAny
 from core.serializers import CompanySerializer
-from core.models import Company
-from django.contrib.auth.models import User
+from core.models import Company, Employee
+from django.contrib.auth import authenticate, login
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password
 
-User = get_user_model()  # Add this after your imports
+# User Model
+User = get_user_model() 
 
-
-
-
+#  Company Registration Views 
 class CompanyRegisterView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
-        print('User registration request:', request.data)
 
-        # Extract the data from the request
-        company_data = request.data
-        print('company_data ==<<<>', company_data)
-
-        # Extract password from the request data
+        company_data = request.data.copy() 
         password = company_data.pop('password', None)
 
         if password is None:
             return Response({"error": "Password is required."}, status=status.HTTP_400_BAD_REQUEST)
-        
 
-        # Hash the password before storing it
-        hashed_password = make_password(password)
         try:
-            # Create the User object
+            # Extract values
+            email = company_data.get('email')
+            company_name = company_data.get('company_name')
+
+            # Create the User
             user = User.objects.create(
-                username=company_data['email'], 
-                password=hashed_password, 
+                username=company_name,
+                email=email,
+                password=make_password(password),
+                is_company=True
             )
+
+            # Create Company and link it to the User
+            company = Company.objects.create(user=user, **company_data)
 
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
-            # Create the Company object and associate it with the user
-            company = Company.objects.create(user=user, **company_data)
-
-            # Serialize the company and return the response
+            # Serialize the Company
             serializer = CompanySerializer(company)
-            return Response( {'message': 'Registered Successfully', "status": 200, "data" : serializer.data, "tokens": {
-                    "access": access_token,
-                    "refresh": str(refresh)
-                }}, status=status.HTTP_201_CREATED)
+
+            return Response({
+                'message': 'Registered Successfully',
+                'status': 200,
+                'data': serializer.data,
+                'tokens': {
+                    'access': access_token,
+                    'refresh': str(refresh)
+                }
+            }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class CompanyLoginView(APIView):
+
+
+#  Login views Based on role and also for organization
+class LoginView(APIView):
     """
     Handle login for companies using email and password.
     Returns JWT token if credentials are correct.
@@ -64,21 +72,41 @@ class CompanyLoginView(APIView):
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
+        if not email or not password:
+            return Response({"error": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            company = Company.objects.get(email=email)
-        except Company.DoesNotExist:
-            return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid email or user does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        
+        
+        role_data = Employee.objects.filter(company_email=email).values('role_id').first()
+        company_data = User.objects.filter(email=email).values('is_company').first()
 
-        # if not check_password(password, company.password):
-        #     return Response({"error": "Invalid email or password"}, status=status.HTTP_401_UNAUTHORIZED)
+        role_id = role_data['role_id'] if role_data else None
+        is_company = company_data['is_company'] if company_data else None
 
-        # Generate token manually using SimpleJWT
-        refresh = RefreshToken.for_user(company)
+        print('password ==<<>',check_password("Pass@123", user.password)) 
+        user = authenticate(request, username=user.username, password=password)
+        if user is not None:
+            # Log in the user and create a session
+            login(request, user)
+            # Optionally, generate JWT token for APIs that need it
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
 
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "company_id": company.id,
-            "company_name": company.company_name
-        })
+            return Response({
+                "message": "Login successful!",
+                "status" : 200,
+                "role_id" : role_id,
+                "is_company": is_company,
+                "tokens": {
+                    "access": access_token,
+                    "refresh": str(refresh)
+                },
+                "session": "User session created successfully"
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid password"}, status=status.HTTP_401_UNAUTHORIZED)
+      
