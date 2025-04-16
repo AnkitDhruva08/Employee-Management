@@ -94,7 +94,6 @@ class DashboardView(APIView):
                     company_id = Employee.objects.get(first_name=user).company_id
                     company_name = Company.objects.filter(id=company_id).values('company_name').first()
                     role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
-                    print('role ==<<>>', role_id)
                     employee_details = Employee.objects.filter(first_name=user).values('first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
                             'personal_email', 'date_of_birth', 'gender')
 
