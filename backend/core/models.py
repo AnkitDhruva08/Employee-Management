@@ -79,10 +79,11 @@ class BankDetails(models.Model):
     account_holder_name = models.CharField(max_length=100)
     bank_name = models.CharField(max_length=100)
     branch_name = models.CharField(max_length=100)
-    ifsc = models.CharField(max_length=11)
+    ifsc_code = models.CharField(max_length=11)
     account_number = models.CharField(max_length=20)
     account_type = models.CharField(max_length=10, choices=[('saving', 'Saving'), ('salary', 'Salary')])
-    bank_doc = models.TextField(null=True, blank=True)
+    # bank_details_pdf = models.FileField(upload_to='bank_pdfs/', null=True, blank=True)
+    bank_details_pdf = models.FileField(upload_to='bank_pdfs/', null=True, blank=True)
 
     def __str__(self):
         return f"{self.account_holder_name} - {self.bank_name}"
@@ -99,18 +100,16 @@ class OfficeDetails(models.Model):
         return f"{self.reporting_to} - {self.date_of_joining}"
 
 
-class DocumentUploads(models.Model):
+class EmployeeDocument(models.Model):
     employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name='documents')
-
-    # Base64 fields for frontend-uploaded docs/images
-    photo = models.TextField(null=True, blank=True)
-    aadhar = models.TextField(null=True, blank=True)
-    pan = models.TextField(null=True, blank=True)
-    dl = models.TextField(null=True, blank=True)
-    appointment = models.TextField(null=True, blank=True)
-    promotion = models.TextField(null=True, blank=True)
-    resume = models.TextField(null=True, blank=True)
-    esic_card = models.TextField(null=True, blank=True)
+    photo = models.FileField(upload_to='emp_pic/', null=True, blank=True)
+    aadhar = models.FileField(upload_to='emp_adhar/', null=True, blank=True)
+    pan = models.FileField(upload_to='emp_pan/', null=True, blank=True)
+    dl = models.FileField(upload_to='emp_dl/', null=True, blank=True)
+    appointment = models.FileField(upload_to='emp_appointment/', null=True, blank=True)
+    promotion = models.FileField(upload_to='emp_promotion/', null=True, blank=True)
+    resume = models.FileField(upload_to='emp_resume/', null=True, blank=True)
+    esic_card = models.FileField(upload_to='emp_esic_card/', null=True, blank=True)
 
     # Additional employee info
     insurance_number = models.CharField(max_length=100)

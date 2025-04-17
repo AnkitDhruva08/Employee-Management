@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from core.views.company_views import CompanyViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
-from core.views.employee_views import EmployeeViewSet
+from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.event_views import EventViewSet, HolidayViewSet
 from core.views.auth_views import LoginView, CompanyRegisterView
@@ -40,6 +40,19 @@ urlpatterns = [
 
     # dashboard 
     path('dashboard/',DashboardView.as_view(), name='dashboard'),
+    # Employee Bank Details
+    path('employee-bank-details/', EmployeeBankDetailsView.as_view(), name='employee-bank-details'),
+    path('employee-bank-details/<int:pk>/', EmployeeBankDetailsView.as_view()),
+
+    # Nominee Details
+    path('employee-nominee-details/', NomineeDetailsView.as_view(), name='employee-nominee-details'),
+    path('employee-nominee-details/<int:pk>/', NomineeDetailsView.as_view()),
+
+    # Employee Document
+    path('employee-documents/', EmployeeDocumentUploadView.as_view(), name='employee-documents'),
+    path('employee-documents/<int:pk>/', EmployeeDocumentUploadView.as_view()),
+
+
 
     # JWT token endpoints
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

@@ -76,7 +76,7 @@ const AddEmployee = () => {
       console.log('response ==<<>>', response);
       if (response.ok) {
         setSuccess("Employee added successfully!");
-        setFormData({}); // reset form
+        setFormData({});
       } else {
         const errorData = await response.json();
         setError(errorData?.error || "Failed to add employee");

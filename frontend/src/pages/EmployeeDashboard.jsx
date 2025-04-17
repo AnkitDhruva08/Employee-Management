@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const EmployeeDashboard = () => {
-  const [userData, setUserData] = useState(null); // holds entire data
+  const [userData, setUserData] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -17,12 +19,10 @@ const EmployeeDashboard = () => {
           },
         });
 
-        if (!res.ok) {
-          throw new Error("Unauthorized");
-        }
+        if (!res.ok) throw new Error("Unauthorized");
 
         const data = await res.json();
-        console.log("data ==<<<>>", data);
+        console.log("data ==<<<>>>", data);
         setUserData(data);
       } catch (err) {
         console.error("Error loading roles:", err);
@@ -36,6 +36,57 @@ const EmployeeDashboard = () => {
   const employee = userData?.employee_details?.[0];
   const firstName = employee?.first_name || "E";
   const role = userData?.role || "Employee";
+
+  const cards = [
+    {
+      title: "BANK DETAILS",
+      desc: "Update bank details",
+      color: "bg-red-500",
+      path: "/bank-details",
+    },
+    {
+      title: "NOMINEE DETAILS",
+      desc: "Update nominee details",
+      color: "bg-green-500",
+      path: "/nominees-details",
+    },
+    {
+      title: "DOCUMENTS",
+      desc: "Manage employee documents",
+      color: "bg-blue-500",
+      path: "/employee-documents",
+    },
+    {
+      title: "SETTINGS",
+      desc: "Update your profile and preferences",
+      color: "bg-gray-600",
+      path: "/settings",
+    },
+    {
+      title: "ATTENDANCE",
+      desc: "Check your attendance",
+      color: "bg-teal-500",
+      path: "/attendance",
+    },
+    {
+      title: "LEAVE",
+      desc: "Apply or track leave",
+      color: "bg-indigo-500",
+      path: "/leave",
+    },
+    {
+      title: "HOLIDAY CALENDAR",
+      desc: "View upcoming holidays",
+      color: "bg-pink-500",
+      path: "/holiday-calendar",
+    },
+    {
+      title: "PAYSLIPS",
+      desc: "Download your payslips",
+      color: "bg-sky-500",
+      path: "/payslips",
+    },
+  ];
 
   return (
     <div className="min-h-screen flex bg-gray-100">
@@ -71,10 +122,8 @@ const EmployeeDashboard = () => {
       <div className="flex-1 flex flex-col">
         {/* Topbar */}
         <header className="bg-white shadow p-4 flex justify-between items-center">
-          <div className="flex space-x-4">
-          </div>
+          <div></div>
           <div className="flex items-center space-x-3">
-            {/* Circle avatar with first letter */}
             <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-bold">
               {firstName.charAt(0)}
             </div>
@@ -87,59 +136,17 @@ const EmployeeDashboard = () => {
           </div>
         </header>
 
-        {/* Content Area */}
+        {/* Dashboard Cards */}
         <main className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            {
-              title: "BANK DETAILS",
-              desc: "Update bank details",
-              color: "bg-red-500",
-            },
-            {
-              title: "NOMINEE DETAILS",
-              desc: "Update nominee details",
-              color: "bg-green-500",
-            },
-            {
-              title: "DOCUMENTS",
-              desc: "Manage employee documents",
-              color: "bg-blue-500",
-            },
-            {
-              title: "SETTINGS",
-              desc: "Update your profile and preferences",
-              color: "bg-gray-600",
-            },
-            {
-              title: "ATTENDENCE",
-              desc: "View W-2 tax documents",
-              color: "bg-teal-500",
-            },
-            {
-                title: "LEAVE ",
-                desc: "View W-2 tax documents",
-                color: "bg-indigo-500",
-              },
-
-              {
-                title: "HOLIDAY CALENDER",
-                desc: "View W-2 tax documents",
-                color: "bg-pink-500",
-              },
-
-              {
-                title: "HOLIDAY CALENDER",
-                desc: "View W-2 tax documents",
-                color: "bg-sky-500",
-              },
-          ].map((card, index) => (
+          {cards.map((card, index) => (
             <div
               key={index}
-              className={`rounded-lg shadow-md p-6 text-white ${card.color}`}
+              onClick={() => navigate(card.path)}
+              className={`rounded-lg shadow-md p-6 text-white cursor-pointer transition transform hover:scale-105 ${card.color}`}
             >
               <h2 className="text-xl font-bold mb-2">{card.title}</h2>
               <p className="text-sm mb-4">{card.desc}</p>
-              <button className="underline">View →</button>
+              <span className="underline">View →</span>
             </div>
           ))}
         </main>

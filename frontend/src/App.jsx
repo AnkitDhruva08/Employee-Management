@@ -8,6 +8,9 @@ import Login from './pages/Login';
 import AdminDahsboard from './pages/AdminDashboard';
 import HrDashboard from './pages/HrDashboard';
 import EmployeeDashboard from './pages/EmployeeDashboard';
+import BankDetails from './pages/BankDetails';
+import NomineeDetails from './pages/Nominee';
+import EmployeeDocuments from './pages/EmployeeDocuments';
 
 function App() {
   return (
@@ -21,7 +24,10 @@ function App() {
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
         <Route path="/role" element={<Role />} />
         <Route path="/employees" element={<AddEmployee />} />
+        <Route path="/bank-details" element={<BankDetails />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/nominees-details" element={<NomineeDetails />} />
+        <Route path="/employee-documents" element={<EmployeeDocuments />} />
       </Routes>
     </Router>
   );
