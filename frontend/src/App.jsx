@@ -11,6 +11,9 @@ import EmployeeDashboard from './pages/EmployeeDashboard';
 import BankDetails from './pages/BankDetails';
 import NomineeDetails from './pages/Nominee';
 import EmployeeDocuments from './pages/EmployeeDocuments';
+import EmergencyContact from './pages/EmergencyContact';
+import OfficeDetails from './pages/OfficeDetails';
+import Leave from './pages/Leave';
 
 function App() {
   return (
@@ -28,6 +31,9 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/nominees-details" element={<NomineeDetails />} />
         <Route path="/employee-documents" element={<EmployeeDocuments />} />
+        <Route path="/employee-emeregency-contact" element={<EmergencyContact />} />
+        <Route path="/employee-office-details" element={<OfficeDetails />} />
+        <Route path="/leave-details" element={<Leave />} />
       </Routes>
     </Router>
   );

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 
 # Custom user model to differentiate companies and employees
 class User(AbstractUser):
@@ -82,7 +83,6 @@ class BankDetails(models.Model):
     ifsc_code = models.CharField(max_length=11)
     account_number = models.CharField(max_length=20)
     account_type = models.CharField(max_length=10, choices=[('saving', 'Saving'), ('salary', 'Salary')])
-    # bank_details_pdf = models.FileField(upload_to='bank_pdfs/', null=True, blank=True)
     bank_details_pdf = models.FileField(upload_to='bank_pdfs/', null=True, blank=True)
 
     def __str__(self):
@@ -93,6 +93,7 @@ class OfficeDetails(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='office_details')
     date_of_joining = models.DateField()
     probation_end = models.DateField()
+    job_role = models.CharField(max_length=100)
     reporting_to = models.CharField(max_length=100)
     date_of_leaving = models.DateField(null=True, blank=True)
 
@@ -101,23 +102,20 @@ class OfficeDetails(models.Model):
 
 
 class EmployeeDocument(models.Model):
-    employee = models.OneToOneField(Employee, on_delete=models.CASCADE, related_name='documents')
-    photo = models.FileField(upload_to='emp_pic/', null=True, blank=True)
-    aadhar = models.FileField(upload_to='emp_adhar/', null=True, blank=True)
-    pan = models.FileField(upload_to='emp_pan/', null=True, blank=True)
-    dl = models.FileField(upload_to='emp_dl/', null=True, blank=True)
-    appointment = models.FileField(upload_to='emp_appointment/', null=True, blank=True)
-    promotion = models.FileField(upload_to='emp_promotion/', null=True, blank=True)
-    resume = models.FileField(upload_to='emp_resume/', null=True, blank=True)
-    esic_card = models.FileField(upload_to='emp_esic_card/', null=True, blank=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    insurance_number = models.CharField(max_length=50)
+    epf_member = models.CharField(max_length=50)
+    uan = models.CharField(max_length=50)
+    
+    photo = models.ImageField(upload_to='emp_documents/', blank=True, null=True)
+    aadhar = models.FileField(upload_to='adhar_documents/', blank=True, null=True)
+    pan = models.FileField(upload_to='pan_documents/', blank=True, null=True)
+    dl = models.FileField(upload_to='dl_documents/', blank=True, null=True)
+    appointment = models.FileField(upload_to='appointmen_documents/', blank=True, null=True)
+    promotion = models.FileField(upload_to='promotion_documents/', blank=True, null=True)
+    resume = models.FileField(upload_to='resume_documents/', blank=True, null=True)
+    esic_card = models.FileField(upload_to='esic_documents/', blank=True, null=True)
 
-    # Additional employee info
-    insurance_number = models.CharField(max_length=100)
-    epf_member = models.CharField(max_length=3, choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    uan = models.CharField(max_length=12)
-
-    def __str__(self):
-        return f"Documents of {self.employee.first_name} {self.employee.last_name}"
 
 
 class Event(models.Model):
@@ -139,16 +137,28 @@ class Holiday(models.Model):
         return f"{self.name} - {self.date}"
 
 
+
 class LeaveRequest(models.Model):
-    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    from_date = models.DateField()
-    to_date = models.DateField()
+    leave_type = models.CharField(choices=[('CL', 'Casual Leave'), ('PL', 'Personal Leave')], max_length=2)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
     reason = models.TextField()
-    status = models.CharField(
-        max_length=20,
-        choices=[('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected')],
-        default='Pending'
-    )
+    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('HR Approved', 'HR Approved'), ('HR Rejected', 'HR Rejected'), ('Admin Approved', 'Admin Approved'), ('Admin Rejected', 'Admin Rejected')], default='Pending')
+    hr_reviewed = models.BooleanField(default=False)
+    admin_reviewed = models.BooleanField(default=False)
+    applied_at = models.DateTimeField(auto_now_add=True)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.employee.first_name} leave from {self.from_date} to {self.to_date} ({self.status})"
+        return f"{self.employee.username} - {self.leave_type} ({self.status})"
+
+
+
+class LeaveBalance(models.Model):
+    employee = models.OneToOneField(User, on_delete=models.CASCADE)
+    casual_leave = models.FloatField(default=0.0)
+    personal_leave = models.FloatField(default=0.0)
+    last_updated = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.employee.username} - CL: {self.casual_leave}, PL: {self.personal_leave}"

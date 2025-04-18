@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument
+from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -32,10 +32,22 @@ class HolidaySerializer(serializers.ModelSerializer):
         model = Holiday
         fields = '__all__'
 
+from bs4 import BeautifulSoup
+
 class LeaveRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = LeaveRequest
         fields = '__all__'
+    
+    # Custom validation for reason to strip HTML (optional)
+    def validate_reason(self, value):
+        return BeautifulSoup(value, "html.parser").get_text()  # Strips HTML tags
+
+    # Ensure the to_date is set correctly if the duration is 'Single day'
+    def validate(self, data):
+        if data.get('duration') == 'Single day' and data.get('to_date') != data.get('from_date'):
+            raise serializers.ValidationError("For a single day leave, from_date and to_date must be the same.")
+        return data
 
 
 
@@ -57,5 +69,17 @@ class EmployeeDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeDocument
         fields = '__all__'
-       
+
+
+
+class EmergencyContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmergencyContact
+        fields = '__all__'
             
+
+
+class EmployeeOfficeDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OfficeDetails
+        fields = '__all__'

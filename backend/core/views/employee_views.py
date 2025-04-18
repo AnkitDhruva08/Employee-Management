@@ -1,13 +1,10 @@
-from django.forms import ValidationError
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from core.models import Employee, Role, Company, NomineeDetails, BankDetails, OfficeDetails, EmployeeDocument
-from core.serializers import EmployeeDocumentSerializer, EmployeeSerializer, BankDetailsSerializer,NomineeDetailsSerializer
+from core.models import Employee, Role, Company, NomineeDetails, BankDetails, OfficeDetails, EmployeeDocument, EmergencyContact
+from core.serializers import EmployeeDocumentSerializer, EmployeeSerializer, BankDetailsSerializer,NomineeDetailsSerializer, EmergencyContactSerializer, EmployeeOfficeDetailsSerializer
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password
 from rest_framework.views import APIView
-import base64
 from rest_framework.parsers import MultiPartParser, FormParser
 
 User = get_user_model()
@@ -23,7 +20,6 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
         username = request.user
-        print('username ==<<<>>', username)
         company_id = Company.objects.get(company_name=request.user).id
 
         # 1. Validate role from designation
@@ -79,8 +75,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
                 company_id = company_id 
 
             )
-            print('employee ==<<>>', employee)
-
+            # 5. Create NomineeDetails
             return Response({'success': 'Employee created successfully.'}, status=status.HTTP_201_CREATED)
         except Exception as e:
                 return Response({'error': f'Employee creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST) 
@@ -144,7 +139,6 @@ class EmployeeBankDetailsView(APIView):
 
 
 # Nominee Details CRUD operations
-
 class NomineeDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -187,7 +181,7 @@ class NomineeDetailsView(APIView):
 
         data = request.data.copy()
         data.pop('id', None)
-        data.pop('employee', None)  # Optional: prevent accidental change
+        data.pop('employee', None)
 
         serializer = NomineeDetailsSerializer(nominee_details, data=data, partial=True)
         if serializer.is_valid():
@@ -201,61 +195,173 @@ class NomineeDetailsView(APIView):
 
 
 
-
+# Employee Document Upload/Download Operations
 class EmployeeDocumentUploadView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
+# get all documents of an employee
     def get(self, request):
-            try:
-                employee = Employee.objects.get(first_name=request.user.first_name)
-                employee_documents = EmployeeDocument.objects.filter(employee=employee)
-                serializer = EmployeeDocumentSerializer(employee_documents, many=True)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee_documents = EmployeeDocument.objects.filter(employee=employee)
+            serializer = EmployeeDocumentSerializer(employee_documents, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
 
-            except Employee.DoesNotExist:
-                return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            
+# post a new document of an employee
     def post(self, request):
-            try:
-                print('data comming from frontend ==>>', request.data)
-                employee = Employee.objects.get(first_name=request.user.first_name)
-                data = request.data.copy()
-                data['employee'] = employee.id 
+        try:
+            employee = Employee.objects.get(first_name=request.user.first_name)
+            
+            data = request.data.copy()
+            data['employee'] = employee.id
 
-                serializer = EmployeeDocumentSerializer(data=data)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response({'success': 'Employee document uploaded successfully.'}, status=status.HTTP_201_CREATED)
-
+            serializer = EmployeeDocumentSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'success': 'Employee document uploaded successfully.'}, status=status.HTTP_201_CREATED)
+            else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            except Employee.DoesNotExist:
-                return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            except ValidationError as e:
-                return Response({'error': str(e.detail)}, status=status.HTTP_400_BAD_REQUEST)
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    
+# update an existing document of an employee
     def put(self, request, pk):
-            try:
-                employee_document = EmployeeDocument.objects.get(pk=pk)
-                data = request.data.copy()
-                serializer = EmployeeDocumentSerializer(employee_document, data=data, partial=True)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            employee_document = EmployeeDocument.objects.get(pk=pk)
+            data = request.data.copy()
+            serializer = EmployeeDocumentSerializer(employee_document, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            except EmployeeDocument.DoesNotExist:
-                return Response({'error': 'Employee document not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
-            except ValidationError as e:
-                return Response({'error': str(e.detail)}, status=status.HTTP_400_BAD_REQUEST)
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            
+        except EmployeeDocument.DoesNotExist:
+            return Response({'error': 'Employee document not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
 
+
+
+
+
+
+# Employee Emergency Contact CRUD operations
+class EmployeeEmergencyContactView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        try:
+            employee = Employee.objects.get(first_name=request.user.first_name)
+            emergency_contacts = EmergencyContact.objects.filter(employee=employee)
+            serializer = EmergencyContactSerializer(emergency_contacts, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def post(self, request):
+        try:
+            print('data coming from  frontend', request.data)
+            employee = Employee.objects.get(first_name=request.user.first_name)
+            data = request.data.copy()
+            data['employee'] = employee.id 
+
+            serializer = EmergencyContactSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'success': 'Emergency contact created successfully.'}, status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def put(self, request, pk):
+        try:
+            print('data coming from  frontend', request.data)
+            emergency_contact = EmergencyContact.objects.get(pk=pk)
+        except EmergencyContact.DoesNotExist:
+            return Response({'error': 'Emergency contact not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        data.pop('id', None)
+        data.pop('employee', None)
+
+        serializer = EmergencyContactSerializer(emergency_contact, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+
+
+
+
+# Employee Offices  Details CRUD operations
+class EmployeeOfficeDetailsView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        try:
+            employee = Employee.objects.get(first_name=request.user.first_name)
+            office_details = OfficeDetails.objects.filter(employee=employee)
+            serializer = EmployeeOfficeDetailsSerializer(office_details, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def post(self, request):
+        try:
+            print('data coming from  frontend', request.data)
+            employee = Employee.objects.get(first_name=request.user.first_name)
+            print('employee', employee)
+            data = request.data.copy()
+            data['employee'] = employee.id 
+            print('data after employee', employee.id)
+
+            serializer = EmployeeOfficeDetailsSerializer(data=data)
+            print('serializer', serializer)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'success': 'Employee office details created successfully.'}, status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    def put(self, request, pk):
+        try:
+            employee_office_details = OfficeDetails.objects.get(pk=pk)
+        except OfficeDetails.DoesNotExist:
+            return Response({'error': 'Employee office details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        data.pop('id', None)
+        data.pop('employee', None)
+
+        serializer = EmployeeOfficeDetailsSerializer(employee_office_details, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
     

@@ -57,9 +57,11 @@ const EmployeeDocuments = () => {
 
   const handleFileChange = (e) => {
     const { name, files } = e.target;
-    setEmployeeFormData({ ...employeeFormData, [name]: files[0] });
+    if (files.length > 0) {
+      console.log(`${name} file selected:`, files[0]);
+      setEmployeeFormData(prev => ({ ...prev, [name]: files[0] }));
+    }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -68,18 +70,24 @@ const EmployeeDocuments = () => {
 
     try {
       const formData = new FormData();
+      const method = isUpdating ? "PUT" : "POST";
+    
       for (const key in employeeFormData) {
         if (employeeFormData[key]) formData.append(key, employeeFormData[key]);
       }
 
-      const response = await fetch("http://localhost:8000/api/employee-documents/", {
-        method: isUpdating ? "PUT" : "POST",
+      const endpoint = isUpdating
+        ? `http://localhost:8000/api/employee-documents/${employeeFormData.id}/`
+        : "http://localhost:8000/api/employee-documents/";
+
+      const response = await fetch(endpoint, {
+        method: method,
         headers: {
           Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
-
+      console.log("api result :", response);
       if (!response.ok) {
         const errData = await response.json();
         throw new Error("Failed to submit. " + (errData?.detail || `Status: ${response.status}`));
@@ -97,15 +105,14 @@ const EmployeeDocuments = () => {
 
   const fileFields = [
     { name: "photo", label: "Photograph", accept: ".jpg,.jpeg,.png" },
-    { name: "aadhar", label: "Aadhar Card", accept: ".pdf" },
-    { name: "pan", label: "PAN Card", accept: ".pdf" },
-    { name: "dl", label: "Driving License", accept: ".pdf" },
-    { name: "appointment", label: "Appointment Letter", accept: ".pdf" },
-    { name: "promotion", label: "Promotion Letter", accept: ".pdf" },
-    { name: "resume", label: "Resume", accept: ".pdf" },
-    { name: "esic_card", label: "ESIC Card", accept: ".pdf" },
+    { name: "aadhar", label: "Aadhar Card", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "pan", label: "PAN Card", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "dl", label: "Driving License", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "appointment", label: "Appointment Letter", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "promotion", label: "Promotion Letter", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "resume", label: "Resume", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "esic_card", label: "ESIC Card", accept: ".jpg,.jpeg,.png,.pdf" },
   ];
-
   return (
     <div className="max-w-3xl mx-auto p-8 bg-gradient-to-br from-white to-blue-50 shadow-xl rounded-3xl mt-10">
       <h2 className="text-3xl font-bold text-center text-blue-700 mb-8 tracking-wide">

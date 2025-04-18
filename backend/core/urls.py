@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from core.views.company_views import CompanyViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
-from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView
+from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.event_views import EventViewSet, HolidayViewSet
 from core.views.auth_views import LoginView, CompanyRegisterView
@@ -51,6 +51,14 @@ urlpatterns = [
     # Employee Document
     path('employee-documents/', EmployeeDocumentUploadView.as_view(), name='employee-documents'),
     path('employee-documents/<int:pk>/', EmployeeDocumentUploadView.as_view()),
+
+    # Employee Emergency Contacts Details
+    path('employee-emergency-details/', EmployeeEmergencyContactView.as_view(), name='employee-emergency-details'),
+    path('employee-emergency-details/<int:pk>/', EmployeeEmergencyContactView.as_view()),
+
+    # Employee Offices Details
+    path('employee-office-details/', EmployeeOfficeDetailsView.as_view(), name='employee-office-details'),
+    path('employee-office-details/<int:pk>/', EmployeeOfficeDetailsView.as_view()),
 
 
 
