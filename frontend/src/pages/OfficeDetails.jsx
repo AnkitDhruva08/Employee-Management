@@ -12,6 +12,7 @@ const OfficeDetails = () => {
   });
 
   const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 });
+  const [existingData, setExistingData] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -41,6 +42,7 @@ const OfficeDetails = () => {
             const office = data[0];
             setOfficeData(office);
             calculateDuration(office.date_of_joining, office.date_of_leaving);
+            setExistingData(office);
             setIsUpdating(true);
           }
         }
@@ -122,9 +124,40 @@ const OfficeDetails = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-8 bg-gradient-to-br from-white to-blue-50 shadow-xl rounded-3xl mt-10">
-      <h2 className="text-3xl font-bold text-center text-blue-700 mb-8">
+      <h2 className="text-3xl font-bold text-center text-blue-700 mb-8"></h2>
         {isUpdating ? "Update Office Details*" : "Add Office Details*"}
-      </h2>
+        {isUpdating && existingData && (
+        <div className="mb-6 p-6 border border-blue-300 rounded-xl bg-white shadow-lg">
+          <h3 className="text-xl font-semibold text-blue-700 mb-4">Existing Office Details</h3>
+          <ul className="text-gray-700 space-y-4">
+            <li className="flex items-center">
+              <Briefcase className="w-5 h-5 text-blue-500 mr-3" />
+              <span className="font-semibold">Job Role / Designation:</span> {existingData.job_role}
+            </li>
+            <li className="flex items-center">
+              <Calendar className="w-5 h-5 text-blue-500 mr-3" />
+              <span className="font-semibold">Date of Joining:</span> {existingData.date_of_joining}
+            </li>
+            <li className="flex items-center">
+              <Calendar className="w-5 h-5 text-blue-500 mr-3" />
+              <span className="font-semibold">Probation End Date:</span> {existingData.probation_end}
+            </li>
+            <li className="flex items-center">
+              <UserCheck className="w-5 h-5 text-blue-500 mr-3" />
+              <span className="font-semibold">Reporting To:</span> {existingData.reporting_to}
+            </li>
+            <li className="flex items-center">
+              <Calendar className="w-5 h-5 text-blue-500 mr-3" />
+              <span className="font-semibold">Date of Leaving:</span> {existingData.date_of_leaving || "Still working"}
+            </li>
+            <li className="flex items-center">
+              <Clock className="w-5 h-5 text-blue-500 mr-3" />
+              <span className="font-semibold">Working Duration:</span> {duration.years} Year(s), {duration.months} Month(s), {duration.days} Day(s)
+            </li>
+          </ul>
+        </div>
+      )}
+ 
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Date of Joining */}

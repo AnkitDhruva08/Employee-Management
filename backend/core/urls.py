@@ -19,7 +19,7 @@ router = DefaultRouter()
 # Registering all our ViewSets
 router.register(r'companies', CompanyViewSet)
 router.register(r'employees', EmployeeViewSet)
-router.register(r'leaves', LeaveRequestViewSet)
+# router.register(r'leaves', LeaveRequestViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'holidays', HolidayViewSet)
 
@@ -42,7 +42,8 @@ urlpatterns = [
     path('dashboard/',DashboardView.as_view(), name='dashboard'),
     # Employee Bank Details
     path('employee-bank-details/', EmployeeBankDetailsView.as_view(), name='employee-bank-details'),
-    path('employee-bank-details/<int:pk>/', EmployeeBankDetailsView.as_view()),
+    path('employee-bank-details/<int:pk>/', EmployeeBankDetailsView.as_view(), name='employee-bank-detail'),
+
 
     # Nominee Details
     path('employee-nominee-details/', NomineeDetailsView.as_view(), name='employee-nominee-details'),
@@ -59,6 +60,10 @@ urlpatterns = [
     # Employee Offices Details
     path('employee-office-details/', EmployeeOfficeDetailsView.as_view(), name='employee-office-details'),
     path('employee-office-details/<int:pk>/', EmployeeOfficeDetailsView.as_view()),
+
+    # employee Leave Requests
+    path('leave-requests/', LeaveRequestViewSet.as_view(), name='leave-requests'),
+    path('leave-requests/<int:pk>/', LeaveRequestViewSet.as_view(), name='leave-request-detail'),
 
 
 

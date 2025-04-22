@@ -140,8 +140,8 @@ class Holiday(models.Model):
 
 class LeaveRequest(models.Model):
     leave_type = models.CharField(choices=[('CL', 'Casual Leave'), ('PL', 'Personal Leave')], max_length=2)
-    start_date = models.DateField()
-    end_date = models.DateField(null=True, blank=True)
+    from_date = models.DateField()
+    to_date = models.DateField(null=True, blank=True)
     reason = models.TextField()
     status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('HR Approved', 'HR Approved'), ('HR Rejected', 'HR Rejected'), ('Admin Approved', 'Admin Approved'), ('Admin Rejected', 'Admin Rejected')], default='Pending')
     hr_reviewed = models.BooleanField(default=False)
@@ -150,7 +150,7 @@ class LeaveRequest(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.employee.username} - {self.leave_type} ({self.status})"
+        return f"{self.employee.first_name} - {self.leave_type} ({self.status})"
 
 
 

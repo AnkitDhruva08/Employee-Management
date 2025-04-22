@@ -87,19 +87,46 @@ class EmployeeBankDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
-    def get(self, request):
-        try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
-            bank_details = BankDetails.objects.filter(employee=employee)
-            serializer = BankDetailsSerializer(bank_details, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+    def get(self, request, *args, **kwargs):
+        pk = kwargs.get('pk', None)
+        print('pk:', pk)
 
-        except Employee.DoesNotExist:
-            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            user_email = request.user.email
+            is_company = Company.objects.filter(email=user_email).exists()
+            print('is_company:', is_company)
+
+            if pk:
+                try:
+                    bank_detail = BankDetails.objects.get(employee_id=pk)
+                    print('bank_detail ==<<>>', bank_detail)
+                    if is_company or bank_detail.employee.user.email == user_email:
+                        serializer = BankDetailsSerializer(bank_detail)
+                        return Response(serializer.data, status=status.HTTP_200_OK)
+                    else:
+                        return Response({'error': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
+                except BankDetails.DoesNotExist:
+                    return Response({'error': 'Bank details not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            else:
+                if is_company:
+                    company = Company.objects.get(email=user_email)
+                    employees = Employee.objects.filter(company_id=company.id)
+                    bank_details = BankDetails.objects.filter(employee__in=employees)
+                else:
+                    employee = Employee.objects.get(user__email=user_email)
+                    bank_details = BankDetails.objects.filter(employee=employee)
+
+                serializer = BankDetailsSerializer(bank_details, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
         try:
             employee = Employee.objects.get(first_name=request.user.first_name)
+            print('employee:', employee)
             data = request.data.copy()
             data['employee'] = employee.id 
 
@@ -115,7 +142,9 @@ class EmployeeBankDetailsView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, pk):
+    def put(self, request, *args, **kwargs):
+        pk = kwargs.get('pk', None)
+        print('pk update ==<<>>>:', pk)
         try:
             bank_details = BankDetails.objects.get(pk=pk)
         except BankDetails.DoesNotExist:

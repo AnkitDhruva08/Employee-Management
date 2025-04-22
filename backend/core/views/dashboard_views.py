@@ -21,6 +21,8 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         is_company = User.objects.filter(username=user).values('is_company').first()
+        email = request.user.email
+        print('email ==<<>>', email)
         if(is_company['is_company']):
             try:
                 if hasattr(user, 'is_company') and user.is_company:
@@ -32,6 +34,7 @@ class DashboardView(APIView):
 
                     return Response({
                         "is_company": is_company['is_company'],
+                        'email': email,
                         "role": "Company",
                         "company": company.company_name,
                         "total_employees": total_employees,
@@ -55,6 +58,7 @@ class DashboardView(APIView):
 
                     return Response({
                         "role_id": role_id['role_id'],
+                        'email': email,
                         "role": "Company",
                         "company": company.company_name,
                         "total_employees": total_employees,
@@ -78,6 +82,7 @@ class DashboardView(APIView):
                     return Response({
                         "role_id": role_id['role_id'],
                         "role": "Company",
+                        'email': email,
                         "company": company.company_name,
                         "total_employees": total_employees,
                         "total_leave_requests": total_leave_requests,
@@ -99,6 +104,7 @@ class DashboardView(APIView):
 
                     return Response({
                         "employee_details": employee_details,
+                        'email': email,
                         "role": role['role_name'],
                         "role_id": role_id['role_id'],
                         "company": company_name['company_name'],

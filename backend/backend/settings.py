@@ -125,10 +125,10 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
 
-    # limit users to 10 requests per minute
-    'DEFAULT_THROTTLE_RATES': {
-        'user': '10/minute',  
-    },
+    # # limit users to 10 requests per minute
+    # 'DEFAULT_THROTTLE_RATES': {
+    #     'user': '10/minute',  
+    # },
     
     # pagination configuration and show 5 items per page for pagination
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',

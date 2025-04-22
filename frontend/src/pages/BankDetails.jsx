@@ -3,8 +3,11 @@ import {
   Upload, User, Banknote, Landmark,
   CreditCard, FileText, FileCheck
 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 
 const BankDetails = () => {
+  const { id } = useParams();
+  console.log('id ===>', id)
   const [bankData, setBankData] = useState({
     id: null, 
     account_holder_name: '',
@@ -23,43 +26,41 @@ const BankDetails = () => {
 
   useEffect(() => {
     const fetchBankDetails = async () => {
+      if (!id) return; 
       const token = localStorage.getItem("token");
-
+  
       try {
-        const response = await fetch("http://localhost:8000/api/employee-bank-details", {
+        const response = await fetch(`http://localhost:8000/api/employee-bank-details/${id}/`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         });
-
+  
         if (!response.ok) throw new Error("Unauthorized or no data found");
-
+  
         const data = await response.json();
-        console.log('data ==<<<>>>>', data)
-
-        if (Array.isArray(data) && data.length > 0) {
-          const firstBankDetail = data[0];
-          setBankData({
-            ...firstBankDetail,
-            bank_details_pdf: null, 
-          });
-          setIsUpdating(true);
-        } else {
-          setIsUpdating(false);
-        }
-
-        setLoading(false);
+        console.log('Bank detail data:', data);
+  
+        setBankData({
+          ...data,
+          bank_details_pdf: null, 
+        });
+        setIsUpdating(true);
       } catch (err) {
+        console.error(err);
         setError(err.message);
+      } finally {
         setLoading(false);
+        setIsUpdating(true);
       }
     };
-
+  
     fetchBankDetails();
-  }, []);
+  }, [id]);
 
+  
   const handleChange = (e) => {
     setBankData({ ...bankData, [e.target.name]: e.target.value });
   };
@@ -88,7 +89,7 @@ const BankDetails = () => {
       });
 
       const endpoint = isUpdating
-        ? `http://localhost:8000/api/employee-bank-details/${bankData.id}/`
+        ? `http://localhost:8000/api/employee-bank-details/${id}/`
         : "http://localhost:8000/api/employee-bank-details/";
 
       const response = await fetch(endpoint, {

@@ -386,3 +386,11 @@ Relationships:
 Many-to-One with Employee
 Visual Representation
 
+
+
+
+<!-- REACT EDITOR -->
+npm install react-quill
+npm install quill
+npm install react-date-range date-fns
+
