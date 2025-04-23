@@ -8,7 +8,7 @@ class User(AbstractUser):
     is_employee = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.username 
+        return self.username
 
 
 class Company(models.Model):
@@ -17,6 +17,13 @@ class Company(models.Model):
     email = models.EmailField(unique=True)
     team_size = models.CharField(max_length=20)
     address = models.TextField()
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="company_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="company_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return self.company_name
@@ -24,6 +31,13 @@ class Company(models.Model):
 
 class Role(models.Model):
     role_name = models.CharField(max_length=100)  # e.g., HR, Admin, Engineer
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="role_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="role_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return self.role_name
@@ -34,21 +48,23 @@ class Employee(models.Model):
         ('male', 'Male'),
         ('female', 'Female'),
     ]
-    company = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employees')   
-    # Employee Details
+    company = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employees')
     first_name = models.CharField("First Name", max_length=100)
     middle_name = models.CharField("Middle Name (Optional)", max_length=100, blank=True, null=True)
     last_name = models.CharField("Last Name (Surname)", max_length=100)
-
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, verbose_name="Designation")
-
     contact_number = models.CharField("Contact Number", max_length=15)
-
     company_email = models.EmailField("Company's Email Address")
     personal_email = models.EmailField("Personal Email Address")
-
     date_of_birth = models.DateField("Date of Birth")
     gender = models.CharField("Gender", max_length=10, choices=GENDER_CHOICES)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="employee_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="employee_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -59,6 +75,13 @@ class EmergencyContact(models.Model):
     emergency_name = models.CharField(max_length=100)
     emergency_relation = models.CharField(max_length=50)
     emergency_contact = models.CharField(max_length=15)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="emergency_contact_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="emergency_contact_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.emergency_name} ({self.emergency_relation})"
@@ -70,6 +93,13 @@ class NomineeDetails(models.Model):
     nominee_dob = models.DateField()
     nominee_relation = models.CharField(max_length=50)
     nominee_contact = models.CharField(max_length=15)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="nominee_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="nominee_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.nominee_name} ({self.nominee_relation})"
@@ -84,6 +114,13 @@ class BankDetails(models.Model):
     account_number = models.CharField(max_length=20)
     account_type = models.CharField(max_length=10, choices=[('saving', 'Saving'), ('salary', 'Salary')])
     bank_details_pdf = models.FileField(upload_to='bank_pdfs/', null=True, blank=True)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="bank_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="bank_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.account_holder_name} - {self.bank_name}"
@@ -96,6 +133,13 @@ class OfficeDetails(models.Model):
     job_role = models.CharField(max_length=100)
     reporting_to = models.CharField(max_length=100)
     date_of_leaving = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="office_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="office_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.reporting_to} - {self.date_of_joining}"
@@ -115,7 +159,13 @@ class EmployeeDocument(models.Model):
     promotion = models.FileField(upload_to='promotion_documents/', blank=True, null=True)
     resume = models.FileField(upload_to='resume_documents/', blank=True, null=True)
     esic_card = models.FileField(upload_to='esic_documents/', blank=True, null=True)
+    active = models.BooleanField(default=True)  # New field
 
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="document_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="document_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
 
 class Event(models.Model):
@@ -123,6 +173,13 @@ class Event(models.Model):
     title = models.CharField(max_length=255)
     date = models.DateField()
     description = models.TextField(blank=True)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="event_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="event_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.title} ({self.date})"
@@ -132,10 +189,16 @@ class Holiday(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     date = models.DateField()
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="holiday_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="holiday_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.name} - {self.date}"
-
 
 
 class LeaveRequest(models.Model):
@@ -148,10 +211,16 @@ class LeaveRequest(models.Model):
     admin_reviewed = models.BooleanField(default=False)
     applied_at = models.DateTimeField(auto_now_add=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
+    active = models.BooleanField(default=True)  # New field
+
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="leave_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="leave_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.employee.first_name} - {self.leave_type} ({self.status})"
-
 
 
 class LeaveBalance(models.Model):
@@ -159,6 +228,12 @@ class LeaveBalance(models.Model):
     casual_leave = models.FloatField(default=0.0)
     personal_leave = models.FloatField(default=0.0)
     last_updated = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)  # New field
 
+    # Audit fields
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="leave_balance_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="leave_balance_updated_by")
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     def __str__(self):
         return f"{self.employee.username} - CL: {self.casual_leave}, PL: {self.personal_leave}"

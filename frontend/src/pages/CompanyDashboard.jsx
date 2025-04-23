@@ -123,7 +123,7 @@ const CompanyDashboard = () => {
               <Link to="/employee-details" className="bg-blue-500 text-white p-4 rounded-lg shadow-lg text-center hover:bg-blue-600 transition">
                 Employees
               </Link>
-              <Link to="/leave-requests" className="bg-yellow-500 text-white p-4 rounded-lg shadow-lg text-center hover:bg-yellow-600 transition">
+              <Link to="/leave-table" className="bg-yellow-500 text-white p-4 rounded-lg shadow-lg text-center hover:bg-yellow-600 transition">
                 Leave Requests
               </Link>
               <Link to="/role" className="bg-green-500 text-white p-4 rounded-lg shadow-lg text-center hover:bg-green-600 transition">

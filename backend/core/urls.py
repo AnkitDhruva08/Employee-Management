@@ -18,7 +18,7 @@ router = DefaultRouter()
 
 # Registering all our ViewSets
 router.register(r'companies', CompanyViewSet)
-router.register(r'employees', EmployeeViewSet)
+# router.register(r'employees', EmployeeViewSet)
 # router.register(r'leaves', LeaveRequestViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'holidays', HolidayViewSet)
@@ -31,6 +31,10 @@ urlpatterns = [
 
     #  Register Company 
     path('register/', CompanyRegisterView.as_view(), name='company-register'),
+
+    # ADD Empolyees
+    path('employees/', EmployeeViewSet.as_view(), name='employees'),
+    path('employees/<int:pk>/', EmployeeViewSet.as_view(), name='employee'),
 
     # insert Roles 
     path('roles/', InsertRoleView.as_view(), name='roles'),

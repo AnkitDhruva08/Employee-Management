@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import AddEmployee from "./AddEmployee";
-import { Dialog } from "@headlessui/react";
-import { Pencil, Trash2, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUserPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 
 const roleMap = {
   1: "Admin",
@@ -12,183 +12,185 @@ const roleMap = {
 
 const EmployeeTable = () => {
   const [employees, setEmployees] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortKey, setSortKey] = useState("first_name");
-  const [sortAsc, setSortAsc] = useState(true);
-
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const employeesPerPage = 5;
-  const totalPages = Math.ceil(filtered.length / employeesPerPage);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
+  const employeesPerPage = 5;
   const token = localStorage.getItem("token");
 
   const fetchEmployees = async () => {
-    const res = await fetch("http://localhost:8000/api/employees/", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    const list = data.results || [];
-    setEmployees(list);
-    setFiltered(list);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("http://localhost:8000/api/employees/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setEmployees(data);
+      } else {
+        throw new Error("Unexpected response format");
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to fetch employees. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteEmployee = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/employees/${id}/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const results = await res.json();
+      console.log('results ==<<>>', results);
+      fetchEmployees();
+    } catch (err) {
+      console.error("Delete error:", err);
+      setError("Failed to delete employee.");
+    }
   };
 
   useEffect(() => {
     fetchEmployees();
   }, []);
 
-  useEffect(() => {
-    const term = searchTerm.toLowerCase();
-    const result = employees.filter((emp) =>
-      `${emp.first_name} ${emp.last_name} ${emp.company_email}`.toLowerCase().includes(term)
-    );
-    setFiltered(result);
-    setCurrentPage(1);
-  }, [searchTerm, employees]);
-
-  const sortBy = (key) => {
-    const sorted = [...filtered].sort((a, b) => {
-      const valA = (a[key] || "").toString().toLowerCase();
-      const valB = (b[key] || "").toString().toLowerCase();
-      return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-    });
-    setFiltered(sorted);
-    setSortAsc(!sortAsc);
-    setSortKey(key);
-  };
-
-  const deleteEmployee = async (id) => {
-    await fetch(`http://localhost:8000/api/employees/${id}/`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchEmployees();
-  };
-
-  const currentEmployees = filtered.slice(
+  const currentEmployees = employees.slice(
     (currentPage - 1) * employeesPerPage,
     currentPage * employeesPerPage
   );
 
+  const totalPages = Math.ceil(employees.length / employeesPerPage);
+
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-      <div className="flex flex-col md:flex-row md:justify-between items-center mb-6 gap-4">
-        <h2 className="text-3xl font-bold text-blue-700">Employees</h2>
-
-        <div className="flex gap-2">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-          </div>
-
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-blue-600 text-white px-5 py-2 rounded-xl font-semibold hover:bg-blue-700 transition"
-          >
-            + Add Employee
+    <div className="max-w-[100rem] mx-auto mt-8 font-sans border rounded shadow-md px-4 sm:px-6 lg:px-8 overflow-x-auto">
+      
+      {/* Header */}
+      <div className="bg-[#2b4d76] text-white px-6 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 rounded-t">
+        <h2 className="text-xl font-semibold">
+          Manage <span className="font-bold">Employees</span>
+        </h2>
+        <div className="flex space-x-2">
+          <button className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded font-medium">
+            <FontAwesomeIcon icon={faTrash} /> Delete
           </button>
+          <Link
+            to="/add-employees"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
+          >
+            <FontAwesomeIcon icon={faUserPlus} /> Add New Employee
+          </Link>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg shadow-md">
-        <table className="w-full table-auto border-collapse border border-gray-200 bg-white rounded-xl text-sm">
-          <thead className="bg-blue-50 text-gray-700 font-semibold">
-            <tr>
-              {["Name", "Contact", "Company Email", "Role"].map((col, i) => (
-                <th
-                  key={i}
-                  onClick={() => sortBy(col.toLowerCase().replace(" ", "_"))}
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-blue-100 transition"
-                >
-                  {col} {sortKey === col.toLowerCase().replace(" ", "_") ? (sortAsc ? "▲" : "▼") : ""}
-                </th>
-              ))}
-              <th className="px-4 py-3 text-left">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentEmployees.map((emp) => (
-              <tr key={emp.id} className="border-t border-gray-200 hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  {emp.first_name} {emp.middle_name} {emp.last_name}
-                </td>
-                <td className="px-4 py-3">{emp.contact_number}</td>
-                <td className="px-4 py-3">{emp.company_email}</td>
-                <td className="px-4 py-3">{roleMap[emp.role] || "Unknown"}</td>
-                <td className="px-4 py-3 flex space-x-2">
-                    <div className="flex space-x-2">
-                        <Link to={`/employees/${emp.id}`} className="text-blue-600 hover:underline">
-                        <Eye size={18} />
-                        </Link>
-                        <button className="text-green-600 hover:underline">
-                        <Pencil size={18} />
-                        </button>
-                        <button
-                        onClick={() => deleteEmployee(emp.id)}
-                        className="text-red-600 hover:underline"
-                        >
-                        <Trash2 size={18} />
-                        </button>
-                    </div>
-                </td>
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-100 text-red-700 px-4 py-2 border-l-4 border-red-500 mb-4">
+          {error}
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        {loading ? (
+          <div className="p-6 text-center text-gray-500">Loading employees...</div>
+        ) : (
+          <table className="min-w-full text-sm border-t">
+            <thead className="bg-gray-100 text-gray-700">
+              <tr>
+                <th className="p-3 border text-left">Sr no.</th>
+                <th className="p-3 border text-left">Employees Name</th>
+                <th className="p-3 border text-left">Company Name</th>
+                <th className="p-3 border text-left">Comapany Email</th>
+                <th className="p-3 border text-left">Personal Email</th>
+                <th className="p-3 border text-left">Contact Number</th>
+                <th className="p-3 border text-left">Role</th>
+                <th className="p-3 border text-left">Date Of Birth</th>
+                <th className="p-3 border text-left">Gender</th>
+                <th className="p-3 border text-left">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {currentEmployees.map((emp, index) => (
+                <tr key={emp.id} className="border hover:bg-gray-50">
+                  <td className="p-3 border">
+                    {index + 1}
+                  </td>
+                  <td className="p-3 border">{emp.username}</td>
+                  <td className="p-3 border">{emp.company_name}</td>
+                  <td className="p-3 border">{emp.company_email}</td>
+                  <td className="p-3 border">{emp.personal_email}</td>
+                  <td className="p-3 border">{emp.contact_number}</td>
+                  <td className="p-3 border">{emp.role_name}</td>
+                  <td className="p-3 border">{emp.date_of_birth}</td>
+                  <td className="p-3 border">{emp.gender}</td>
+                  <td className="p-3 border">
+                    <div className="flex space-x-3">
+                      <button className="text-blue-600 hover:text-blue-800 cursor-pointer">
+                        <Eye size={18} />
+                      </button>
+                      <button className="text-yellow-500 hover:text-yellow-600 cursor-pointer">
+                    <Link to={`/add-employees/${emp.id}`}>
+                      <Pencil size={18} />
+                    </Link>
+                  </button>
+                      <button
+                        onClick={() => deleteEmployee(emp.id)}
+                        className="text-red-600 hover:text-red-700 cursor-pointer"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Pagination */}
-      <div className="flex justify-between items-center mt-6">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage((prev) => prev - 1)}
-          className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-        >
-          <ChevronLeft size={16} />
-          Previous
-        </button>
-
-        <span className="text-sm text-gray-600">
-          Page {currentPage} of {totalPages}
-        </span>
-
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage((prev) => prev + 1)}
-          className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
-        >
-          Next <ChevronRight size={16} />
-        </button>
-      </div>
-
-      {/* Modal */}
-      <Dialog open={showModal} onClose={() => setShowModal(false)} className="fixed z-10 inset-0 overflow-y-auto">
-        <div className="flex items-center justify-center min-h-screen p-4">
-          <Dialog.Panel className="bg-white rounded-2xl p-6 shadow-xl w-full max-w-3xl">
-           
-            <AddEmployee />
-            <div className="flex justify-end mt-6">
+      {!loading && employees.length > 0 && (
+        <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-3 bg-white border-t text-sm rounded-b gap-2">
+          <span className="text-gray-700">
+            Showing {currentEmployees.length} out of {employees.length} entries
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              className="px-3 py-1 rounded bg-white border hover:bg-gray-100"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => (
               <button
-                className="px-4 py-2 bg-gray-200 rounded-xl hover:bg-gray-300"
-                onClick={() => setShowModal(false)}
+                key={i + 1}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-3 py-1 rounded border ${
+                  currentPage === i + 1
+                    ? "bg-blue-500 text-white"
+                    : "bg-white hover:bg-gray-100"
+                }`}
               >
-                Close
+                {i + 1}
               </button>
-            </div>
-          </Dialog.Panel>
+            ))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              className="px-3 py-1 rounded bg-white border hover:bg-gray-100"
+            >
+              Next
+            </button>
+          </div>
         </div>
-      </Dialog>
+      )}
     </div>
   );
 };
 
 export default EmployeeTable;
-

@@ -6,17 +6,54 @@ from core.serializers import EmployeeDocumentSerializer, EmployeeSerializer, Ban
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models import F, Value, CharField
+from django.db.models.functions import Concat
+import traceback
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
 
 # Employee ModelViewSet for Employee CRUD operations
 
-class EmployeeViewSet(viewsets.ModelViewSet):
+class EmployeeViewSet(APIView):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
 
+    def get(self, request, *args, **kwargs):
+        try:
+            company = Company.objects.filter(email=request.user.email).first()
+            
+            if company:
+                employees = Employee.objects.filter(company=company.user, active=True) \
+                    .select_related('role', 'company') \
+                    .annotate(
+                        username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
+                        role_name=F('role__role_name'),
+                        company_name=F('company__company__company_name')
+                    ) \
+                    .values(
+                        'id',
+                        'username',
+                        'contact_number',
+                        'company_email',
+                        'personal_email',
+                        'date_of_birth',
+                        'gender',
+                        'company_name',
+                        'role_name'
+                    ).order_by('-id') 
+
+                return Response(employees)
+            else:
+                return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
         username = request.user
@@ -79,6 +116,26 @@ class EmployeeViewSet(viewsets.ModelViewSet):
             return Response({'success': 'Employee created successfully.'}, status=status.HTTP_201_CREATED)
         except Exception as e:
                 return Response({'error': f'Employee creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST) 
+        
+    # For Delete Employee
+    def post(self, request, pk=None, *args, **kwargs):
+        print('pk:', pk)
+        try:
+            employee = get_object_or_404(Employee, pk=pk)
+
+            employee.active = False
+            employee.save()
+
+            return Response({'success': 'Employee deactivated successfully.'}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
 
 
 

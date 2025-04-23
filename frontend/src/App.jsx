@@ -15,6 +15,7 @@ import EmergencyContact from './pages/EmergencyContact';
 import OfficeDetails from './pages/OfficeDetails';
 import Leave from './pages/Leave';
 import EmployeeTable from './pages/EmployeeTable';
+import LeaveTable from './pages/LeaveTable';
 function App() {
   return (
     <Router>
@@ -27,7 +28,8 @@ function App() {
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
         <Route path="/employees/:id" element={<EmployeeDashboard />} />
         <Route path="/role" element={<Role />} />
-        <Route path="/employees" element={<AddEmployee />} />
+        <Route path="/add-employees" element={<AddEmployee />} />
+        <Route path="/add-employees/:id" element={<AddEmployee />} />
         <Route path="/bank-details" element={<BankDetails />} />
         <Route path="/bank-details/:id" element={<BankDetails />} />
         <Route path="/login" element={<Login />} />
@@ -37,6 +39,7 @@ function App() {
         <Route path="/employee-office-details" element={<OfficeDetails />} />
         <Route path="/leave-details" element={<Leave />} />
         <Route path="/employee-details" element={<EmployeeTable />} />
+        <Route path="/leave-table" element={<LeaveTable />} />
       </Routes>
     </Router>
   );
