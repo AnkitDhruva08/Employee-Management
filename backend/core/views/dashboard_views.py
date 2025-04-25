@@ -18,6 +18,7 @@ User = get_user_model()
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
+    
     def get(self, request, *args, **kwargs):
         user = request.user
         is_company = User.objects.filter(username=user).values('is_company').first()
@@ -46,7 +47,8 @@ class DashboardView(APIView):
                     return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
         
         else:
-            role_id = Employee.objects.filter(first_name=user).values('role_id').first()
+            role_id = Employee.objects.filter(company_email=email).values('role_id').first()
+            print('role_id:', role_id)
             # Admin Dashboard
             if(role_id['role_id'] == 1):
                 try:
@@ -96,7 +98,7 @@ class DashboardView(APIView):
             # Solution Engineer
             else:
                 try:
-                    company_id = Employee.objects.get(first_name=user).company_id
+                    company_id = Employee.objects.get(company_email=email).company_id
                     company_name = Company.objects.filter(id=company_id).values('company_name').first()
                     role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
                     employee_details = Employee.objects.filter(first_name=user).values('first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 

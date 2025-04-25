@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { FaSignOutAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
-const Header = () => {
+const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -51,7 +51,7 @@ const Header = () => {
 
   return (
     <div className="w-full bg-white shadow p-4 flex justify-between items-center">
-      <div className="text-xl font-semibold text-gray-800">Dashboard</div>
+      <div className="text-xl font-semibold text-gray-800">{title}</div>
 
       <div className="relative flex items-center gap-4 cursor-pointer" onClick={() => setShowDropdown(!showDropdown)}>
         {/* User Info */}

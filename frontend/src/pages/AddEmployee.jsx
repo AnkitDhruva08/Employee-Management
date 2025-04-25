@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import Swal from 'sweetalert2';
 const AddEmployee = () => {
   const { id } = useParams();
   console.log('id ===>', id)
@@ -18,22 +19,52 @@ const AddEmployee = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [roles, setRoles] = useState([]);
+  // Headre Content for update/add
+  let HedareContent = ''
+  if (!id) {
+    HedareContent = 'ADD NEW EMPLOYEE'
+  }
+  else {
+    HedareContent = 'UPDATE EMPLOYEE RECORDS'
+  }
 
+  // button Text
+  let buttonText = id? 'UPDATE' : 'ADD'
+
+  // For Fetch The Employee Data
   useEffect(() => {
     if (id) {
       const fetchEmployee = async () => {
         try {
-          const res = await fetch(`http://localhost:8000/api/employees/${id}/`);
+          const token = localStorage.getItem("token");
+          if (!token) {
+            throw new Error("No auth token found");
+          }
+  
+          const res = await fetch(`http://localhost:8000/api/employees/${id}/`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+  
           if (!res.ok) throw new Error("Failed to fetch employee");
           const data = await res.json();
-          setFormData(data);
+        
+          console.log('Employee data:', data);
+          setFormData({
+            ...data,
+            job_role: data.role_id
+          });
+          
         } catch (err) {
           console.error("Error loading employee:", err);
+          setError("Failed to load employee data. Please login again.");
         }
       };
       fetchEmployee();
     }
-  })
+  }, [id]);
+  
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -65,9 +96,12 @@ const AddEmployee = () => {
       return;
     }
 
+    const method = id ? "PUT" : "POST";
+    const url = id ? `http://localhost:8000/api/employees/${id}/` : "http://localhost:8000/api/employees/";
+
     try {
-      const response = await fetch("http://localhost:8000/api/employees/", {
-        method: "POST",
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -76,31 +110,53 @@ const AddEmployee = () => {
       });
 
       if (response.ok) {
-        setSuccess("Employee added successfully!");
-        setFormData({
-          first_name: "",
-          middle_name: "",
-          last_name: "",
-          contact_number: "",
-          company_email: "",
-          personal_email: "",
-          date_of_birth: "",
-          gender: "",
-          job_role: "",
+        // Display Success Message
+        Swal.fire({
+          title: id ? "Updated!" : "Added!",
+          text: id ? "Employee record has been updated." : "New employee has been added.",
+          icon: "success",
+          confirmButtonText: "OK",
         });
+
+        // Reset form if adding a new employee
+        if (!id) {
+          setFormData({
+            first_name: "",
+            middle_name: "",
+            last_name: "",
+            contact_number: "",
+            company_email: "",
+            personal_email: "",
+            date_of_birth: "",
+            gender: "",
+            job_role: "",
+          });
+        }
       } else {
         const errorData = await response.json();
-        setError(errorData?.error || "Failed to add employee");
+        setError(errorData?.error || "Operation failed.");
+        Swal.fire({
+          title: "Error!",
+          text: errorData?.error || "Operation failed.",
+          icon: "error",
+          confirmButtonText: "OK",
+        });
       }
     } catch (err) {
-      console.error("Server error", err);
       setError("Server error");
+      Swal.fire({
+        title: "Error!",
+        text: "There was a problem connecting to the server.",
+        icon: "error",
+        confirmButtonText: "OK",
+      });
     }
   };
+  
 
   return (
     <div className="max-w-6xl mx-auto mt-8 px-6 py-10 bg-white rounded-3xl shadow-xl border border-gray-200">
-      <h2 className="text-4xl font-bold text-center text-blue-700 mb-12">Add New Employee</h2>
+      <h2 className="text-4xl font-bold text-center text-blue-700 mb-12">{HedareContent}</h2>
       <form onSubmit={handleSubmit} className=" ax-w-[100rem]  mt-8space-y-10">
         <SectionTitle title="Personal Information" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -123,7 +179,7 @@ const AddEmployee = () => {
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-10 rounded-full text-lg font-semibold shadow-lg hover:scale-105 transition-transform"
           >
-            Add Employee
+            {buttonText}
           </button>
         </div>
       </form>

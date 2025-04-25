@@ -6,7 +6,7 @@ import {
 } from 'react-icons/fa';
 
 
-import Header from "../componets/header/ Header";
+import Header from "../componets/header/Header";
 
 const EmployeeDashboard = () => {
   const { id } = useParams();

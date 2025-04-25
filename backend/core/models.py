@@ -17,7 +17,7 @@ class Company(models.Model):
     email = models.EmailField(unique=True)
     team_size = models.CharField(max_length=20)
     address = models.TextField()
-    active = models.BooleanField(default=True)  # New field
+    active = models.BooleanField(default=True)  
 
     # Audit fields
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="company_created_by")
@@ -237,3 +237,20 @@ class LeaveBalance(models.Model):
     updated_at = models.DateTimeField(default=timezone.now)
     def __str__(self):
         return f"{self.employee.username} - CL: {self.casual_leave}, PL: {self.personal_leave}"
+
+
+
+
+
+
+#  company dashboar link 
+
+
+class CompanyDashboardLink(models.Model):
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=255)
+    color = models.CharField(max_length=50)
+    icons = models.CharField(max_length=50, blank=True, null=True) 
+
+    def __str__(self):
+        return self.name

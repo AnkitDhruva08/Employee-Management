@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails
+from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -83,3 +83,12 @@ class EmployeeOfficeDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = OfficeDetails
         fields = '__all__'
+
+
+
+
+
+class CompanyDashboardLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanyDashboardLink
+        fields = ['name', 'path', 'color', 'icons']

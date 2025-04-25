@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from core.views.company_views import CompanyViewSet
+from core.views.company_views import CompanyViewSet, CompanyDashboardViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
 from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
@@ -17,6 +17,7 @@ from core.views.dashboard_views import DashboardView
 router = DefaultRouter()
 
 # Registering all our ViewSets
+router.register(r'company-dashboard-link', CompanyDashboardViewSet)
 router.register(r'companies', CompanyViewSet)
 # router.register(r'employees', EmployeeViewSet)
 # router.register(r'leaves', LeaveRequestViewSet)

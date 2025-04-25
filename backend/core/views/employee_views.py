@@ -13,7 +13,6 @@ from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
-
 # Employee ModelViewSet for Employee CRUD operations
 
 class EmployeeViewSet(APIView):
@@ -21,65 +20,90 @@ class EmployeeViewSet(APIView):
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
+    
+    def get(self, request, pk=None, *args, **kwargs):
         try:
             company = Company.objects.filter(email=request.user.email).first()
-            
-            if company:
-                employees = Employee.objects.filter(company=company.user, active=True) \
-                    .select_related('role', 'company') \
-                    .annotate(
-                        username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
-                        role_name=F('role__role_name'),
-                        company_name=F('company__company__company_name')
-                    ) \
-                    .values(
-                        'id',
-                        'username',
-                        'contact_number',
-                        'company_email',
-                        'personal_email',
-                        'date_of_birth',
-                        'gender',
-                        'company_name',
-                        'role_name'
-                    ).order_by('-id') 
+            print('company:', company)
+            print('pk:', pk)
 
-                return Response(employees)
-            else:
+            if not company:
                 return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+            employees_query = Employee.objects.filter(company=company.user, active=True)
+
+            if pk:
+                # Fetch specific employee details (raw fields)
+                employee = employees_query.filter(id=pk, company=company.user, active=True).values(
+                    'id',
+                    'first_name',
+                    'middle_name',
+                    'last_name',
+                    'contact_number',
+                    'company_email',
+                    'personal_email',
+                    'date_of_birth',
+                    'gender',
+                    'role_id'
+                ).first()
+
+                if employee:
+                    return Response(employee)
+                else:
+                    return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            # Fetch all employees with annotations
+            employees = employees_query.select_related('role', 'company') \
+                .annotate(
+                    username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
+                    role_name=F('role__role_name'),
+                    company_name=F('company__company__company_name')
+                ) \
+                .values(
+                    'id',
+                    'username',
+                    'contact_number',
+                    'company_email',
+                    'personal_email',
+                    'date_of_birth',
+                    'gender',
+                    'company_name',
+                    'role_name'
+                ).order_by('-id')
+
+            return Response(employees)
+
         except Exception as e:
-            traceback.print_exc()
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print('Error:', e)
+            return Response({'error': 'Something went wrong'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         
-    def create(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         data = request.data.copy()
-        username = request.user
-        company_id = Company.objects.get(company_name=request.user).id
+        print('data:', data)
 
-        # 1. Validate role from designation
-        role_id = data.get('Designation') or data.get('designation') or data.get('role')
-        
-        if not role_id:
+        username = request.user
+        try:
+            company_id = Company.objects.get(company_name=request.user).id
+        except Company.DoesNotExist:
+            return Response({'error': 'Invalid company or user.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 1. Get and validate role
+        role_input = data.get('job_role') or data.get('Designation') or data.get('designation') or data.get('role')
+        if not role_input:
             return Response({'error': 'Designation (Role) is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Allow both role ID or name
-            if str(role_id).isdigit():
-                role = Role.objects.get(id=int(role_id))
-            else:
-                role = Role.objects.get(role_name=role_id.strip())
+            role = Role.objects.get(id=int(role_input)) if str(role_input).isdigit() else Role.objects.get(role_name=role_input.strip())
         except Role.DoesNotExist:
-            return Response({'error': f'Role "{role_id}" does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Role "{role_input}" does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 2. Check if User exists
+        # 2. Check if user exists
+        email = data.get('company_email')
+        print('email:', email)
         try:
-            email = data.get('company_email')
             user = User.objects.get(email=email)
         except User.DoesNotExist:
-            # If user does not exist, create one
             try:
                 user = User.objects.create_user(
                     username=data.get('first_name'),
@@ -92,33 +116,73 @@ class EmployeeViewSet(APIView):
             except Exception as e:
                 return Response({'error': f'User creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3. Check if Employee already exists for this user
+        # 3. Check for existing Employee
         if Employee.objects.filter(company_email=email).exists():
             return Response({'error': 'Employee with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 4. Create Employee
-
+        # 4. Create employee
         try:
             employee = Employee.objects.create(
-                first_name = data.get('first_name'),
-                middle_name=  data.get('middle_name'),
-                last_name =  data.get('last_name'),
-                contact_number = data.get('contact_number'),
-                company_email = data.get('company_email'),
-                personal_email = data.get('personal_email'),
-                date_of_birth = data.get('date_of_birth'),
-                gender = data.get('gender'),
-                role_id = role_id, 
-                company_id = company_id 
-
+                first_name=data.get('first_name'),
+                middle_name=data.get('middle_name'),
+                last_name=data.get('last_name'),
+                contact_number=data.get('contact_number'),
+                company_email=email,
+                personal_email=data.get('personal_email'),
+                date_of_birth=data.get('date_of_birth'),
+                gender=data.get('gender'),
+                role_id=role.id,
+                company_id=company_id
             )
-            # 5. Create NomineeDetails
             return Response({'success': 'Employee created successfully.'}, status=status.HTTP_201_CREATED)
         except Exception as e:
-                return Response({'error': f'Employee creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST) 
+            return Response({'error': f'Employee creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # For Update Employee
+    def put(self, request, pk=None, *args, **kwargs):
+        print('pk:', pk)
+        print('request.data:', request.data)
+        username = request.user.email
+        print('username:', username)
+
+        # Assuming you have an Employee model or serializer to update the employee
+        try:
+            # Fetch the employee by pk
+            employee = Employee.objects.get(id=pk)
+
+            # You can update the employee with data from the request
+            employee.first_name = request.data.get('first_name', employee.first_name)
+            employee.middle_name = request.data.get('middle_name', employee.middle_name)
+            employee.last_name = request.data.get('last_name', employee.last_name)
+            employee.contact_number = request.data.get('contact_number', employee.contact_number)
+            employee.company_email = request.data.get('company_email', employee.company_email)
+            employee.personal_email = request.data.get('personal_email', employee.personal_email)
+            employee.date_of_birth = request.data.get('date_of_birth', employee.date_of_birth)
+            employee.gender = request.data.get('gender', employee.gender)
+            employee.role_id = request.data.get('job_role', employee.role_id)
+
+            # Save the updated employee object
+            employee.save()
+
+            # Return success response
+            return Response({
+                'message': 'Employee updated successfully!',
+                'employee': employee.id  # Optionally include updated data
+            }, status=status.HTTP_200_OK)
+            
+        except Employee.DoesNotExist:
+            return Response({
+                'error': 'Employee not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            # Handle unexpected errors
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         
     # For Delete Employee
-    def post(self, request, pk=None, *args, **kwargs):
+    def delete(self, request, pk=None, *args, **kwargs):
         print('pk:', pk)
         try:
             employee = get_object_or_404(Employee, pk=pk)
@@ -131,13 +195,7 @@ class EmployeeViewSet(APIView):
         except Exception as e:
             traceback.print_exc()
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-
-
-
-
-
-
+ 
 
 # Employee Bank Details CRUD operations
 class EmployeeBankDetailsView(APIView):
@@ -182,7 +240,7 @@ class EmployeeBankDetailsView(APIView):
 
     def post(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             print('employee:', employee)
             data = request.data.copy()
             data['employee'] = employee.id 
@@ -219,17 +277,12 @@ class EmployeeBankDetailsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-
-
-
-
-
 # Nominee Details CRUD operations
 class NomineeDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             nominee_details = NomineeDetails.objects.filter(employee=employee)
             serializer = NomineeDetailsSerializer(nominee_details, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -241,7 +294,7 @@ class NomineeDetailsView(APIView):
         
     def post(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             data = request.data.copy()
             data['employee'] = employee.id 
 
@@ -257,8 +310,6 @@ class NomineeDetailsView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
     def put(self, request, pk):
         try:
             nominee_details = NomineeDetails.objects.get(pk=pk)
@@ -266,8 +317,19 @@ class NomineeDetailsView(APIView):
             return Response({'error': 'Nominee details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
 
         data = request.data.copy()
-        data.pop('id', None)
-        data.pop('employee', None)
+
+        # Remove non-editable fields
+        for field in ['id', 'employee', 'created_at', 'updated_at']:
+            data.pop(field, None)
+
+        # Handle stringified nulls
+        for field in ['created_by', 'updated_by']:
+            if data.get(field) == 'null':
+                data.pop(field)
+
+        # Convert boolean fields
+        if 'active' in data:
+            data['active'] = data['active'].lower() == 'true'
 
         serializer = NomineeDetailsSerializer(nominee_details, data=data, partial=True)
         if serializer.is_valid():
@@ -277,10 +339,6 @@ class NomineeDetailsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-
-
-
-
 # Employee Document Upload/Download Operations
 class EmployeeDocumentUploadView(APIView):
     permission_classes = [IsAuthenticated]
@@ -289,7 +347,7 @@ class EmployeeDocumentUploadView(APIView):
 # get all documents of an employee
     def get(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             employee_documents = EmployeeDocument.objects.filter(employee=employee)
             serializer = EmployeeDocumentSerializer(employee_documents, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -299,7 +357,7 @@ class EmployeeDocumentUploadView(APIView):
 # post a new document of an employee
     def post(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             
             data = request.data.copy()
             data['employee'] = employee.id
@@ -334,17 +392,12 @@ class EmployeeDocumentUploadView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 
-
-
-
-
-
 # Employee Emergency Contact CRUD operations
 class EmployeeEmergencyContactView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             emergency_contacts = EmergencyContact.objects.filter(employee=employee)
             serializer = EmergencyContactSerializer(emergency_contacts, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -356,7 +409,7 @@ class EmployeeEmergencyContactView(APIView):
     def post(self, request):
         try:
             print('data coming from  frontend', request.data)
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             data = request.data.copy()
             data['employee'] = employee.id 
 
@@ -374,14 +427,24 @@ class EmployeeEmergencyContactView(APIView):
         
     def put(self, request, pk):
         try:
-            print('data coming from  frontend', request.data)
             emergency_contact = EmergencyContact.objects.get(pk=pk)
         except EmergencyContact.DoesNotExist:
             return Response({'error': 'Emergency contact not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
 
         data = request.data.copy()
-        data.pop('id', None)
-        data.pop('employee', None)
+
+        # Remove fields that shouldn't be updated
+        for field in ['id', 'employee', 'created_at', 'updated_at']:
+            data.pop(field, None)
+
+        # Handle "null" strings
+        for field in ['created_by', 'updated_by']:
+            if data.get(field) == 'null':
+                data.pop(field)
+
+        # Convert "true"/"false" to boolean
+        if 'active' in data:
+            data['active'] = data['active'].lower() == 'true'
 
         serializer = EmergencyContactSerializer(emergency_contact, data=data, partial=True)
         if serializer.is_valid():
@@ -391,18 +454,12 @@ class EmployeeEmergencyContactView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
-
-
-
-
-
-
 # Employee Offices  Details CRUD operations
 class EmployeeOfficeDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         try:
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             office_details = OfficeDetails.objects.filter(employee=employee)
             serializer = EmployeeOfficeDetailsSerializer(office_details, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -414,7 +471,7 @@ class EmployeeOfficeDetailsView(APIView):
     def post(self, request):
         try:
             print('data coming from  frontend', request.data)
-            employee = Employee.objects.get(first_name=request.user.first_name)
+            employee = Employee.objects.get(company_email=request.user.email)
             print('employee', employee)
             data = request.data.copy()
             data['employee'] = employee.id 

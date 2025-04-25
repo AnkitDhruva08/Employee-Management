@@ -17,6 +17,8 @@ class LeaveRequestViewSet(APIView):
 
     def get(self, request):
         try:
+            email = request.user.email
+            print('email:', email)
             is_company = Company.objects.filter(email=request.user.email).exists()
             if(is_company):
                 try:
@@ -46,8 +48,7 @@ class LeaveRequestViewSet(APIView):
             employee = Employee.objects.get(company_email=request.user.email)
             leave_details = LeaveRequest.objects.filter(employee=employee)
             serializer = LeaveRequestSerializer(leave_details, many=True)
-            print('serializer:', serializer)
-            return Response({'data' : {'data' : serializer.data}}, status=status.HTTP_200_OK)
+            return Response({'data' : serializer.data}, status=status.HTTP_200_OK)
             
 
         except Employee.DoesNotExist:
