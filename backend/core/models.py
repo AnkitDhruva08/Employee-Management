@@ -266,3 +266,15 @@ class EmployeeDashboardLink(models.Model):
 
     def __str__(self):
         return  {self.name}
+
+
+
+# Hr dashboard link
+
+class HrDashboardLink(models.Model):
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=255)
+    color = models.CharField(max_length=50)
+    icons = models.CharField(max_length=50, blank=True, null=True)
+    def __str__(self):
+        return self.name

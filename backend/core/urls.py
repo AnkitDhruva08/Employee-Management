@@ -13,6 +13,7 @@ from rest_framework_simplejwt.views import (
  
 
 from core.views.dashboard_views import DashboardView
+from core.views.hr_views import HrDashboardViewSet
 
 router = DefaultRouter()
 
@@ -23,6 +24,9 @@ router.register(r'employees-dashboard-link', EmployeeDashboardViewSet)
 # router.register(r'leaves', LeaveRequestViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'holidays', HolidayViewSet)
+
+# HR Dashboard
+router.register(r'hr-dashboard-link', HrDashboardViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

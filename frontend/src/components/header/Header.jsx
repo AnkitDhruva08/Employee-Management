@@ -22,6 +22,7 @@ const Header = ({ title }) => {
 
         if (!res.ok) throw new Error("Unauthorized");
         const data = await res.json();
+        console.log('User data:', data);
         setUserData(data);
       } catch (err) {
         setError("Failed to load user info");

@@ -132,7 +132,7 @@ REST_FRAMEWORK = {
     
     # pagination configuration and show 5 items per page for pagination
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,  
+    'PAGE_SIZE': 15,  
 }
 
 

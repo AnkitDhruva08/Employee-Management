@@ -22,6 +22,7 @@ class DashboardView(APIView):
         user = request.user
         is_company = User.objects.filter(username=user).values('is_company').first()
         email = request.user.email
+        print('email:', email)
         if(is_company['is_company']):
             try:
                 if hasattr(user, 'is_company') and user.is_company:
@@ -71,26 +72,36 @@ class DashboardView(APIView):
         
             
             # Hr Dashboard
-            elif(role_id['role_id'] == 2):
+            elif role_id['role_id'] == 2:
                 try:
-                    company = Company.objects.get(company_name=user)
-                    company_id = company.id
+                    role = Role.objects.get(id=role_id['role_id'])
+                    user_id = Employee.objects.get(company_email=email).company_id
+                    company = Company.objects.get(user_id=user_id).company_name
+                    company_id = Company.objects.get(user_id=user_id).id
                     total_employees = Employee.objects.filter(company_id=company_id).count()
                     total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
-                    upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
+                    upcoming_events = Event.objects.filter(
+                        company_id=company_id, 
+                        date__gte=date.today()
+                    ).values('title', 'date')
+
+                    employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
+                            'personal_email', 'date_of_birth', 'gender')
 
                     return Response({
+                          "employee_details": employee_details,
                         "role_id": role_id['role_id'],
-                        "role": "Company",
-                        'email': email,
-                        "company": company.company_name,
+                        "role": role.role_name,
+                        "email": email,
+                        "company": company,
                         "total_employees": total_employees,
                         "total_leave_requests": total_leave_requests,
                         "upcoming_events": upcoming_events,
                     }, status=status.HTTP_200_OK)
-                
+
                 except Company.DoesNotExist:
-                        return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+                    return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+
             
 
             # Solution Engineer
