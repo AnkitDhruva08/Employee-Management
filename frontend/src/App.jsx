@@ -26,7 +26,8 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminDahsboard />} />
         <Route path="/hr-dashboard" element={<HrDashboard />} />
         <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
-        <Route path="/employees/:id" element={<EmployeeDashboard />} />
+        <Route path="/employee-dashboard/:id" element={<EmployeeDashboard />} />
+        {/* <Route path="/employees/:id" element={<EmployeeDashboard />} /> */}
         <Route path="/role" element={<Role />} />
         <Route path="/add-employees" element={<AddEmployee />} />
         <Route path="/add-employees/:id" element={<AddEmployee />} />

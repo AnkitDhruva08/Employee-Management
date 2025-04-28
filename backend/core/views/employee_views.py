@@ -1,8 +1,8 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from core.models import Employee, Role, Company, NomineeDetails, BankDetails, OfficeDetails, EmployeeDocument, EmergencyContact
-from core.serializers import EmployeeDocumentSerializer, EmployeeSerializer, BankDetailsSerializer,NomineeDetailsSerializer, EmergencyContactSerializer, EmployeeOfficeDetailsSerializer
+from core.models import Employee, Role, Company, NomineeDetails, BankDetails, OfficeDetails, EmployeeDocument, EmergencyContact, EmployeeDashboardLink
+from core.serializers import EmployeeDocumentSerializer, EmployeeSerializer, BankDetailsSerializer,NomineeDetailsSerializer, EmergencyContactSerializer, EmployeeOfficeDetailsSerializer,EmployeeDashboardLinkSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -13,19 +13,25 @@ from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
-# Employee ModelViewSet for Employee CRUD operations
 
+
+
+# Employee Dashboard Links
+
+class EmployeeDashboardViewSet(viewsets.ModelViewSet):
+    queryset = EmployeeDashboardLink.objects.all().order_by('id')
+    serializer_class = EmployeeDashboardLinkSerializer
+    permission_classes = [IsAuthenticated]
+
+# Employee ModelViewSet for Employee CRUD operations
 class EmployeeViewSet(APIView):
     queryset = Employee.objects.all()
     serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
-
     
     def get(self, request, pk=None, *args, **kwargs):
         try:
             company = Company.objects.filter(email=request.user.email).first()
-            print('company:', company)
-            print('pk:', pk)
 
             if not company:
                 return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -201,7 +207,6 @@ class EmployeeViewSet(APIView):
 class EmployeeBankDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
-
     def get(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
         print('pk:', pk)
@@ -229,7 +234,7 @@ class EmployeeBankDetailsView(APIView):
                     employees = Employee.objects.filter(company_id=company.id)
                     bank_details = BankDetails.objects.filter(employee__in=employees)
                 else:
-                    employee = Employee.objects.get(user__email=user_email)
+                    employee = Employee.objects.get(company_email=user_email)
                     bank_details = BankDetails.objects.filter(employee=employee)
 
                 serializer = BankDetailsSerializer(bank_details, many=True)

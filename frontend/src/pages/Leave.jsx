@@ -5,12 +5,31 @@ import { useNavigate } from "react-router-dom";
 import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
+import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
+import Header from "../components/header/Header";
+import { employeeDashboardLink, fetchDashboard } from "../utils/api";
 
 const LeaveRequest = () => {
   const [leaves, setLeaves] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [open, setOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [showSingleDate, setShowSingleDate] = useState(true);
+  const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 });
+  const [quickLinks, setQuickLinks] = useState([]);
+  const [existingData, setExistingData] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const token = localStorage.getItem("token");
+  const HeaderTitle = "Employee Leave Details";
+  const employeesPerPage = 5;
 
   const [newLeave, setNewLeave] = useState({
     duration: "Single Day",
@@ -29,44 +48,46 @@ const LeaveRequest = () => {
     },
   ]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-
-  const token = localStorage.getItem("token");
-  const navigate = useNavigate();
-
-  const handleOpen = () => setOpen(!open);
-
-  useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    const fetchLeaves = async () => {
-      try {
-        const response = await fetch("http://localhost:8000/api/leave-requests/", {
+  // Function for fecth Leave Details
+  const fetchLeaves = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/leave-requests/",
+        {
           headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const result = await response.json();
-        console.log('result ==<<>>', result);
-        if (response.ok && Array.isArray(result.data)) {
-          setLeaves(result.data);
-        } else {
-          setError("Failed to fetch leave data.");
         }
+      );
+      const result = await response.json();
+      if (response.ok && Array.isArray(result.data)) {
+        setLeaves(result.data);
+      } else {
+        setError("Failed to fetch leave data.");
+      }
+    } catch (err) {
+      setError("Failed to load data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // calling useEffect to fetch nominee details and dashboard data
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        const links = await employeeDashboardLink(token);
+        const dashboardData = await fetchDashboard(token);
+        setQuickLinks(links);
+        setDashboardData(dashboardData);
       } catch (err) {
-        setError("Failed to load data.");
-      } finally {
-        setLoading(false);
+        setError("Failed to load dashboard");
       }
     };
 
+    fetchLinks();
     fetchLeaves();
-  }, [token, navigate]);
+  }, [token]);
 
+  const handleOpen = () => setOpen(!open);
   // Update from/to dates based on duration selection
   useEffect(() => {
     const { startDate, endDate } = dateRange[0];
@@ -98,6 +119,23 @@ const LeaveRequest = () => {
       setNewLeave((prev) => ({ ...prev, [name]: value }));
     }
   };
+
+  const filteredLeaveRequests = leaveRequests.filter((leave) => {
+    const name =
+      leave.username ||
+      `${leave.employee?.first_name} ${leave.employee?.last_name}`;
+    return (
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      leave.leave_type?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  const currentLeaveRequests = filteredLeaveRequests.slice(
+    (currentPage - 1) * employeesPerPage,
+    currentPage * employeesPerPage
+  );
+
+  const totalPages = Math.ceil(filteredLeaveRequests.length / employeesPerPage);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -135,25 +173,23 @@ const LeaveRequest = () => {
     } catch {
       setError("Failed to connect to server.");
     }
-
   };
 
   const getStatusText = (leave) => {
-    if (leave.admin_reviewed && leave.status === "Admin Approved") {
-      return "Approved";
+    if (!leave.admin_reviewed && !leave.hr_reviewed) {
+      return "Pending";
     }
-    if (leave.hr_reviewed && leave.status === "HR Approved") {
-      return "HR Approved";
-    }
-    if (leave.hr_reviewed && leave.status === "HR Rejected") {
-      return "Rejected";
-    }
-    if (leave.admin_reviewed && leave.status === "Admin Rejected") {
-      return "Rejected";
-    }
-    return "Pending";
-  };
   
+    const statusMap = {
+      "Admin Approved": "Approved",
+      "HR Approved": "HR Approved",
+      "Admin Rejected": "Rejected",
+      "HR Rejected": "Rejected",
+    };
+  
+    return statusMap[leave.status] || "Pending";
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "Approved":
@@ -170,167 +206,225 @@ const LeaveRequest = () => {
         return "bg-gray-500 text-white";
     }
   };
-  
 
   return (
-    <div className="p-6">
-      <button
-        onClick={handleOpen}
-        className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-300"
-      >
-        Apply for Leave
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-50 z-50">
-          <div className="bg-white rounded-lg p-8 max-w-lg w-full shadow-lg">
-            <h2 className="text-2xl font-semibold text-center mb-6">Apply for Leave</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-
-{/* Leave Type */}
-<div>
-  <label htmlFor="leave_type" className="block text-gray-700 mb-1">Leave Type</label>
-  <select
-    id="leave_type"
-    name="leave_type"
-    value={newLeave.leave_type}
-    onChange={handleChange}
-    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    <option value="PL">Personal Leave</option>
-    <option value="SL">Sick Leave</option>
-    <option value="CL">Casual Leave</option>
-  </select>
-</div>
-
-{/* Duration */}
-<div>
-  <label htmlFor="duration" className="block text-gray-700 mb-1">Duration</label>
-  <select
-    id="duration"
-    name="duration"
-    value={newLeave.duration}
-    onChange={handleChange}
-    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  >
-    <option value="Half day">Half Day</option>
-    <option value="Single day">Single Day</option>
-    <option value="Multiple days">Multiple Days</option>
-  </select>
-</div>
-
-{/* Date Fields */}
-<div className="flex flex-col md:flex-row gap-4">
-  <div className="flex-1">
-    <label className="block text-gray-700 mb-1">From Date</label>
-    <input
-      type="date"
-      name="from_date"
-      value={newLeave.from_date}
-      onChange={handleChange}
-      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-    />
-  </div>
-
-  {newLeave.duration === "Multiple days" && (
-    <div className="flex-1">
-      <label className="block text-gray-700 mb-1">To Date</label>
-      <input
-        type="date"
-        name="to_date"
-        value={newLeave.to_date}
-        onChange={handleChange}
-        className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
-  )}
-</div>
-
-{/* Reason */}
-<div>
-  <label htmlFor="reason" className="block text-gray-700 mb-1">Reason</label>
-  <textarea
-    id="reason"
-    name="reason"
-    value={newLeave.reason}
-    onChange={handleChange}
-    rows="4"
-    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  />
-</div>
-
-{/* Attachment */}
-<div>
-  <label htmlFor="attachment" className="block text-gray-700 mb-1">Attachment</label>
-  <input
-    type="file"
-    name="attachment"
-    onChange={handleChange}
-    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-  />
-</div>
-
-{/* Buttons */}
-<div className="flex justify-between">
-  <button
-    type="button"
-    onClick={handleOpen}
-    className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
-  >
-    Cancel
-  </button>
-  <button
-    type="submit"
-    className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
-  >
-    Submit
-  </button>
-</div>
-</form>
-          </div>
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+        <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
+        <div className="flex justify-center mt-8">
+          <EmployeeSidebar quickLinks={quickLinks} />
         </div>
-      )}
-
-      <div className="mt-6">
-        <h2 className="text-2xl font-semibold mb-4">Leave Status</h2>
-        <table className="min-w-full table-auto border border-gray-300">
-          <thead className="bg-blue-50">
-            <tr>
-              <th className="px-4 py-2 border">Leave Type</th>
-              <th className="px-4 py-2 border">From Date</th>
-              <th className="px-4 py-2 border">To Date</th>
-              <th className="px-4 py-2 border">Duration</th>
-              <th className="px-4 py-2 border">Reason</th>
-              <th className="px-4 py-2 border">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-  {leaves.map((leave, index) => (
-    <tr key={index} className="odd:bg-gray-50 even:bg-white">
-      <td className="px-4 py-2 border border-gray-300">{leave.leave_type}</td>
-      <td className="px-4 py-2 border border-gray-300">{leave.from_date}</td>
-      <td className="px-4 py-2 border border-gray-300">{leave.to_date || "-"}</td>
-      <td className="px-4 py-2 border border-gray-300">{leave.duration}</td>
-      <td className="px-4 py-2 border border-gray-300">{leave.reason}</td>
-      <td className={`px-4 py-2 border border-gray-300 text-center font-medium rounded ${getStatusColor(getStatusText(leave))}`}>
-        {getStatusText(leave)}
-      </td>
-    </tr>
-  ))}
-</tbody>
-        </table>
       </div>
 
-      {success && (
-        <div className="fixed bottom-5 left-5 bg-green-500 text-white p-4 rounded-md">
-          {success}
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <Header title={HeaderTitle} />
+
+        <div className="mx-[10px] bg-[#2b4d76] text-white px-6 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 rounded-t mt-6 mb-0">
+          <h2 className="text-xl font-semibold">
+            Leave <span className="font-bold">Requests</span>
+          </h2>
+
+          <div className="flex gap-4 w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="Search by name or leave type..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+              }}
+              className="w-full sm:w-64 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+            />
+            <button
+              onClick={handleOpen}
+              className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-300"
+            >
+              Apply for Leave
+            </button>
+          </div>
         </div>
-      )}
-      {error && (
-        <div className="fixed bottom-5 left-5 bg-red-500 text-white p-4 rounded-md">
-          {error}
+
+        {/* Modal for applying leave */}
+        {open && (
+          <div className="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-50 z-50">
+            <div className="bg-white rounded-lg p-8 max-w-lg w-full shadow-lg">
+              <h2 className="text-2xl font-semibold text-center mb-6">
+                Apply for Leave
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Leave Type */}
+                <div>
+                  <label
+                    htmlFor="leave_type"
+                    className="block text-gray-700 mb-1"
+                  >
+                    Leave Type
+                  </label>
+                  <select
+                    id="leave_type"
+                    name="leave_type"
+                    value={newLeave.leave_type}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="PL">Personal Leave</option>
+                    <option value="SL">Sick Leave</option>
+                    <option value="CL">Casual Leave</option>
+                  </select>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label
+                    htmlFor="duration"
+                    className="block text-gray-700 mb-1"
+                  >
+                    Duration
+                  </label>
+                  <select
+                    id="duration"
+                    name="duration"
+                    value={newLeave.duration}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Half day">Half Day</option>
+                    <option value="Single day">Single Day</option>
+                    <option value="Multiple days">Multiple Days</option>
+                  </select>
+                </div>
+
+                {/* Dates */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-gray-700 mb-1">
+                      From Date
+                    </label>
+                    <input
+                      type="date"
+                      name="from_date"
+                      value={newLeave.from_date}
+                      onChange={handleChange}
+                      className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {newLeave.duration === "Multiple days" && (
+                    <div className="flex-1">
+                      <label className="block text-gray-700 mb-1">
+                        To Date
+                      </label>
+                      <input
+                        type="date"
+                        name="to_date"
+                        value={newLeave.to_date}
+                        onChange={handleChange}
+                        className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label htmlFor="reason" className="block text-gray-700 mb-1">
+                    Reason
+                  </label>
+                  <textarea
+                    id="reason"
+                    name="reason"
+                    value={newLeave.reason}
+                    onChange={handleChange}
+                    rows="4"
+                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Attachment */}
+                <div>
+                  <label
+                    htmlFor="attachment"
+                    className="block text-gray-700 mb-1"
+                  >
+                    Attachment
+                  </label>
+                  <input
+                    type="file"
+                    name="attachment"
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex justify-between">
+                  <button
+                    type="button"
+                    onClick={handleOpen}
+                    className="bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                  >
+                    Submit
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Leave Requests Table */}
+        <div className="p-6">
+          <h2 className="text-2xl font-semibold mb-4">Leave Status</h2>
+          <table className="min-w-full table-auto border border-gray-300">
+            <thead className="bg-blue-50">
+              <tr>
+                <th className="px-4 py-2 border">Leave Type</th>
+                <th className="px-4 py-2 border">From Date</th>
+                <th className="px-4 py-2 border">To Date</th>
+                <th className="px-4 py-2 border">Duration</th>
+                <th className="px-4 py-2 border">Reason</th>
+                <th className="px-4 py-2 border">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaves.map((leave, index) => (
+                <tr key={index} className="odd:bg-gray-50 even:bg-white">
+                  <td className="px-4 py-2 border">{leave.leave_type}</td>
+                  <td className="px-4 py-2 border">{leave.from_date}</td>
+                  <td className="px-4 py-2 border">{leave.to_date || "-"}</td>
+                  <td className="px-4 py-2 border">{leave.duration}</td>
+                  <td className="px-4 py-2 border">{leave.reason}</td>
+                  <td
+                    className={`px-4 py-2 border text-center font-medium ${getStatusColor(
+                      getStatusText(leave)
+                    )}`}
+                  >
+                    {getStatusText(leave)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+
+        {/* Success/Error messages */}
+        {success && (
+          <div className="fixed bottom-5 left-5 bg-green-500 text-white p-4 rounded-md">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="fixed bottom-5 left-5 bg-red-500 text-white p-4 rounded-md">
+            {error}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

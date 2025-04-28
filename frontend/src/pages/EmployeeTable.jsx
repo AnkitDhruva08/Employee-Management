@@ -5,8 +5,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
 import Swal from "sweetalert2";
 
-import Header from "../componets/header/Header";
-import CompanySidebar from "../componets/sidebar/CompanySidebar";
+import Header from "../components/header/Header";
+import CompanySidebar from "../components/sidebar/CompanySidebar";
 import { fetchCompanyDashboardLinks, fetchDashboard } from "../utils/api";
 
 const EmployeeTable = () => {

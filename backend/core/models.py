@@ -245,7 +245,6 @@ class LeaveBalance(models.Model):
 
 #  company dashboar link 
 
-
 class CompanyDashboardLink(models.Model):
     name = models.CharField(max_length=255)
     path = models.CharField(max_length=255)
@@ -254,3 +253,16 @@ class CompanyDashboardLink(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+
+
+# Employee Dashboard link
+class EmployeeDashboardLink(models.Model):
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=255)
+    color = models.CharField(max_length=50)
+    icons = models.CharField(max_length=50, blank=True, null=True) 
+
+    def __str__(self):
+        return  {self.name}

@@ -18,12 +18,10 @@ User = get_user_model()
 class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
-    
     def get(self, request, *args, **kwargs):
         user = request.user
         is_company = User.objects.filter(username=user).values('is_company').first()
         email = request.user.email
-        print('email ==<<>>', email)
         if(is_company['is_company']):
             try:
                 if hasattr(user, 'is_company') and user.is_company:
@@ -101,8 +99,9 @@ class DashboardView(APIView):
                     company_id = Employee.objects.get(company_email=email).company_id
                     company_name = Company.objects.filter(id=company_id).values('company_name').first()
                     role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
-                    employee_details = Employee.objects.filter(first_name=user).values('first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
+                    employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
                             'personal_email', 'date_of_birth', 'gender')
+                    
 
                     return Response({
                         "employee_details": employee_details,

@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import Header from "../componets/header/Header";
+import Header from "../components/header/Header";
 import * as FaIcons from "react-icons/fa";
-import CompanySidebar from "../componets/sidebar/CompanySidebar";
+import CompanySidebar from "../components/sidebar/CompanySidebar";
 import { fetchCompanyDashboardLinks , fetchDashboard} from "../utils/api";
 const CompanyDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
   const [error, setError] = useState(null);
   const token = localStorage.getItem("token");
-
 
   // For Fetch Dashboard Links
   const fetchLinks = async () => {

@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from core.views.company_views import CompanyViewSet, CompanyDashboardViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
-from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
+from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, EmployeeDashboardViewSet
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.event_views import EventViewSet, HolidayViewSet
 from core.views.auth_views import LoginView, CompanyRegisterView
@@ -19,7 +19,7 @@ router = DefaultRouter()
 # Registering all our ViewSets
 router.register(r'company-dashboard-link', CompanyDashboardViewSet)
 router.register(r'companies', CompanyViewSet)
-# router.register(r'employees', EmployeeViewSet)
+router.register(r'employees-dashboard-link', EmployeeDashboardViewSet)
 # router.register(r'leaves', LeaveRequestViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'holidays', HolidayViewSet)

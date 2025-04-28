@@ -87,7 +87,6 @@ class LeaveRequestViewSet(APIView):
 
     def put(self, request, pk, *args, **kwargs):
         try:
-            print('pk update ==<<>>>:', pk)
             print('request.data:', request.data)
             leave_request = LeaveRequest.objects.get(pk=pk)
             print('leave_request:', leave_request)

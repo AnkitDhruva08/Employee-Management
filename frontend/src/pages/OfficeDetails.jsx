@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Briefcase, UserCheck, LogOut, Clock } from "lucide-react";
+import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
+import Header from "../components/header/Header";
+import { employeeDashboardLink, fetchDashboard } from "../utils/api";
 
 const OfficeDetails = () => {
   const [officeData, setOfficeData] = useState({
@@ -12,49 +15,63 @@ const OfficeDetails = () => {
   });
 
   const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 });
+  const navigate = useNavigate();
+  const [quickLinks, setQuickLinks] = useState([]);
   const [existingData, setExistingData] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const navigate = useNavigate();
 
   const token = localStorage.getItem("token");
+  const HeaderTitle = "Employee Office Details";
 
-  useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    // Simulate fetch call
-    const fetchOfficeDetails = async () => {
-      try {
-        const res = await fetch("http://localhost:8000/api/employee-office-details/", {
+  // Function for fetch office details
+  const fetchOfficeDetails = async () => {
+    try {
+      const res = await fetch(
+        "http://localhost:8000/api/employee-office-details/",
+        {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            const office = data[0];
-            setOfficeData(office);
-            calculateDuration(office.date_of_joining, office.date_of_leaving);
-            setExistingData(office);
-            setIsUpdating(true);
-          }
         }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const office = data[0];
+          setOfficeData(office);
+          calculateDuration(office.date_of_joining, office.date_of_leaving);
+          setExistingData(office);
+          setIsUpdating(true);
+        }
+      }
+    } catch (err) {
+      setError("Error fetching office details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // calling useEffect to fetch nominee details and dashboard data
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        const links = await employeeDashboardLink(token);
+        const dashboardData = await fetchDashboard(token);
+        setQuickLinks(links);
+        setDashboardData(dashboardData);
       } catch (err) {
-        setError("Error fetching office details.");
-      } finally {
-        setLoading(false);
+        setError("Failed to load dashboard");
       }
     };
 
+    fetchLinks();
     fetchOfficeDetails();
-  }, [token, navigate]);
+  }, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,7 +79,10 @@ const OfficeDetails = () => {
     setOfficeData(updatedData);
 
     if (name === "date_of_joining" || name === "date_of_leaving") {
-      calculateDuration(updatedData.date_of_joining, updatedData.date_of_leaving);
+      calculateDuration(
+        updatedData.date_of_joining,
+        updatedData.date_of_leaving
+      );
     }
   };
 
@@ -113,7 +133,9 @@ const OfficeDetails = () => {
         throw new Error("Failed to submit data.");
       }
 
-      setSuccess(isUpdating ? "Office details updated." : "Office details added.");
+      setSuccess(
+        isUpdating ? "Office details updated." : "Office details added."
+      );
       setIsUpdating(true);
     } catch (err) {
       setError(err.message);
@@ -123,122 +145,119 @@ const OfficeDetails = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-8 bg-gradient-to-br from-white to-blue-50 shadow-xl rounded-3xl mt-10">
-      <h2 className="text-3xl font-bold text-center text-blue-700 mb-8"></h2>
-        {isUpdating ? "Update Office Details*" : "Add Office Details*"}
-        {isUpdating && existingData && (
-        <div className="mb-6 p-6 border border-blue-300 rounded-xl bg-white shadow-lg">
-          <h3 className="text-xl font-semibold text-blue-700 mb-4">Existing Office Details</h3>
-          <ul className="text-gray-700 space-y-4">
-            <li className="flex items-center">
-              <Briefcase className="w-5 h-5 text-blue-500 mr-3" />
-              <span className="font-semibold">Job Role / Designation:</span> {existingData.job_role}
-            </li>
-            <li className="flex items-center">
-              <Calendar className="w-5 h-5 text-blue-500 mr-3" />
-              <span className="font-semibold">Date of Joining:</span> {existingData.date_of_joining}
-            </li>
-            <li className="flex items-center">
-              <Calendar className="w-5 h-5 text-blue-500 mr-3" />
-              <span className="font-semibold">Probation End Date:</span> {existingData.probation_end}
-            </li>
-            <li className="flex items-center">
-              <UserCheck className="w-5 h-5 text-blue-500 mr-3" />
-              <span className="font-semibold">Reporting To:</span> {existingData.reporting_to}
-            </li>
-            <li className="flex items-center">
-              <Calendar className="w-5 h-5 text-blue-500 mr-3" />
-              <span className="font-semibold">Date of Leaving:</span> {existingData.date_of_leaving || "Still working"}
-            </li>
-            <li className="flex items-center">
-              <Clock className="w-5 h-5 text-blue-500 mr-3" />
-              <span className="font-semibold">Working Duration:</span> {duration.years} Year(s), {duration.months} Month(s), {duration.days} Day(s)
-            </li>
-          </ul>
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Sidebar */}
+      <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+        <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
+        <div className="flex justify-center mt-8">
+          <EmployeeSidebar quickLinks={quickLinks} />
         </div>
-      )}
- 
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Date of Joining */}
-        <Field
-          label="Date of Joining"
-          name="date_of_joining"
-          value={officeData.date_of_joining}
-          onChange={handleChange}
-          type="date"
-          icon={<Calendar className="w-5 h-5 text-blue-500" />}
-        />
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <Header title={HeaderTitle} />
+        <div className="max-w-3xl mx-auto bg-white p-8 shadow-lg rounded-lg mt-6">
+          <h2 className="text-2xl font-semibold text-center mb-6 text-blue-700">
+            {isUpdating ? "Update Your Office Details" : "Add Your Office Details"}
+          </h2>
 
-        {/* Probation End Date */}
-        <Field
-          label="Probation End Date"
-          name="probation_end"
-          value={officeData.probation_end}
-          onChange={handleChange}
-          type="date"
-          icon={<Calendar className="w-5 h-5 text-blue-500" />}
-        />
+          {/* Form */}
 
-        {/* Job Role */}
-        <Field
-          label="Job Role / Designation"
-          name="job_role"
-          value={officeData.job_role}
-          onChange={handleChange}
-          type="text"
-          icon={<Briefcase className="w-5 h-5 text-blue-500" />}
-        />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Date of Joining */}
+            <Field
+              label="Date of Joining"
+              name="date_of_joining"
+              value={officeData.date_of_joining}
+              onChange={handleChange}
+              type="date"
+              icon={<Calendar className="w-5 h-5 text-blue-500" />}
+            />
 
-        {/* Reporting To */}
-        <Field
-          label="Reporting To (Name / Designation)"
-          name="reporting_to"
-          value={officeData.reporting_to}
-          onChange={handleChange}
-          type="text"
-          icon={<UserCheck className="w-5 h-5 text-blue-500" />}
-        />
+            {/* Probation End Date */}
+            <Field
+              label="Probation End Date"
+              name="probation_end"
+              value={officeData.probation_end}
+              onChange={handleChange}
+              type="date"
+              icon={<Calendar className="w-5 h-5 text-blue-500" />}
+            />
 
-        {/* Date of Leaving */}
-        <Field
-          label="Date of Leaving"
-          name="date_of_leaving"
-          value={officeData.date_of_leaving}
-          onChange={handleChange}
-          type="date"
-          icon={<LogOut className="w-5 h-5 text-blue-500" />}
-        />
+            {/* Job Role */}
+            <Field
+              label="Job Role / Designation"
+              name="job_role"
+              value={officeData.job_role}
+              onChange={handleChange}
+              type="text"
+              icon={<Briefcase className="w-5 h-5 text-blue-500" />}
+            />
 
-        {/* Duration */}
-        <div className="border-t pt-4 mt-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-blue-500" />
-            <h3 className="text-lg font-semibold text-gray-800">Working Duration</h3>
-          </div>
-          <p className="text-sm text-gray-700">
-            {duration.years} Year(s), {duration.months} Month(s), {duration.days} Day(s)
-          </p>
+            {/* Reporting To */}
+            <Field
+              label="Reporting To (Name / Designation)"
+              name="reporting_to"
+              value={officeData.reporting_to}
+              onChange={handleChange}
+              type="text"
+              icon={<UserCheck className="w-5 h-5 text-blue-500" />}
+            />
+
+            {/* Date of Leaving */}
+            <Field
+              label="Date of Leaving"
+              name="date_of_leaving"
+              value={officeData.date_of_leaving}
+              onChange={handleChange}
+              type="date"
+              icon={<LogOut className="w-5 h-5 text-blue-500" />}
+            />
+
+            {/* Duration */}
+            <div className="border-t pt-4 mt-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-5 h-5 text-blue-500" />
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Working Duration
+                </h3>
+              </div>
+              <p className="text-sm text-gray-700">
+                {duration.years} Year(s), {duration.months} Month(s),{" "}
+                {duration.days} Day(s)
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition duration-300 shadow-lg"
+            >
+              {loading
+                ? "Submitting..."
+                : isUpdating
+                ? "Update Details"
+                : "Submit Details"}
+            </button>
+
+            {/* Status Messages */}
+            {success && (
+              <p className="text-green-600 text-center mt-4">{success}</p>
+            )}
+            {error && <p className="text-red-600 text-center mt-4">{error}</p>}
+          </form>
         </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition duration-300 shadow-lg"
-        >
-          {loading ? "Submitting..." : isUpdating ? "Update Details" : "Submit Details"}
-        </button>
-      </form>
-
-      {error && <p className="text-red-600 mt-4 text-sm text-center">{error}</p>}
-      {success && <p className="text-green-600 mt-4 text-sm text-center">{success}</p>}
+      </div>
     </div>
   );
 };
 
 const Field = ({ label, name, value, onChange, type, icon }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
     <div className="flex items-center gap-2">
       {icon}
       <input
