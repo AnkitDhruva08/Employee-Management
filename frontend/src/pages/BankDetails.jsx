@@ -43,7 +43,7 @@ const BankDetails = () => {
 
         if (!response.ok) throw new Error("Failed to fetch bank details");
         const data = await response.json();
-
+        console.log('Bank details:', data);
         if (data?.length > 0) {
           const bank = data[0];
           setBankData({
@@ -138,12 +138,21 @@ const BankDetails = () => {
     return <div className="text-red-600 text-center mt-10 text-xl animate-pulse">{error}</div>;
   }
 
+
+
+
   const handlePreviewFile = () => {
     if (bankData.bank_details_pdf) {
-      window.open(`http://localhost:8000${bankData.bank_details_pdf}`, "_blank");
+ 
+      const fileUrl = `http://localhost:8000/apip${bankData.bank_details_pdf}`;
+      window.open(fileUrl, "_blank");
+    } else {
+      alert("No file available for preview.");
     }
   };
-
+  
+  
+  
   return (
 
 
@@ -164,7 +173,7 @@ const BankDetails = () => {
             {isUpdating ? "Update Your Bank Details" : "Add Your Bank Details"}
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data">
+          <div className="space-y-6">
             {[
               { label: "Account Holder Name", name: "account_holder_name", icon: <User /> },
               { label: "Bank Name", name: "bank_name", icon: <Banknote /> },
@@ -220,23 +229,14 @@ const BankDetails = () => {
                 onDeletedFiles={() =>
                   setBankData((prev) => ({ ...prev, bank_details_pdf: null }))
                 }
-                onPreviewFile={() => {
-                  if (bankData.bank_details_pdf) {
-                    const fileUrl =
-                      typeof bankData.bank_details_pdf === 'string'
-                        ? `http://localhost:8000${bankData.bank_details_pdf}`
-                        : URL.createObjectURL(bankData.bank_details_pdf);
-                    window.open(fileUrl, "_blank");
-                  } else {
-                    alert("No file available for preview.");
-                  }
-                }}
+                onPreviewFile={handlePreviewFile}
               />
             </div>
 
             {/* Submit Button */}
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}  
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-md"
             >
               {isUpdating ? "Update Details" : "Submit Details"}
@@ -245,7 +245,7 @@ const BankDetails = () => {
             {/* Status */}
             {success && <p className="text-green-600 text-center mt-4">{success}</p>}
             {error && <p className="text-red-600 text-center mt-4">{error}</p>}
-          </form>
+          </div>
         </div>
        </div>
         

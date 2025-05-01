@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Upload } from "lucide-react";
 import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
 import Header from "../components/header/Header";
-import { employeeDashboardLink, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import FileUpload from "../components/File/FileUpload";
 
 const EmployeeDocuments = () => {
   const [employeeFormData, setEmployeeFormData] = useState({
@@ -30,6 +31,7 @@ const EmployeeDocuments = () => {
 
   const token = localStorage.getItem("token");
   const HeaderTitle = "Eployee Documents Details";
+  const url = `http://localhost:8000/api/employees-dashboard-link/`;
 
   //  Apfunction for Fetch Employee Documents Data
   const fetchEmployeeDocuments = async () => {
@@ -72,7 +74,7 @@ const EmployeeDocuments = () => {
   useEffect(() => {
     const fetchLinks = async () => {
       try {
-        const links = await employeeDashboardLink(token);
+        const links = await fetchDashboardLink(token, url);
         const dashboardData = await fetchDashboard(token);
         setQuickLinks(links);
         setDashboardData(dashboardData);
@@ -144,6 +146,14 @@ const EmployeeDocuments = () => {
     }
   };
 
+  const handlePreviewFile = (filePath) => {
+    if (filePath) {
+      console.log("Previewing file:", filePath);
+      const url = `http://localhost:8000${filePath}`;
+      window.open(url, "_blank");
+    }
+  };
+
   const fileFields = [
     { name: "photo", label: "Photograph", accept: ".jpg,.jpeg,.png" },
     { name: "aadhar", label: "Aadhar Card", accept: ".jpg,.jpeg,.png,.pdf" },
@@ -172,8 +182,8 @@ const EmployeeDocuments = () => {
           <EmployeeSidebar quickLinks={quickLinks} />
         </div>
       </div>
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
         <Header title={HeaderTitle} />
         <div className="max-w-3xl mx-auto bg-white p-8 shadow-lg rounded-lg mt-6">
           <h2 className="text-2xl font-semibold text-center mb-6 text-blue-700">
@@ -181,97 +191,101 @@ const EmployeeDocuments = () => {
           </h2>
 
           {/* Form */}
-        
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6"
-        encType="multipart/form-data"
-      >
-        {/* Input Fields */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Insurance Number
-          </label>
-          <input
-            type="text"
-            name="insurance_number"
-            value={employeeFormData.insurance_number}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            EPF Member
-          </label>
-          <input
-            type="text"
-            name="epf_member"
-            value={employeeFormData.epf_member}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            UAN
-          </label>
-          <input
-            type="text"
-            name="uan"
-            value={employeeFormData.uan}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
-          />
-        </div>
-
-        {/* File Upload Fields */}
-        {fileFields.map((field) => (
-          <div key={field.name}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {field.label}{" "}
-              <span className="text-xs text-gray-400">(Optional)</span>
-            </label>
-            <div className="flex items-center gap-2">
-              <Upload className="w-5 h-5 text-blue-500" />
+          <div className="space-y-6">
+            {/* Input Fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Insurance Number
+              </label>
               <input
-                type="file"
-                name={field.name}
-                accept={field.accept}
-                onChange={handleFileChange}
+                type="text"
+                name="insurance_number"
+                value={employeeFormData.insurance_number}
+                onChange={handleChange}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                EPF Member
+              </label>
+              <input
+                type="text"
+                name="epf_member"
+                value={employeeFormData.epf_member}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                UAN
+              </label>
+              <input
+                type="text"
+                name="uan"
+                value={employeeFormData.uan}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
+              />
+            </div>
+
+            {/* File Upload Fields */}
+            {fileFields.map((field) => (
+              <div key={field.name}>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  {field.label}{" "}
+                  <span className="text-xs text-gray-400">(Optional)</span>
+                </label>
+                <FileUpload
+                  isView={false}
+                  isCombine={false}
+                  initialFiles={
+                    employeeFormData[field.name]
+                      ? [employeeFormData[field.name]]
+                      : []
+                  }
+                  onFilesSelected={(files) => {
+                    setEmployeeFormData((prev) => ({
+                      ...prev,
+                      [field.name]: files[0]?.file || null,
+                    }));
+                  }}
+                  onDeletedFiles={() =>
+                    setEmployeeFormData((prev) => ({
+                      ...prev,
+                      [field.name]: null,
+                    }))
+                  }
+                  onPreviewFile={handlePreviewFile}
+                />
+              </div>
+            ))}
+
+            {/* Submit Button */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-md"
+            >
+              {isUpdating ? "Update Details" : "Submit Details"}
+            </button>
+
+            {/* Status Messages */}
+            {error && (
+              <p className="text-red-600 mt-4 text-sm text-center">{error}</p>
+            )}
+            {success && (
+              <p className="text-green-600 mt-4 text-sm text-center">
+                {success}
+              </p>
+            )}
           </div>
-        ))}
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-blue-700 transition duration-300 shadow-lg"
-        >
-          {loading
-            ? "Submitting..."
-            : isUpdating
-            ? "Update Documents"
-            : "Upload Documents"}
-        </button>
-
-        {/* Status Messages */}
-        {error && (
-          <p className="text-red-600 mt-4 text-sm text-center">{error}</p>
-        )}
-        {success && (
-          <p className="text-green-600 mt-4 text-sm text-center">{success}</p>
-        )}
-      </form>
-
         </div>
       </div>
     </div>

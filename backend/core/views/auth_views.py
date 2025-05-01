@@ -3,8 +3,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password
-from rest_framework.permissions import AllowAny
-from core.serializers import CompanySerializer
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import permission_classes, api_view
+from core.serializers import CompanySerializer, UserSerializer
 from core.models import Company, Employee
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import get_user_model
@@ -61,8 +62,6 @@ class CompanyRegisterView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
 #  Login views Based on role and also for organization
 class LoginView(APIView):
     """
@@ -87,7 +86,6 @@ class LoginView(APIView):
         role_id = role_data['role_id'] if role_data else None
         is_company = company_data['is_company'] if company_data else None
 
-        print('password ==<<>',check_password("Pass@123", user.password)) 
         user = authenticate(request, username=user.username, password=password)
         if user is not None:
             # Log in the user and create a session
@@ -95,7 +93,6 @@ class LoginView(APIView):
             # Optionally, generate JWT token for APIs that need it
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
-
             return Response({
                 "message": "Login successful!",
                 "status" : 200,
@@ -110,3 +107,11 @@ class LoginView(APIView):
         else:
             return Response({"error": "Invalid password"}, status=status.HTTP_401_UNAUTHORIZED)
       
+
+
+#  geeting current user details
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data)

@@ -34,6 +34,7 @@ const Login = () => {
         console.log('data ==<<<>>', data)
         if (data.status === 200) {
           localStorage.setItem("token", data.tokens.access);
+          localStorage.setItem("role_id", data.role_id); 
           if(data.is_company === true){
             navigate('/company-dashboard');
           }

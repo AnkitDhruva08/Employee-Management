@@ -22,7 +22,6 @@ class DashboardView(APIView):
         user = request.user
         is_company = User.objects.filter(username=user).values('is_company').first()
         email = request.user.email
-        print('email:', email)
         if(is_company['is_company']):
             try:
                 if hasattr(user, 'is_company') and user.is_company:
@@ -47,7 +46,6 @@ class DashboardView(APIView):
         
         else:
             role_id = Employee.objects.filter(company_email=email).values('role_id').first()
-            print('role_id:', role_id)
             # Admin Dashboard
             if(role_id['role_id'] == 1):
                 try:
@@ -85,11 +83,14 @@ class DashboardView(APIView):
                         date__gte=date.today()
                     ).values('title', 'date')
 
-                    employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
-                            'personal_email', 'date_of_birth', 'gender')
+                    employee_details = Employee.objects.filter(active=True ).select_related('role').values('id',
+                            'first_name', 'middle_name', 'last_name', 'contact_number', 'company_email',
+                            'personal_email', 'date_of_birth', 'gender', 'role__role_name'
+                        )
+
 
                     return Response({
-                          "employee_details": employee_details,
+                        "employee_details": employee_details,
                         "role_id": role_id['role_id'],
                         "role": role.role_name,
                         "email": email,

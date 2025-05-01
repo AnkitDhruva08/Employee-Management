@@ -1,24 +1,30 @@
 import React, { useEffect, useState } from "react";
 import Header from "../components/header/Header";
-import CompanySidebar from "../components/sidebar/CompanySidebar";
-import { fetchCompanyDashboardLinks, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 
 const LeaveTable = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const employeesPerPage = 5;
-  const [activeDropdown, setActiveDropdown] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const HeaderTitle = "Employee Leave Requests";
   const token = localStorage.getItem("token");
+  const roleId = localStorage.getItem("role_id");
+
+  const url =
+    roleId === "2"
+      ? "http://localhost:8000/api/hr-dashboard-link/"
+      : "http://localhost:8000/api/company-dashboard-link/";
 
   // Fetch dashboard links and data
   const fetchLinks = async () => {
     try {
-      const links = await fetchCompanyDashboardLinks(token);
+      const links = await fetchDashboardLink(token, url);
       const dashboardData = await fetchDashboard(token);
       setQuickLinks(links);
       setDashboardData(dashboardData);
@@ -32,6 +38,7 @@ const LeaveTable = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
+    console.log("Leave Requests:", data);
     const list = data.results || data.data || [];
     setLeaveRequests(list);
   };
@@ -58,8 +65,7 @@ const LeaveTable = () => {
 
   const totalPages = Math.ceil(filteredLeaveRequests.length / employeesPerPage);
 
-
-  //  function for leave approval
+  //  function for Approved or reject Leave
   const handleApproveLeave = async (leaveId, type) => {
     const data = {
       status: type,
@@ -81,6 +87,7 @@ const LeaveTable = () => {
     const results = await res.json();
     if (res.ok) {
       fetchLeaveRequests();
+      setModalOpen(false);
     } else {
       console.log("Error:", results);
     }
@@ -100,10 +107,6 @@ const LeaveTable = () => {
     }
   };
 
-  const handleDropdownToggle = (leaveId) => {
-    setActiveDropdown((prev) => (prev === leaveId ? null : leaveId));
-  };
-
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -116,7 +119,7 @@ const LeaveTable = () => {
           <h2 className="text-xl font-semibold text-white">Loading...</h2>
         )}
         <div className="flex justify-center mb-8">
-          <CompanySidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </div>
 
@@ -143,14 +146,15 @@ const LeaveTable = () => {
           </div>
         </div>
 
+        {/* Leave Requests Table */}
         <div className="overflow-x-auto p-4">
           <table className="min-w-full text-sm border-t shadow-md rounded overflow-hidden">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 <th className="p-3 border text-left">Name</th>
                 <th className="p-3 border text-left">Leave Type</th>
-                <th className="p-3 border text-left">From Date</th>
-                <th className="p-3 border text-left">To Date</th>
+                <th className="p-3 border text-left">From</th>
+                <th className="p-3 border text-left">To</th>
                 <th className="p-3 border text-left">Reason</th>
                 <th className="p-3 border text-left">Status</th>
                 <th className="p-3 border text-left">Actions</th>
@@ -174,41 +178,23 @@ const LeaveTable = () => {
                   <td className="p-3 border">{leave.from_date}</td>
                   <td className="p-3 border">{leave.to_date || "—"}</td>
                   <td className="p-3 border">{leave.reason}</td>
-                  <td className="p-3 border">{renderStatusBadge(leave.status)}</td>
                   <td className="p-3 border">
-                    {leave.status !== "Admin Approved" ? (
-                      <div className="relative inline-block text-left">
-                        <button
-                          className="inline-flex justify-center w-full px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
-                          onClick={() => handleDropdownToggle(leave.id)}
-                        >
-                          Action ▾
-                        </button>
-                        {activeDropdown === leave.id && (
-                          <div className="origin-top-right absolute z-10 mt-1 w-36 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5">
-                            <div className="py-1 text-sm">
-                              <button
-                                onClick={() =>
-                                  handleApproveLeave(leave.id, "Admin Approved")
-                                }
-                                className="w-full px-4 py-2 text-left text-green-700 hover:bg-green-100 flex items-center gap-2 rounded-md"
-                              >
-                                <i className="fas fa-check-circle"></i> Approved
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleApproveLeave(leave.id, "HR Rejected")
-                                }
-                                className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-100 flex items-center gap-2 rounded-md"
-                              >
-                                <i className="fas fa-times-circle"></i> Rejected
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
+                    {renderStatusBadge(leave.status)}
+                  </td>
+                  <td className="p-3 border">
+                    {leave.status === "Admin Approved" ||
+                    (leave.status === "HR Approved" && roleId === "2") ? (
                       <span className="text-sm text-gray-400">No Actions</span>
+                    ) : (
+                      <button
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => {
+                          setSelectedLeave(leave);
+                          setModalOpen(true);
+                        }}
+                      >
+                        Take Action
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -251,6 +237,50 @@ const LeaveTable = () => {
             </button>
           </div>
         </div>
+
+        {/* Modal for Approval/Rejection */}
+        {modalOpen && selectedLeave && (
+          <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] sm:w-[400px] relative">
+              <h3 className="text-xl font-semibold mb-4">Leave Action</h3>
+              <p className="mb-2">
+                <strong>Name:</strong>{" "}
+                {selectedLeave.username ||
+                  `${selectedLeave.employee?.first_name} ${selectedLeave.employee?.last_name}`}
+              </p>
+              <p className="mb-2">
+                <strong>Leave Type:</strong> {selectedLeave.leave_type}
+              </p>
+              <p className="mb-4">
+                <strong>Reason:</strong> {selectedLeave.reason}
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() =>
+                    handleApproveLeave(selectedLeave.id, "Admin Approved")
+                  }
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() =>
+                    handleApproveLeave(selectedLeave.id, "HR Rejected")
+                  }
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="ml-2 px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

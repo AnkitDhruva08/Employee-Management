@@ -1,11 +1,14 @@
-from django.urls import path, include
+from django.conf import settings
+from django.urls import path, include, re_path
+from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from core.views.company_views import CompanyViewSet, CompanyDashboardViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
 from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, EmployeeDashboardViewSet
 from core.views.leave_views import LeaveRequestViewSet
+from core.views.employee_report_views import EmployeePDFReportView
 from core.views.event_views import EventViewSet, HolidayViewSet
-from core.views.auth_views import LoginView, CompanyRegisterView
+from core.views.auth_views import LoginView, CompanyRegisterView, current_user
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -14,6 +17,7 @@ from rest_framework_simplejwt.views import (
 
 from core.views.dashboard_views import DashboardView
 from core.views.hr_views import HrDashboardViewSet
+from core.views.file_views import get_pdf
 
 router = DefaultRouter()
 
@@ -33,6 +37,8 @@ urlpatterns = [
 
     # Custom endpoints
     path('login/', LoginView.as_view(), name='login'),
+    # fetch current user details
+   path('current-user/', current_user, name='current-user'),
 
     #  Register Company 
     path('register/', CompanyRegisterView.as_view(), name='company-register'),
@@ -73,10 +79,22 @@ urlpatterns = [
     # employee Leave Requests
     path('leave-requests/', LeaveRequestViewSet.as_view(), name='leave-requests'),
     path('leave-requests/<int:pk>/', LeaveRequestViewSet.as_view(), name='leave-request-detail'),
+    
 
 
 
     # JWT token endpoints
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+    path('pdf/media/<str:filename>/', get_pdf, name='get_pdf'),
+    re_path(r'^pdf/media/(?P<filename>.+)$', get_pdf, name='get_pdf'),
+
+
+    #  for download employee details
+    path('download-employee-report/', EmployeePDFReportView.as_view(), name='download-employee-report'),
 ]
+
+if settings.DEBUG is True:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

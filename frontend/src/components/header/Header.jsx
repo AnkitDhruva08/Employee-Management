@@ -22,8 +22,9 @@ const Header = ({ title }) => {
 
         if (!res.ok) throw new Error("Unauthorized");
         const data = await res.json();
-        console.log('User data:', data);
         setUserData(data);
+
+     
       } catch (err) {
         setError("Failed to load user info");
       }
@@ -41,12 +42,7 @@ const Header = ({ title }) => {
   if (!userData) return <div className="text-center">Loading...</div>;
 
   const role = userData?.role;
-  const isCompany = userData.is_company;
-
-  const displayName = isCompany
-    ? userData?.company || "Company"
-    : userData?.employee_details?.[0]?.first_name || "User";
-
+  const displayName = userData?.employee_details?.[0]?.first_name || "User";
   const email = userData?.email || "example@example.com";
   const firstLetter = displayName.charAt(0).toUpperCase();
 
@@ -55,18 +51,14 @@ const Header = ({ title }) => {
       <div className="text-xl font-semibold text-gray-800">{title}</div>
 
       <div className="relative flex items-center gap-4 cursor-pointer" onClick={() => setShowDropdown(!showDropdown)}>
-        {/* User Info */}
         <div className="text-right">
-          <h4 className="font-semibold text-gray-800">{displayName}</h4>
+          <h4 className="font-semibold text-gray-800">{role} || {displayName}</h4>
           <p className="text-sm text-gray-500">{email}</p>
         </div>
-
-        {/* Avatar */}
         <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
           {firstLetter}
         </div>
 
-        {/* Dropdown */}
         {showDropdown && (
           <div className="absolute right-0 top-14 w-64 bg-white shadow-md rounded-md p-4 z-50">
             <h4 className="font-semibold text-gray-800 mb-1">{displayName}</h4>

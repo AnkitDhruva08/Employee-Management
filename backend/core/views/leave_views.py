@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
+from core.views.utils.leave_utils import get_leave_requests
 
 class LeaveRequestViewSet(APIView):
     queryset = LeaveRequest.objects.all()
@@ -18,48 +19,21 @@ class LeaveRequestViewSet(APIView):
     def get(self, request):
         try:
             email = request.user.email
-            print('email:', email)
-            is_company = Company.objects.filter(email=request.user.email).exists()
-            if(is_company):
-                try:
-                    leave_requests = LeaveRequest.objects.filter(hr_reviewed=True).select_related('employee').annotate(
-                    username=Concat(
-                            F('employee__first_name'),
-                            Value(' '),
-                            F('employee__last_name'),
-                            output_field=CharField()
-                        )
-                    ).values(
-                        'username',
-                        'id',
-                        'to_date',
-                        'from_date',
-                        'reason',
-                        'status',
-                        'applied_at',
-                        'leave_type'
-                    ).order_by('-id') 
-                
-                    # print('leave_requests:', leave_requests)
-                    return Response({'data' : leave_requests}, status=status.HTTP_200_OK)
-                except Exception as e:
-                    return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-            employee = Employee.objects.get(company_email=request.user.email)
-            leave_details = LeaveRequest.objects.filter(employee=employee)
-            serializer = LeaveRequestSerializer(leave_details, many=True)
-            return Response({'data' : serializer.data}, status=status.HTTP_200_OK)
-            
+            is_company = Company.objects.filter(email=email).exists()
+            is_hr = Employee.objects.filter(company_email=email).exists()
+            leave_data = get_leave_requests(is_company, is_hr)
+            if(leave_data):
+                return Response({'data': leave_data}, status=status.HTTP_200_OK)
 
         except Employee.DoesNotExist:
             return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+
 
 
     def post(self, request, *args, **kwargs):
         try:
             data = request.data.copy()
             user = request.user
-            print('user:', user)
             employee = Employee.objects.get(first_name=user)
             data['employee'] = employee.id 
 
@@ -73,7 +47,6 @@ class LeaveRequestViewSet(APIView):
 
             # Now serialize the data
             serializer = LeaveRequestSerializer(data=data)
-            print('serializer ===<<<>>', serializer)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Leave request created successfully.'}, status=status.HTTP_201_CREATED)
@@ -87,13 +60,16 @@ class LeaveRequestViewSet(APIView):
 
     def put(self, request, pk, *args, **kwargs):
         try:
-            print('request.data:', request.data)
             leave_request = LeaveRequest.objects.get(pk=pk)
-            print('leave_request:', leave_request)
-            # Update the leave request with the provided data
-            serializer = LeaveRequestSerializer(leave_request, data=request.data, partial=True)
-            print('serializer:', serializer)
+            data = request.data.copy()  # Make a mutable copy
+            # Automatically set hr_reviewed = True if status is HR Approved
+            if data.get('status') == 'HR Approved':
+                data['hr_reviewed'] = True 
 
+            if data.get('status') == 'Admin Approved':
+                data['admin_reviewed'] = True 
+
+            serializer = LeaveRequestSerializer(leave_request, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Leave request updated successfully.'}, status=status.HTTP_200_OK)
@@ -108,4 +84,5 @@ class LeaveRequestViewSet(APIView):
             print("Error during update:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+        
 

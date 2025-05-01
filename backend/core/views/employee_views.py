@@ -32,15 +32,24 @@ class EmployeeViewSet(APIView):
     def get(self, request, pk=None, *args, **kwargs):
         try:
             company = Company.objects.filter(email=request.user.email).first()
+            employee_user = Employee.objects.filter(company_email=request.user.email).first()
 
-            if not company:
+            if not company and not employee_user:
                 return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            employees_query = Employee.objects.filter(company=company.user, active=True)
+            if company:
+                company_user = company.user
+            elif employee_user and employee_user.role_id == 2:
+                company_user = employee_user.company
+            else:
+                return Response({'error': 'Unauthorized access.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            # Filter all active employees from the determined company
+            employees_query = Employee.objects.filter(company=company_user, active=True)
 
             if pk:
-                # Fetch specific employee details (raw fields)
-                employee = employees_query.filter(id=pk, company=company.user, active=True).values(
+                # Fetch specific employee details
+                employee = employees_query.filter(id=pk).values(
                     'id',
                     'first_name',
                     'middle_name',
@@ -83,11 +92,10 @@ class EmployeeViewSet(APIView):
             print('Error:', e)
             return Response({'error': 'Something went wrong'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
         
     def post(self, request, *args, **kwargs):
         data = request.data.copy()
-        print('data:', data)
-
         username = request.user
         try:
             company_id = Company.objects.get(company_name=request.user).id
@@ -106,7 +114,6 @@ class EmployeeViewSet(APIView):
 
         # 2. Check if user exists
         email = data.get('company_email')
-        print('email:', email)
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
@@ -146,11 +153,7 @@ class EmployeeViewSet(APIView):
 
     # For Update Employee
     def put(self, request, pk=None, *args, **kwargs):
-        print('pk:', pk)
-        print('request.data:', request.data)
         username = request.user.email
-        print('username:', username)
-
         # Assuming you have an Employee model or serializer to update the employee
         try:
             # Fetch the employee by pk
@@ -189,7 +192,6 @@ class EmployeeViewSet(APIView):
         
     # For Delete Employee
     def delete(self, request, pk=None, *args, **kwargs):
-        print('pk:', pk)
         try:
             employee = get_object_or_404(Employee, pk=pk)
 
@@ -209,17 +211,13 @@ class EmployeeBankDetailsView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     def get(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
-        print('pk:', pk)
-
         try:
             user_email = request.user.email
             is_company = Company.objects.filter(email=user_email).exists()
-            print('is_company:', is_company)
 
             if pk:
                 try:
                     bank_detail = BankDetails.objects.get(employee_id=pk)
-                    print('bank_detail ==<<>>', bank_detail)
                     if is_company or bank_detail.employee.user.email == user_email:
                         serializer = BankDetailsSerializer(bank_detail)
                         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -246,7 +244,6 @@ class EmployeeBankDetailsView(APIView):
     def post(self, request):
         try:
             employee = Employee.objects.get(company_email=request.user.email)
-            print('employee:', employee)
             data = request.data.copy()
             data['employee'] = employee.id 
 
@@ -264,7 +261,6 @@ class EmployeeBankDetailsView(APIView):
 
     def put(self, request, *args, **kwargs):
         pk = kwargs.get('pk', None)
-        print('pk update ==<<>>>:', pk)
         try:
             bank_details = BankDetails.objects.get(pk=pk)
         except BankDetails.DoesNotExist:
@@ -413,7 +409,6 @@ class EmployeeEmergencyContactView(APIView):
         
     def post(self, request):
         try:
-            print('data coming from  frontend', request.data)
             employee = Employee.objects.get(company_email=request.user.email)
             data = request.data.copy()
             data['employee'] = employee.id 
@@ -475,15 +470,11 @@ class EmployeeOfficeDetailsView(APIView):
         
     def post(self, request):
         try:
-            print('data coming from  frontend', request.data)
             employee = Employee.objects.get(company_email=request.user.email)
-            print('employee', employee)
             data = request.data.copy()
             data['employee'] = employee.id 
-            print('data after employee', employee.id)
 
             serializer = EmployeeOfficeDetailsSerializer(data=data)
-            print('serializer', serializer)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Employee office details created successfully.'}, status=status.HTTP_201_CREATED)

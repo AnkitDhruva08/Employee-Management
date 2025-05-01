@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Employee Report</title>
+  <style>
+    body { font-family: "Arial", sans-serif; font-size: 12px; margin: 40px; }
+    h1 { color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f4f6f8; }
+    .footer { margin-top: 40px; text-align: center; color: #777; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Employee Report</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>DOB</th>
+        <th>Gender</th>
+        <th>DOJ</th>
+        <th>Role</th>
+        <th>Bank</th>
+        <th>Nominee</th>
+        <th>Emergency Contact</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in employees %}
+      <tr>
+      
+        <td>{{ forloop.counter }}</td>
+        <td>{{ item.emp.first_name }} {{ item.emp.middle_name }} {{ item.emp.last_name }}</td>
+        <td>{{ item.emp.company_email }}</td>
+        <td>{{ item.emp.contact_number }}</td>
+        <td>{{ item.emp.date_of_birth|default:"-" }}</td>
+        <td>{{ item.emp.gender|default:"-" }}</td>
+        <td>{{ item.office.date_of_joining|default:"N/A" }}</td>
+        <td>{{ item.office.job_role|default:"N/A" }}</td>
+        <td>{% if item.bank %}{{ item.bank.bank_name }} - {{ item.bank.account_number }}{% else %}N/A{% endif %}</td>
+        <td>{% if item.nominee %}{{ item.nominee.name }} ({{ item.nominee.relation }}){% else %}N/A{% endif %}</td>
+        <td>{% if item.emergency %}{{ item.emergency.name }} - {{ item.emergency.phone }}{% else %}N/A{% endif %}</td>
+      </tr>
+      
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated on {{ generated_date }} | {{ company_name }}
+  </div>
+</body>
+</html>

@@ -15,7 +15,7 @@ export const fetchCompanyDashboardLinks = async (token) => {
 };
 
 // Role Based Dashboard API
-export const fetchDashboard = async (token) => {
+ export const  fetchDashboard = async (token) => {
   const res = await fetch("http://localhost:8000/api/dashboard/", {
     method: "GET",
     headers: {
@@ -26,7 +26,6 @@ export const fetchDashboard = async (token) => {
 
   if (!res.ok) throw new Error("Failed to load data");
   const data = await res.json();
-  console.log("Dashboard data:", data);
   return data;
 };
 
@@ -50,11 +49,12 @@ export const employeeDashboardLink = async (token) => {
 
 // Dashboard API Link Function 
 export const fetchDashboardLink = async (token, url) => {
+  console.log('url:', url);
   const response = await fetch(
     `${url}`,
-    {
-      method: "GET",
-      headers: {
+    { method: "GET",
+      headers:
+      {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
@@ -64,3 +64,36 @@ export const fetchDashboardLink = async (token, url) => {
   console.log('dashboard Link data:', data);
   return data;
 }
+
+
+
+
+//  fetching user details function 
+
+export const fetchUserDetails = async (token) => {
+  const res = await fetch("http://localhost:8000/api/dashboard/", {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("Unauthorized");
+  const data = await res.json();
+  return data;
+};
+
+
+
+
+
+export const fetchCurrentUser = async (token) => {
+  const res = await fetch("http://localhost:8000/api/current-user/", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to fetch user");
+  return await res.json();
+};

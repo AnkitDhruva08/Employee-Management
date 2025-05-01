@@ -17,9 +17,9 @@ const EmployeeDashboard = () => {
   const fetchLinks = async () => {
     try {
       const links = await employeeDashboardLink(token); 
-      const dashboardData = await fetchDashboard(token);
+      const empDashboard = await fetchDashboard(token);
       setQuickLinks(links);
-      setDashboardData(dashboardData);
+      setDashboardData(empDashboard);
     } catch (err) {
       setError("Failed to load quick links");
     }

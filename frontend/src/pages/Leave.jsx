@@ -13,7 +13,7 @@ const LeaveRequest = () => {
   const [leaves, setLeaves] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [open, setOpen] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showRangePicker, setShowRangePicker] = useState(false);
   const [showSingleDate, setShowSingleDate] = useState(true);
   const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 });
