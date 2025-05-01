@@ -35,21 +35,23 @@ const Login = () => {
         if (data.status === 200) {
           localStorage.setItem("token", data.tokens.access);
           localStorage.setItem("role_id", data.role_id); 
-          if(data.is_company === true){
-            navigate('/company-dashboard');
-          }
-          else if(data.role_id === 1){
-            navigate('/admin-dashboard');
-          }
-          else if(data.role_id === 2){
-            navigate('/hr-dashboard');
-          }
-          else if(data.role_id === 3){
-            navigate('/employee-dashboard');
-          }
-          else{
-            navigate('/company-dashboard');
-          }
+          localStorage.setItem("is_company", data.is_company);
+          navigate('/dashboard')
+          // if(data.is_company === true){
+          //   navigate('/company-dashboard');
+          // }
+          // else if(data.role_id === 1){
+          //   navigate('/admin-dashboard');
+          // }
+          // else if(data.role_id === 2){
+          //   navigate('/hr-dashboard');
+          // }
+          // else if(data.role_id === 3){
+          //   navigate('/employee-dashboard');
+          // }
+          // else{
+          //   navigate('/company-dashboard');
+          // }
           
         } else {
           setError("This username or email not found");

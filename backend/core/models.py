@@ -250,6 +250,7 @@ class CompanyDashboardLink(models.Model):
     path = models.CharField(max_length=255)
     color = models.CharField(max_length=50)
     icons = models.CharField(max_length=50, blank=True, null=True) 
+    active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
@@ -263,9 +264,10 @@ class EmployeeDashboardLink(models.Model):
     path = models.CharField(max_length=255)
     color = models.CharField(max_length=50)
     icons = models.CharField(max_length=50, blank=True, null=True) 
+    active = models.BooleanField(default=True) 
 
     def __str__(self):
-        return  {self.name}
+        return self.name
 
 
 
@@ -276,5 +278,6 @@ class HrDashboardLink(models.Model):
     path = models.CharField(max_length=255)
     color = models.CharField(max_length=50)
     icons = models.CharField(max_length=50, blank=True, null=True)
+    active = models.BooleanField(default=True) 
     def __str__(self):
         return self.name

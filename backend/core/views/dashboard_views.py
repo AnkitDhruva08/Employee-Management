@@ -1,12 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.models import Employee, Company, LeaveRequest, Event, Holiday, Role
+from core.models import Employee, Company, EmployeeDashboardLink, LeaveRequest, Event, Holiday, Role
 from core.permissions import IsCompanyUser, IsHRorAdmin, IsEmployeeUser
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from datetime import date
+from core.views.utils.dashboard_link import dashboard_links
 
 
 # User Modek
@@ -46,6 +47,7 @@ class DashboardView(APIView):
         
         else:
             role_id = Employee.objects.filter(company_email=email).values('role_id').first()
+            print('role_id ===<<<>>>>>>', role_id)
             # Admin Dashboard
             if(role_id['role_id'] == 1):
                 try:
@@ -107,27 +109,49 @@ class DashboardView(APIView):
 
             # Solution Engineer
             else:
-                try:
-                    company_id = Employee.objects.get(company_email=email).company_id
-                    company_name = Company.objects.filter(id=company_id).values('company_name').first()
-                    role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
-                    employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
-                            'personal_email', 'date_of_birth', 'gender')
-                    
+                if role_id['role_id'] == 3:
+                    try:
+                        company_id = Employee.objects.get(company_email=email).company_id
+                        company_name = Company.objects.filter(id=company_id).values('company_name').first()
+                        role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
+                        employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
+                                'personal_email', 'date_of_birth', 'gender')
+                        
 
-                    return Response({
-                        "employee_details": employee_details,
-                        'email': email,
-                        "role": role['role_name'],
-                        "role_id": role_id['role_id'],
-                        "company": company_name['company_name'],
-                    }, status=status.HTTP_200_OK)
-                
-                except Company.DoesNotExist:
-                        return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+                        return Response({
+                            "employee_details": employee_details,
+                            'email': email,
+                            "role": role['role_name'],
+                            "role_id": role_id['role_id'],
+                            "company": company_name['company_name'],
+                        }, status=status.HTTP_200_OK)
+                    
+                    except Company.DoesNotExist:
+                            return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
             
 
-
+# Employee Dashboard Links
+class DashboardLinkViewSet(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, *args, **kwargs):
+        try:
+            print('request.user.email ===<<<>>>>>>', request.user.email)
+            user_data = User.objects.get(email=request.user.email)
+            is_company = False
+            role_id = None
+            if(user_data.is_company == True):
+                is_company = True
+            else:
+                employee = Employee.objects.get(company_email=request.user.email)
+                if employee:
+                    role_id = employee.role_id
+            
+            return dashboard_links(role_id, is_company)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
             
 
        

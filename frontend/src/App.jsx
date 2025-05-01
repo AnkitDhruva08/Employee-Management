@@ -16,6 +16,7 @@ import OfficeDetails from './pages/OfficeDetails';
 import Leave from './pages/Leave';
 import EmployeeTable from './pages/EmployeeTable';
 import LeaveTable from './pages/LeaveTable';
+import AttendanceModule from './pages/AttendenceDashboard';
 function App() {
   return (
     <Router>
@@ -25,7 +26,7 @@ function App() {
         <Route path="/company-dashboard" element={<CompanyDashboard />} />
         <Route path="/admin-dashboard" element={<AdminDahsboard />} />
         <Route path="/hr-dashboard" element={<HrDashboard />} />
-        <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
+        <Route path="/dashboard" element={<EmployeeDashboard />} />
         <Route path="/employee-dashboard/:id" element={<EmployeeDashboard />} />
         {/* <Route path="/employees/:id" element={<EmployeeDashboard />} /> */}
         <Route path="/role" element={<Role />} />
@@ -41,6 +42,7 @@ function App() {
         <Route path="/leave-details" element={<Leave />} />
         <Route path="/employee-details" element={<EmployeeTable />} />
         <Route path="/leave-table" element={<LeaveTable />} />
+        <Route path="/attendance-module" element={<AttendanceModule />} />
       </Routes>
     </Router>
   );

@@ -14,15 +14,6 @@ from django.shortcuts import get_object_or_404
 User = get_user_model()
 
 
-
-
-# Employee Dashboard Links
-
-class EmployeeDashboardViewSet(viewsets.ModelViewSet):
-    queryset = EmployeeDashboardLink.objects.all().order_by('id')
-    serializer_class = EmployeeDashboardLinkSerializer
-    permission_classes = [IsAuthenticated]
-
 # Employee ModelViewSet for Employee CRUD operations
 class EmployeeViewSet(APIView):
     queryset = Employee.objects.all()

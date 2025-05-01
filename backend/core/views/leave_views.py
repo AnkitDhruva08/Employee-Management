@@ -15,18 +15,21 @@ class LeaveRequestViewSet(APIView):
     serializer_class = LeaveRequestSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
-
+        
     def get(self, request):
         try:
             email = request.user.email
             is_company = Company.objects.filter(email=email).exists()
-            is_hr = Employee.objects.filter(company_email=email).exists()
-            leave_data = get_leave_requests(is_company, is_hr)
-            if(leave_data):
-                return Response({'data': leave_data}, status=status.HTTP_200_OK)
-
-        except Employee.DoesNotExist:
-            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+            employee = Employee.objects.get(company_email=email)
+            role_id = employee.role_id
+            emp_id = employee.id
+            print('emp_id ==<<>', emp_id)
+            print('role_id ankit :', role_id)
+            data = get_leave_requests(is_company, role_id, emp_id)
+            print('data:', data)
+            return Response({'data': list(data)}, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 
 
 

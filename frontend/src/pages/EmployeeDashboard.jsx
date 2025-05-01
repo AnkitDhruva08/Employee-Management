@@ -3,7 +3,8 @@ import { useNavigate, Link, useParams } from "react-router-dom";
 import * as FaIcons from "react-icons/fa";
 import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
 import Header from "../components/header/Header";
-import { employeeDashboardLink, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 
 const EmployeeDashboard = () => {
   const { id } = useParams(); 
@@ -12,15 +13,34 @@ const EmployeeDashboard = () => {
   const [error, setError] = useState(null);
 
   const token = localStorage.getItem("token");
-  const HeaderTitle = "Employee Dashboard";
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company") === "true"; 
+  console.log("roleId:", roleId, "isCompany:", isCompany);
+  let HeaderTitle = "";
+
+  if (isCompany) {
+    HeaderTitle = "Company Dashboard";
+  } else if (roleId === 3) {
+    HeaderTitle = "Employee Dashboard";
+  } else if (roleId === 2) {
+    HeaderTitle = "HR Dashboard";
+  } else if (roleId === 1) {
+    HeaderTitle = "Admin Dashboard";
+  } else {
+    HeaderTitle = "Dashboard"; 
+  }
+  const dashboardUrlLink = `http://localhost:8000/api/dashboard-link/`;
+  console.log("dashboardUrlLink:", dashboardUrlLink);
 
   const fetchLinks = async () => {
     try {
-      const links = await employeeDashboardLink(token); 
+      const links = await fetchDashboardLink(token, dashboardUrlLink); 
+      console.log("links For Dashboard <<>>:", links);
       const empDashboard = await fetchDashboard(token);
-      setQuickLinks(links);
+      setQuickLinks( links.data || links); 
       setDashboardData(empDashboard);
     } catch (err) {
+      console.error("Error fetching quick links:", err);
       setError("Failed to load quick links");
     }
   };
@@ -53,7 +73,7 @@ const EmployeeDashboard = () => {
           {dashboardData.company}
         </h2>
         <div className="flex justify-center mb-8">
-          <EmployeeSidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </div>
 
@@ -65,7 +85,7 @@ const EmployeeDashboard = () => {
           {/* Quick Links */}
           <div className="bg-white shadow-lg rounded-xl p-6">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {quickLinks.results?.map((link) => (
+              {quickLinks?.map((link) => (
                 <div
                   key={link.id}
                   className={`bg-${link.color}-500 shadow-lg rounded-xl p-6`}

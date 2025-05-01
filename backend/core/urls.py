@@ -4,18 +4,18 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from core.views.company_views import CompanyViewSet, CompanyDashboardViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
-from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, EmployeeDashboardViewSet
+from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.employee_report_views import EmployeePDFReportView
 from core.views.event_views import EventViewSet, HolidayViewSet
-from core.views.auth_views import LoginView, CompanyRegisterView, current_user
+from core.views.auth_views import LoginLogoutView, CompanyRegisterView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
  
 
-from core.views.dashboard_views import DashboardView
+from core.views.dashboard_views import DashboardView, DashboardLinkViewSet
 from core.views.hr_views import HrDashboardViewSet
 from core.views.file_views import get_pdf
 
@@ -24,7 +24,6 @@ router = DefaultRouter()
 # Registering all our ViewSets
 router.register(r'company-dashboard-link', CompanyDashboardViewSet)
 router.register(r'companies', CompanyViewSet)
-router.register(r'employees-dashboard-link', EmployeeDashboardViewSet)
 # router.register(r'leaves', LeaveRequestViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'holidays', HolidayViewSet)
@@ -36,13 +35,16 @@ urlpatterns = [
     path('', include(router.urls)),
 
     # Custom endpoints
-    path('login/', LoginView.as_view(), name='login'),
-    # fetch current user details
-   path('current-user/', current_user, name='current-user'),
+    path('login/', LoginLogoutView.as_view(), name='login'),
+    path('logout/', LoginLogoutView.as_view(), name='logout'),
+
 
     #  Register Company 
     path('register/', CompanyRegisterView.as_view(), name='company-register'),
 
+
+    # Employee Dashboard
+    path('dashboard-link/', DashboardLinkViewSet.as_view(), name='dashboard-link'),
     # ADD Empolyees
     path('employees/', EmployeeViewSet.as_view(), name='employees'),
     path('employees/<int:pk>/', EmployeeViewSet.as_view(), name='employee'),

@@ -1,11 +1,11 @@
-from core.models import LeaveRequest
-from django.contrib.auth import get_user_model
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
+from core.models import LeaveRequest 
 
-# Getting LeaveRequest Data 
-def get_leave_requests(is_company, is_hr):
-    # Define the common query part for leave requests
+def get_leave_requests(is_company, role_id, emp_id):
+    print('role_id ankit mishra :', role_id)
+
+    # Base query with annotated username
     base_query = LeaveRequest.objects.select_related('employee').annotate(
         username=Concat(
             F('employee__first_name'),
@@ -24,12 +24,15 @@ def get_leave_requests(is_company, is_hr):
         'leave_type'
     ).order_by('-id')
 
-    # Apply additional filters based on role
+    # Filter based on role
     if is_company:
-        # Fetch only the HR-reviewed leave requests for the company
         leave_requests = base_query.filter(hr_reviewed=True)
-    elif is_hr:
-        # Fetch all leave requests for HR
+    elif role_id == 2:  # HR
         leave_requests = base_query
-    
+    elif role_id == 3:  # Employee
+        print('ankit Mishra :::::::')
+        leave_requests = base_query.filter(employee_id=emp_id)
+    else:
+        leave_requests = LeaveRequest.objects.none() 
+
     return leave_requests

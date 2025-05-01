@@ -42,6 +42,7 @@ export const employeeDashboardLink = async (token) => {
     }
   );
   const data = await response.json();
+  console.log("Employee Dashboard Links data:", data);
   return data;
 };
 
@@ -97,3 +98,21 @@ export const fetchCurrentUser = async (token) => {
   if (!res.ok) throw new Error("Failed to fetch user");
   return await res.json();
 };
+
+
+
+
+// Logout API
+export const logout = async (token) => {
+  const res = await fetch("http://localhost:8000/api/logout/", {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to logout");
+  const data = await res.json();
+  console.log("Logout response:", data);
+  return await res.json();
+}

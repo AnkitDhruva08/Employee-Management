@@ -48,26 +48,15 @@ const LeaveRequest = () => {
     },
   ]);
 
-  // Function for fecth Leave Details
-  const fetchLeaves = async () => {
-    try {
-      const response = await fetch(
-        "http://localhost:8000/api/leave-requests/",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const result = await response.json();
-      if (response.ok && Array.isArray(result.data)) {
-        setLeaves(result.data);
-      } else {
-        setError("Failed to fetch leave data.");
-      }
-    } catch (err) {
-      setError("Failed to load data.");
-    } finally {
-      setLoading(false);
-    }
+
+  const fetchLeaveRequests = async () => {
+    const res = await fetch("http://localhost:8000/api/leave-requests/", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    console.log("Leave Requests:", data);
+    const list = data.results || data.data || [];
+    setLeaveRequests(list);
   };
 
   // calling useEffect to fetch nominee details and dashboard data
@@ -76,6 +65,7 @@ const LeaveRequest = () => {
       try {
         const links = await employeeDashboardLink(token);
         const dashboardData = await fetchDashboard(token);
+        fetchLeaveRequests();
         setQuickLinks(links);
         setDashboardData(dashboardData);
       } catch (err) {
@@ -84,7 +74,6 @@ const LeaveRequest = () => {
     };
 
     fetchLinks();
-    fetchLeaves();
   }, [token]);
 
   const handleOpen = () => setOpen(!open);
@@ -176,9 +165,7 @@ const LeaveRequest = () => {
   };
 
   const getStatusText = (leave) => {
-    if (!leave.admin_reviewed && !leave.hr_reviewed) {
-      return "Pending";
-    }
+
   
     const statusMap = {
       "Admin Approved": "Approved",
@@ -393,7 +380,7 @@ const LeaveRequest = () => {
               </tr>
             </thead>
             <tbody>
-              {leaves.map((leave, index) => (
+              {currentLeaveRequests.map((leave, index) => (
                 <tr key={index} className="odd:bg-gray-50 even:bg-white">
                   <td className="px-4 py-2 border">{leave.leave_type}</td>
                   <td className="px-4 py-2 border">{leave.from_date}</td>
