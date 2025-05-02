@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { Upload, User, Banknote, Landmark, CreditCard, FileText, FileCheck } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-
-import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
 import Header from "../components/header/Header";
 import FileUpload from "../components/File/FileUpload";
-
-import { employeeDashboardLink, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 
 const BankDetails = () => {
   const { id } = useParams();
@@ -29,6 +27,7 @@ const BankDetails = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+
 
   useEffect(() => {
     const fetchBankDetails = async () => {
@@ -70,9 +69,9 @@ const BankDetails = () => {
   }, [id]);
 
   useEffect(() => {
-    const fetchDashboardInfo = async () => {
+    const fetchLinks = async () => {
       try {
-        const links = await employeeDashboardLink(token);
+        const links = await fetchDashboardLink(token); 
         const dashboard = await fetchDashboard(token);
         setQuickLinks(links);
         setDashboardData(dashboard);
@@ -81,7 +80,7 @@ const BankDetails = () => {
       }
     };
 
-    fetchDashboardInfo();
+    fetchLinks();
   }, [token]);
 
   const handleChange = (e) => {
@@ -161,7 +160,7 @@ const BankDetails = () => {
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
-          <EmployeeSidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </div>
 

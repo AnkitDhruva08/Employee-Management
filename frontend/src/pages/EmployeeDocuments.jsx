@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Upload } from "lucide-react";
-import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
 import Header from "../components/header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 import FileUpload from "../components/File/FileUpload";
 
 const EmployeeDocuments = () => {
@@ -31,7 +31,6 @@ const EmployeeDocuments = () => {
 
   const token = localStorage.getItem("token");
   const HeaderTitle = "Eployee Documents Details";
-  const url = `http://localhost:8000/api/employees-dashboard-link/`;
 
   //  Apfunction for Fetch Employee Documents Data
   const fetchEmployeeDocuments = async () => {
@@ -74,7 +73,7 @@ const EmployeeDocuments = () => {
   useEffect(() => {
     const fetchLinks = async () => {
       try {
-        const links = await fetchDashboardLink(token, url);
+        const links = await fetchDashboardLink(token);
         const dashboardData = await fetchDashboard(token);
         setQuickLinks(links);
         setDashboardData(dashboardData);
@@ -179,7 +178,7 @@ const EmployeeDocuments = () => {
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
-          <EmployeeSidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </div>
       {/* Main Content */}

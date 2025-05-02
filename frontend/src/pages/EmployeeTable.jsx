@@ -4,11 +4,9 @@ import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
 import Swal from "sweetalert2";
-
 import Header from "../components/header/Header";
-import CompanySidebar from "../components/sidebar/CompanySidebar";
-import { fetchCompanyDashboardLinks, fetchDashboard } from "../utils/api";
-
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 const EmployeeTable = () => {
   const token = localStorage.getItem("token");
   const HeaderTitle = "Employees Table";
@@ -22,6 +20,7 @@ const EmployeeTable = () => {
   const [error, setError] = useState(null);
 
   const employeesPerPage = 5;
+  const roleId = parseInt(localStorage.getItem("role_id"));
 
   useEffect(() => {
     fetchEmployees();
@@ -30,7 +29,7 @@ const EmployeeTable = () => {
 
   const fetchDashboardInfo = async () => {
     try {
-      const links = await fetchCompanyDashboardLinks(token);
+      const links = await fetchDashboardLink(token);
       const dashboard = await fetchDashboard(token);
       setQuickLinks(links);
       setDashboardData(dashboard);
@@ -98,6 +97,26 @@ const EmployeeTable = () => {
 
   const totalPages = Math.ceil(employees.length / employeesPerPage);
 
+  const downloadEmployeePDF = async () => {
+    const res = await fetch(
+      "http://localhost:8000/api/download-employee-report/",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const blob = await res.blob();
+    console.log("blob:", blob);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "employee_report.pdf";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -106,7 +125,7 @@ const EmployeeTable = () => {
           {dashboardData?.company || "Loading..."}
         </h2>
         <div className="flex justify-center mt-6">
-          <CompanySidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </aside>
 
@@ -119,12 +138,21 @@ const EmployeeTable = () => {
           <h2 className="text-xl font-semibold">
             Manage <span className="font-bold">Employees</span>
           </h2>
-          <Link
-            to="/add-employees"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
+          {roleId !== 2 && (
+            <Link
+              to="/add-employees"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
+            >
+              <FontAwesomeIcon icon={faUserPlus} /> Add New Employee
+            </Link>
+          )}
+
+          <button
+            onClick={downloadEmployeePDF}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded font-medium"
           >
-            <FontAwesomeIcon icon={faUserPlus} /> Add New Employee
-          </Link>
+            Download Employee Report
+          </button>
         </div>
 
         {/* Error Message */}
@@ -137,7 +165,9 @@ const EmployeeTable = () => {
         {/* Table */}
         <div className="overflow-x-auto p-4">
           {loading ? (
-            <div className="p-6 text-center text-gray-500">Loading employees...</div>
+            <div className="p-6 text-center text-gray-500">
+              Loading employees...
+            </div>
           ) : (
             <table className="min-w-full text-sm border-t shadow-md rounded overflow-hidden">
               <thead className="bg-gray-100 text-gray-700">
@@ -168,18 +198,28 @@ const EmployeeTable = () => {
                     <td className="p-3 border">{emp.gender}</td>
                     <td className="p-3 border">
                       <div className="flex space-x-3">
+                        {/* View is always allowed */}
                         <button className="text-blue-600 hover:text-blue-800">
                           <Eye size={18} />
                         </button>
-                        <Link to={`/add-employees/${emp.id}`} className="text-yellow-500 hover:text-yellow-600">
-                          <Pencil size={18} />
-                        </Link>
-                        <button
-                          onClick={() => deleteEmployee(emp.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+
+                        {/* Only show edit & delete if not role_id 2 */}
+                        {roleId !== 2 && (
+                          <>
+                            <Link
+                              to={`/add-employees/${emp.id}`}
+                              className="text-yellow-500 hover:text-yellow-600"
+                            >
+                              <Pencil size={18} />
+                            </Link>
+                            <button
+                              onClick={() => deleteEmployee(emp.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -193,7 +233,8 @@ const EmployeeTable = () => {
         {!loading && employees.length > 0 && (
           <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-3 bg-white border-t text-sm rounded-b gap-2">
             <span className="text-gray-700">
-              Showing {currentEmployees.length} out of {employees.length} entries
+              Showing {currentEmployees.length} out of {employees.length}{" "}
+              entries
             </span>
             <div className="flex flex-wrap gap-2">
               <button
@@ -216,7 +257,9 @@ const EmployeeTable = () => {
                 </button>
               ))}
               <button
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
                 className="px-3 py-1 rounded bg-white border hover:bg-gray-100"
               >
                 Next

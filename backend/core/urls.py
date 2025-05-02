@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from core.views.company_views import CompanyViewSet, CompanyDashboardViewSet
+from core.views.company_views import CompanyViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
 from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
@@ -14,22 +14,17 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
  
-
 from core.views.dashboard_views import DashboardView, DashboardLinkViewSet
-from core.views.hr_views import HrDashboardViewSet
 from core.views.file_views import get_pdf
 
 router = DefaultRouter()
 
 # Registering all our ViewSets
-router.register(r'company-dashboard-link', CompanyDashboardViewSet)
 router.register(r'companies', CompanyViewSet)
-# router.register(r'leaves', LeaveRequestViewSet)
 router.register(r'events', EventViewSet)
 router.register(r'holidays', HolidayViewSet)
 
 # HR Dashboard
-router.register(r'hr-dashboard-link', HrDashboardViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from core.models import Company, CompanyDashboardLink
-from core.serializers import CompanySerializer, CompanyDashboardLinkSerializer
+from core.models import Company
+from core.serializers import CompanySerializer
 
 class CompanyViewSet(viewsets.ModelViewSet):
     queryset = Company.objects.all()
@@ -10,7 +10,3 @@ class CompanyViewSet(viewsets.ModelViewSet):
 
 
 
-class CompanyDashboardViewSet(viewsets.ModelViewSet):
-    queryset = CompanyDashboardLink.objects.all().order_by('id')
-    serializer_class = CompanyDashboardLinkSerializer
-    permission_classes = [IsAuthenticated]

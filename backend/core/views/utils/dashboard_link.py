@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from core.models import  Employee, EmployeeDashboardLink, HrDashboardLink, CompanyDashboardLink
+from core.models import  Company, Employee, EmployeeDashboardLink, Event, HrDashboardLink, CompanyDashboardLink, LeaveRequest
 from core.serializers import EmployeeDashboardLinkSerializer, HrDashboardLinkSerializer, CompanyDashboardLinkSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
@@ -10,37 +10,69 @@ from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
 import traceback
 from django.shortcuts import get_object_or_404
+from datetime import date
 
+from datetime import date
 
-def dashboard_links(role_id, is_company):
-    print('role_id ===<<<>>>>>>', role_id)
-    print('is_company ===<<<>>>>>>', is_company)
-    # Admin Dashboard
-    if  is_company:
-        try:
-            dashboard_links = CompanyDashboardLink.objects.filter(active=True)
+def dashboard_links(role_id, is_company, email):
+    try:
+        data = {}
+        print('email:', email)
+        print('is_company:', is_company)
+        print('role_id:', role_id)
+
+        company_id = None  # Declare early for use in both is_company and HR block
+
+        if is_company:
+            dashboard_links = CompanyDashboardLink.objects.filter(active=True).order_by("id")
+            company_obj = Company.objects.get(email=email)  # FIXED: renamed from `company`
+            company_id = company_obj.id
             serializer = CompanyDashboardLinkSerializer(dashboard_links, many=True)
-            return Response( serializer.data, status=status.HTTP_200_OK)
-        except Employee.DoesNotExist:
-                    return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
-    # HR Dashboard
-    elif role_id == 2:
-        try:
-            dashboard_links = HrDashboardLink.objects.filter(active=True)
-            serializer = HrDashboardLinkSerializer(dashboard_links, many=True)
-            return Response( serializer.data, status=status.HTTP_200_OK)
-        except Employee.DoesNotExist:
-                    return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
-    # Employee Dashboard
-    elif role_id == 3:
-        try:
-            dashboard_links = EmployeeDashboardLink.objects.filter(active=True)
-            serializer = EmployeeDashboardLinkSerializer(dashboard_links, many=True)
-            return Response( serializer.data, status=status.HTTP_200_OK)
-        except Employee.DoesNotExist:
-                    return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-   
+            total_employees = Employee.objects.filter(company_id=company_id).count()
+            total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
+            upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()) \
+                                           .values('title', 'date')
+
+            data.update({
+                "dashboard_links": serializer.data,
+                "total_employees": total_employees,
+                "total_leave_requests": total_leave_requests,
+                "upcoming_events": list(upcoming_events)
+            })
+
+            return Response(data, status=status.HTTP_200_OK)
+
+        elif role_id == 2:
+            dashboard_links = HrDashboardLink.objects.filter(active=True).order_by("id")
+            serializer = HrDashboardLinkSerializer(dashboard_links, many=True)
+
+            # Try to fetch company via email for HR user (assumed linked through Employee)
+            employee = Employee.objects.get(company_email=email)
+            company_id = employee.company_id
+
+            total_employees = Employee.objects.filter(company_id=company_id).count()
+            total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
+            upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()) \
+                                           .values('title', 'date')
+
+            data.update({
+                "dashboard_links": serializer.data,
+                "total_employees": total_employees,
+                "total_leave_requests": total_leave_requests,
+                "upcoming_events": list(upcoming_events)
+            })
+
+            return Response(data, status=status.HTTP_200_OK)
+
+        elif role_id == 3:
+            dashboard_links = EmployeeDashboardLink.objects.filter(active=True).order_by("id")
+            serializer = EmployeeDashboardLinkSerializer(dashboard_links, many=True)
+            return Response({"dashboard_links": serializer.data}, status=status.HTTP_200_OK)
+
+        else:
+            return Response({"error": "Invalid role_id or access"}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

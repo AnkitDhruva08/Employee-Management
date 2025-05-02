@@ -16,15 +16,11 @@ const LeaveTable = () => {
   const token = localStorage.getItem("token");
   const roleId = localStorage.getItem("role_id");
 
-  const url =
-    roleId === "2"
-      ? "http://localhost:8000/api/hr-dashboard-link/"
-      : "http://localhost:8000/api/company-dashboard-link/";
 
   // Fetch dashboard links and data
   const fetchLinks = async () => {
     try {
-      const links = await fetchDashboardLink(token, url);
+      const links = await fetchDashboardLink(token);
       const dashboardData = await fetchDashboard(token);
       setQuickLinks(links);
       setDashboardData(dashboardData);
@@ -38,7 +34,6 @@ const LeaveTable = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    console.log("Leave Requests:", data);
     const list = data.results || data.data || [];
     setLeaveRequests(list);
   };

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Header from "../components/header/Header";
-import CompanySidebar from "../components/sidebar/CompanySidebar";
-import { fetchCompanyDashboardLinks, fetchDashboard } from "../utils/api";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Pencil, Trash2, Eye } from "lucide-react";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 
 const Role = () => {
   const [formData, setFormData] = useState({ role_name: '' });
@@ -15,7 +15,7 @@ const Role = () => {
   const [quickLinks, setQuickLinks] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false); // 👈 Modal state
+  const [showModal, setShowModal] = useState(false);
 
   const rolePerPage = 5;
   const HeaderTitle = "Roles";
@@ -45,7 +45,7 @@ const Role = () => {
 
   const fetchDashboardInfo = async () => {
     try {
-      const links = await fetchCompanyDashboardLinks(token);
+      const links = await fetchDashboardLink(token);
       const dashboard = await fetchDashboard(token);
       setQuickLinks(links);
       setDashboardData(dashboard);
@@ -102,7 +102,7 @@ const Role = () => {
           {dashboardData?.company || "Loading..."}
         </h2>
         <div className="flex justify-center mt-6">
-          <CompanySidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </aside>
 

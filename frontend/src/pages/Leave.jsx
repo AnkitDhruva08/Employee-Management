@@ -5,9 +5,9 @@ import { useNavigate } from "react-router-dom";
 import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
-import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
 import Header from "../components/header/Header";
-import { employeeDashboardLink, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 
 const LeaveRequest = () => {
   const [leaves, setLeaves] = useState([]);
@@ -54,7 +54,6 @@ const LeaveRequest = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    console.log("Leave Requests:", data);
     const list = data.results || data.data || [];
     setLeaveRequests(list);
   };
@@ -63,7 +62,7 @@ const LeaveRequest = () => {
   useEffect(() => {
     const fetchLinks = async () => {
       try {
-        const links = await employeeDashboardLink(token);
+        const links = await fetchDashboardLink(token); 
         const dashboardData = await fetchDashboard(token);
         fetchLeaveRequests();
         setQuickLinks(links);
@@ -200,7 +199,7 @@ const LeaveRequest = () => {
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
-          <EmployeeSidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </div>
 

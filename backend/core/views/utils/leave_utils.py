@@ -3,8 +3,6 @@ from django.db.models.functions import Concat
 from core.models import LeaveRequest 
 
 def get_leave_requests(is_company, role_id, emp_id):
-    print('role_id ankit mishra :', role_id)
-
     # Base query with annotated username
     base_query = LeaveRequest.objects.select_related('employee').annotate(
         username=Concat(

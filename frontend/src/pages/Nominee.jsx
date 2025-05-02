@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Banknote, CreditCard, FileCheck } from "lucide-react";
-import EmployeeSidebar from "../components/sidebar/EmployeeSidebar";
 import Header from "../components/header/Header";
-import { employeeDashboardLink, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
 
 
 const NomineeDetails = () => {
@@ -61,7 +61,7 @@ const NomineeDetails = () => {
   useEffect(() => {
     const fetchLinks = async () => {
       try {
-        const links = await employeeDashboardLink(token);
+        const links = await fetchDashboardLink(token);
         const dashboardData = await fetchDashboard(token);
         setQuickLinks(links);
         setDashboardData(dashboardData);
@@ -124,7 +124,7 @@ const NomineeDetails = () => {
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
-          <EmployeeSidebar quickLinks={quickLinks} />
+          <Sidebar quickLinks={quickLinks} />
         </div>
       </div>
 

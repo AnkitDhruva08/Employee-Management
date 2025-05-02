@@ -20,17 +20,24 @@ class LeaveRequestViewSet(APIView):
         try:
             email = request.user.email
             is_company = Company.objects.filter(email=email).exists()
-            employee = Employee.objects.get(company_email=email)
-            role_id = employee.role_id
-            emp_id = employee.id
-            print('emp_id ==<<>', emp_id)
-            print('role_id ankit :', role_id)
+            role_id = None
+            emp_id = None
+            if not is_company:
+                try:
+                    employee = Employee.objects.get(company_email=email)
+                    print('employee:', employee)
+                    role_id = employee.role_id
+                    emp_id = employee.id
+                    print('emp_id ==<<>', emp_id)
+                    print('role_id:', role_id)
+                except Employee.DoesNotExist:
+                    return Response({'error': 'Employee not found'}, status=404)
+
             data = get_leave_requests(is_company, role_id, emp_id)
-            print('data:', data)
             return Response({'data': list(data)}, status=200)
+
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-
 
 
     def post(self, request, *args, **kwargs):

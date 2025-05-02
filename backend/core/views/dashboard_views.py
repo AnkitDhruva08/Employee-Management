@@ -135,8 +135,8 @@ class DashboardLinkViewSet(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
         try:
-            print('request.user.email ===<<<>>>>>>', request.user.email)
             user_data = User.objects.get(email=request.user.email)
+            email = request.user.email
             is_company = False
             role_id = None
             if(user_data.is_company == True):
@@ -146,7 +146,7 @@ class DashboardLinkViewSet(APIView):
                 if employee:
                     role_id = employee.role_id
             
-            return dashboard_links(role_id, is_company)
+            return dashboard_links(role_id, is_company, email)
         except Employee.DoesNotExist:
             return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
