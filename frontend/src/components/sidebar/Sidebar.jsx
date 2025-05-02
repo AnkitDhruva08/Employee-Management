@@ -18,8 +18,6 @@ const Sidebar = ({ quickLinks }) => {
     }
   };
 
-  console.log('quickLinks in sidebar :', quickLinks);
-
   return (
     <div className="w-64 h-full bg-gray-800 text-white p-4 flex flex-col justify-between">
       <ul className="space-y-4">

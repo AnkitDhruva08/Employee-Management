@@ -69,6 +69,11 @@ const Dashboard = () => {
       {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold text-white">
+        <img
+          src="/path/to/your/logo.png"
+          alt="Company Logo"
+          className="w-full h-full object-cover"
+        />
           {dashboardData.company}
         </h2>
         <div className="flex justify-center mb-8">

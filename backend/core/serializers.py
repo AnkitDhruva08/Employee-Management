@@ -117,3 +117,10 @@ class HrDashboardLinkSerializer(serializers.ModelSerializer):
         fields = ['name', 'path', 'color', 'icons']
 
 
+
+
+# Serializer for the Holidays model
+class HolidaysSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Holiday
+        fields = '__all__'

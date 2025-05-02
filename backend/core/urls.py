@@ -7,7 +7,7 @@ from core.views.role_views import InsertRoleView, RoleDropdownView
 from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.employee_report_views import EmployeePDFReportView
-from core.views.event_views import EventViewSet, HolidayViewSet
+from core.views.event_views import EventViewSet
 from core.views.auth_views import LoginLogoutView, CompanyRegisterView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -16,13 +16,13 @@ from rest_framework_simplejwt.views import (
  
 from core.views.dashboard_views import DashboardView, DashboardLinkViewSet
 from core.views.file_views import get_pdf
+from core.views.holidays_views import HolidaysViewset
 
 router = DefaultRouter()
 
 # Registering all our ViewSets
 router.register(r'companies', CompanyViewSet)
 router.register(r'events', EventViewSet)
-router.register(r'holidays', HolidayViewSet)
 
 # HR Dashboard
 
@@ -90,6 +90,9 @@ urlpatterns = [
 
     #  for download employee details
     path('download-employee-report/', EmployeePDFReportView.as_view(), name='download-employee-report'),
+
+    # path for holyday calendar
+    path('holidays/', HolidaysViewset.as_view(), name='holidays'),
 ]
 
 if settings.DEBUG is True:

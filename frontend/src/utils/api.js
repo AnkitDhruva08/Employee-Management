@@ -1,50 +1,70 @@
 // utils/api.js
 
-// Role Based Dashboard API
- export const  fetchDashboard = async (token) => {
-  const res = await fetch("http://localhost:8000/api/dashboard/", {
+const API_BASE_URL = "http://localhost:8000/api";
+
+// 🔁 Central response handler with redirect on 401
+const handleResponse = async (res) => {
+  if (res.status === 401) {
+    localStorage.clear();
+    window.location.href = "/login";
+    return;
+  }
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || "Something went wrong");
+  }
+
+  return await res.json();
+};
+
+// 🔐 Role-Based Dashboard API
+export const fetchDashboard = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/dashboard/`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   });
-
-  if (!res.ok) throw new Error("Failed to load data");
-  const data = await res.json();
-  return data;
+  return await handleResponse(res);
 };
 
+// 🔗 Dashboard Links
+export const fetchDashboardLink = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/dashboard-link/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return await handleResponse(res);
+};
 
-// Dashboard API Link Function 
-export const fetchDashboardLink = async (token, url) => {
-  const response = await fetch('http://localhost:8000/api/dashboard-link/',
-    { method: "GET",
-      headers:
-      {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  const data = await response.json();
-  console.log("Dashboard link response:", data);
-  return data;
-}
+// 📅 Holiday Calendar
+export const fetchHolidays = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/holidays/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return await handleResponse(res);
+};
 
-
-
-// Logout API
+// 🚪 Logout
 export const logout = async (token) => {
-  const res = await fetch("http://localhost:8000/api/logout/", {
+  const res = await fetch(`${API_BASE_URL}/logout/`, {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
   });
-  if (!res.ok) throw new Error("Failed to logout");
-  const data = await res.json();
+
+  const data = await handleResponse(res);
   console.log("Logout response:", data);
-  return await res.json();
-}
+  return data;
+};

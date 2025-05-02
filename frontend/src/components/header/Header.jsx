@@ -42,9 +42,11 @@ const Header = ({ title }) => {
   if (!userData) return <div className="text-center">Loading...</div>;
 
   const role = userData?.role;
-  const displayName = userData?.employee_details?.[0]?.first_name || "User";
+  const isCompany = userData?.is_company;
+  const displayName = isCompany ? userData?.company : userData?.employee_details?.[0]?.first_name || "User";
+  
   const email = userData?.email || "example@example.com";
-  const firstLetter = displayName.charAt(0).toUpperCase();
+  const firstLetter = (displayName || "U").charAt(0).toUpperCase();
 
   return (
     <div className="w-full bg-white shadow p-4 flex justify-between items-center">

@@ -186,19 +186,20 @@ class Event(models.Model):
 
 
 class Holiday(models.Model):
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    company = models.ForeignKey("Company", on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     date = models.DateField()
-    active = models.BooleanField(default=True)  # New field
+    day_name = models.CharField(max_length=50)
+    active = models.BooleanField(default=True)
 
-    # Audit fields
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="holiday_created_by")
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="holiday_updated_by")
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.name} - {self.date}"
+
 
 
 class LeaveRequest(models.Model):

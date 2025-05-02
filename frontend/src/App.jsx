@@ -16,7 +16,8 @@ import OfficeDetails from './pages/OfficeDetails';
 import Leave from './pages/Leave';
 import EmployeeTable from './pages/EmployeeTable';
 import LeaveTable from './pages/LeaveTable';
-import AttendanceModule from './pages/AttendenceDashboard';
+import Attendance from './pages/AttendenceDashboard';
+import HoliDays from './pages/HoliDays';
 function App() {
   return (
     <Router>
@@ -42,7 +43,8 @@ function App() {
         <Route path="/leave-details" element={<Leave />} />
         <Route path="/employee-details" element={<EmployeeTable />} />
         <Route path="/leave-table" element={<LeaveTable />} />
-        <Route path="/attendance-module" element={<AttendanceModule />} />
+        <Route path="/attendance-module" element={<Attendance />} />
+        <Route path="/holidays" element={<HoliDays />} />
       </Routes>
     </Router>
   );

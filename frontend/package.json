@@ -19,6 +19,8 @@
     "@tiptap/react": "^2.11.7",
     "@tiptap/starter-kit": "^2.11.7",
     "date-fns": "^4.1.0",
+    "jspdf": "^3.0.1",
+    "jspdf-autotable": "^5.0.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.488.0",
     "quill": "^2.0.3",
@@ -28,6 +30,7 @@
     "react-icons": "^5.5.0",
     "react-quill": "^2.0.0",
     "react-router-dom": "^7.5.0",
+    "recharts": "^2.15.3",
     "sweetalert2": "^11.19.1",
     "uuid": "^11.1.0"
   },

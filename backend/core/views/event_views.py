@@ -8,6 +8,4 @@ class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
 
 
-class HolidayViewSet(viewsets.ModelViewSet):
-    queryset = Holiday.objects.all()
-    serializer_class = HolidaySerializer
+

@@ -9,11 +9,8 @@ from rest_framework import status
 from datetime import date
 from core.views.utils.dashboard_link import dashboard_links
 
-
 # User Modek
 User = get_user_model()
-
-
 
 # Views For Dashboard based on their role and also for organization
 class DashboardView(APIView):
@@ -129,7 +126,6 @@ class DashboardView(APIView):
                     except Company.DoesNotExist:
                             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
             
-
 # Employee Dashboard Links
 class DashboardLinkViewSet(APIView):
     permission_classes = [IsAuthenticated]
