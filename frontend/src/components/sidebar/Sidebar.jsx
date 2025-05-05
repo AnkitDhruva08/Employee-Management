@@ -7,16 +7,17 @@ const Sidebar = ({ quickLinks }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("accessToken");
-
+    const token = localStorage.getItem("token");
+  
     try {
       await logout(token);
-      localStorage.removeItem("accessToken");
+      localStorage.removeItem("token");
       navigate("/login");
     } catch (err) {
       console.error("Logout failed:", err.message);
     }
   };
+  
 
   return (
     <div className="w-64 h-full bg-gray-800 text-white p-4 flex flex-col justify-between">

@@ -12,6 +12,7 @@ import Sidebar from "../components/sidebar/Sidebar";
 import logo from "../assets/Logo.png";
 import Swal from "sweetalert2";
 const HoliDays = () => {
+  const navigate = useNavigate();
   const { id } = useParams();
   const [showModal, setShowModal] = useState(false);
   const [newHoliday, setNewHoliday] = useState({
@@ -155,11 +156,6 @@ const HoliDays = () => {
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <div className="flex items-center space-x-3 mb-6">
           <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md">
-            <img
-              src={logo}
-              alt="Company Logo"
-              className="w-full h-full object-cover"
-            />
           </div>
           <h2 className="text-lg font-semibold">{dashboardData.company}</h2>
         </div>

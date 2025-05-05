@@ -2,7 +2,6 @@ from django.conf import settings
 from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from core.views.company_views import CompanyViewSet
 from core.views.role_views import InsertRoleView, RoleDropdownView
 from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
@@ -14,6 +13,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
  
+from core.views.attendence_views import AttendanceView
 from core.views.dashboard_views import DashboardView, DashboardLinkViewSet
 from core.views.file_views import get_pdf
 from core.views.holidays_views import HolidaysViewset
@@ -21,7 +21,6 @@ from core.views.holidays_views import HolidaysViewset
 router = DefaultRouter()
 
 # Registering all our ViewSets
-router.register(r'companies', CompanyViewSet)
 router.register(r'events', EventViewSet)
 
 # HR Dashboard
@@ -93,6 +92,9 @@ urlpatterns = [
 
     # path for holyday calendar
     path('holidays/', HolidaysViewset.as_view(), name='holidays'),
+
+    # Attendance History
+    path('attendance/', AttendanceView.as_view(), name='attendance'),
 ]
 
 if settings.DEBUG is True:

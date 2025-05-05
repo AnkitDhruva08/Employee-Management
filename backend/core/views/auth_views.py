@@ -9,7 +9,9 @@ from core.serializers import CompanySerializer, UserSerializer
 from core.models import Company, Employee
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import check_password
+from datetime import datetime
+from core.models import Attendance
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 # User Model
 User = get_user_model() 
@@ -64,18 +66,16 @@ class CompanyRegisterView(APIView):
 
 #  Login views Based on role and also for organization
 
+
+
 class LoginLogoutView(APIView):
     """
-    Handles both login (POST) and logout (DELETE) actions.
-    - POST: Login and return JWT tokens
-    - DELETE: Logout and invalidate token
+    Handles login (POST) and logout (DELETE), and tracks attendance.
     """
 
     def post(self, request):
-        # LOGIN
         email = request.data.get("email")
         password = request.data.get("password")
-        print('Login attempt from:', email)
 
         if not email or not password:
             return Response({"error": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -95,6 +95,14 @@ class LoginLogoutView(APIView):
         if user:
             login(request, user)
             refresh = RefreshToken.for_user(user)
+
+            # Attendance login tracking
+            today = datetime.now().date()
+            attendance, created = Attendance.objects.get_or_create(user=user, date=today)
+            if not attendance.login_time:
+                attendance.login_time = datetime.now()
+                attendance.save()
+
             return Response({
                 "message": "Login successful!",
                 "status": 200,
@@ -110,12 +118,23 @@ class LoginLogoutView(APIView):
             return Response({"error": "Invalid password"}, status=status.HTTP_401_UNAUTHORIZED)
 
     def delete(self, request):
-        # LOGOUT 
-        print('Logout attempt from:', request.user.email)
-        self.permission_classes = [IsAuthenticated]
+        user = request.user if request.user.is_authenticated else None
+        email = getattr(user, 'email', 'Anonymous')
+        if not user:
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+
         try:
-            # Invalidate the token (if using token blacklisting or just log out)
-            logout(request)
-            return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            today = datetime.now().date()
+            attendance = Attendance.objects.get(user=user, date=today)
+
+            if not attendance.logout_time:
+                attendance.logout_time = datetime.now()
+                attendance.save()
+           
+
+        except Attendance.DoesNotExist:
+            print(f'[ATTENDANCE] No attendance found for {user.email} on {today}')
+
+        logout(request)
+        return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK)
+

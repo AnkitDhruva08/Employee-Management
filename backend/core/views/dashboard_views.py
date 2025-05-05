@@ -2,12 +2,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from core.models import Employee, Company, EmployeeDashboardLink, LeaveRequest, Event, Holiday, Role
-from core.permissions import IsCompanyUser, IsHRorAdmin, IsEmployeeUser
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from datetime import date
-from core.views.utils.dashboard_link import dashboard_links
+from core.utils.dashboard_link import dashboard_links
 
 # User Modek
 User = get_user_model()
@@ -44,7 +43,6 @@ class DashboardView(APIView):
         
         else:
             role_id = Employee.objects.filter(company_email=email).values('role_id').first()
-            print('role_id ===<<<>>>>>>', role_id)
             # Admin Dashboard
             if(role_id['role_id'] == 1):
                 try:

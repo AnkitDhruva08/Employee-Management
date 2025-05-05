@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FaSignOutAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { logout } from '../../utils/api';
 
 const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
@@ -33,10 +34,18 @@ const Header = ({ title }) => {
     fetchUserDetails();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
+ const handleLogout = async () => {
+    const token = localStorage.getItem("token");
+  
+    try {
+      await logout(token);
+      localStorage.removeItem("token");
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout failed:", err.message);
+    }
   };
+
 
   if (error) return <div className="text-red-600 text-center">{error}</div>;
   if (!userData) return <div className="text-center">Loading...</div>;

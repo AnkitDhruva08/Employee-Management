@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
-from core.views.utils.leave_utils import get_leave_requests
+from core.utils.leave_utils import get_leave_requests
 
 class LeaveRequestViewSet(APIView):
     queryset = LeaveRequest.objects.all()
@@ -25,11 +25,8 @@ class LeaveRequestViewSet(APIView):
             if not is_company:
                 try:
                     employee = Employee.objects.get(company_email=email)
-                    print('employee:', employee)
                     role_id = employee.role_id
                     emp_id = employee.id
-                    print('emp_id ==<<>', emp_id)
-                    print('role_id:', role_id)
                 except Employee.DoesNotExist:
                     return Response({'error': 'Employee not found'}, status=404)
 

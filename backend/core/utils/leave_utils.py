@@ -28,7 +28,6 @@ def get_leave_requests(is_company, role_id, emp_id):
     elif role_id == 2:  # HR
         leave_requests = base_query
     elif role_id == 3:  # Employee
-        print('ankit Mishra :::::::')
         leave_requests = base_query.filter(employee_id=emp_id)
     else:
         leave_requests = LeaveRequest.objects.none() 

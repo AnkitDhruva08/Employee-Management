@@ -26,6 +26,7 @@ const LeaveTable = () => {
       setDashboardData(dashboardData);
     } catch (err) {
       console.error("Failed to load quick links");
+      Navigate("/login");
     }
   };
 

@@ -38,7 +38,6 @@ const Login = () => {
       });
 
       const data = await response.json();
-      console.log("Login response:", data);
 
       if (data.status === 200) {
         localStorage.setItem("token", data.tokens.access);

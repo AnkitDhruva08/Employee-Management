@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink
+from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -124,3 +124,20 @@ class HolidaysSerializer(serializers.ModelSerializer):
     class Meta:
         model = Holiday
         fields = '__all__'
+
+
+
+
+
+
+# Serializer for the Attendance model
+
+class AttendanceSerializer(serializers.ModelSerializer):
+    duration = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Attendance
+        fields = ['date', 'login_time', 'logout_time', 'duration']
+
+    def get_duration(self, obj):
+        return str(obj.duration) if obj.duration else None

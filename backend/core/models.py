@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+from django.utils.timezone import now
 
 # Custom user model to differentiate companies and employees
 class User(AbstractUser):
@@ -282,3 +283,27 @@ class HrDashboardLink(models.Model):
     active = models.BooleanField(default=True) 
     def __str__(self):
         return self.name
+    
+
+
+
+
+
+# Attendance model
+class Attendance(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    date = models.DateField(default=now)
+    login_time = models.DateTimeField(null=True, blank=True)
+    logout_time = models.DateTimeField(null=True, blank=True)
+    active = models.BooleanField(default=True) 
+    status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="attendance_created_by")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="attendance_updated_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def duration(self):
+        if self.login_time and self.logout_time:
+            return self.logout_time - self.login_time
+        return None

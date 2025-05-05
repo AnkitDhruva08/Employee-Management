@@ -16,7 +16,8 @@ const handleResponse = async (res) => {
   }
 
   return await res.json();
-};
+}
+
 
 // 🔐 Role-Based Dashboard API
 export const fetchDashboard = async (token) => {
@@ -65,6 +66,33 @@ export const logout = async (token) => {
   });
 
   const data = await handleResponse(res);
-  console.log("Logout response:", data);
   return data;
+};
+
+
+// 👥 Employees
+export const fetchEmployees = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/employees/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};
+
+
+// 👥 Employee Details
+export const fetchEmployeeDetails = async (token, id) => {
+  const res = await fetch(`${API_BASE_URL}/employee/${id}/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
 };

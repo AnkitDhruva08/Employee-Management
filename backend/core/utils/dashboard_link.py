@@ -17,11 +17,7 @@ from datetime import date
 def dashboard_links(role_id, is_company, email):
     try:
         data = {}
-        print('email:', email)
-        print('is_company:', is_company)
-        print('role_id:', role_id)
-
-        company_id = None  # Declare early for use in both is_company and HR block
+        company_id = None 
 
         if is_company:
             dashboard_links = CompanyDashboardLink.objects.filter(active=True).order_by("id")

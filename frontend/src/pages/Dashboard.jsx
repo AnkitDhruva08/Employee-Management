@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import * as FaIcons from "react-icons/fa";
 import Header from "../components/header/Header";
-import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
+import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { id } = useParams();
   const [dashboardData, setDashboardData] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
@@ -14,39 +15,34 @@ const Dashboard = () => {
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
-  console.log("roleId:", roleId, "isCompany:", isCompany);
-  let HeaderTitle = "";
 
-  if (isCompany) {
-    HeaderTitle = "Company Dashboard";
-  } else if (roleId === 3) {
-    HeaderTitle = "Employee Dashboard";
-  } else if (roleId === 2) {
-    HeaderTitle = "HR Dashboard";
-  } else if (roleId === 1) {
-    HeaderTitle = "Admin Dashboard";
-  } else {
-    HeaderTitle = "Dashboard";
-  }
+  // Determine dashboard title based on user role
+  const HeaderTitle = isCompany
+    ? "Company Dashboard"
+    : roleId === 3
+    ? "Employee Dashboard"
+    : roleId === 2
+    ? "HR Dashboard"
+    : roleId === 1
+    ? "Admin Dashboard"
+    : "Dashboard";
 
+  // Fetch dashboard and quick links
   const fetchLinks = async () => {
     try {
       const links = await fetchDashboardLink(token);
-      console.log("links For Dashboard <<>>:", links);
       const empDashboard = await fetchDashboard(token);
       setQuickLinks(links.data || links);
       setDashboardData(empDashboard);
     } catch (err) {
       console.error("Error fetching quick links:", err);
-      setError("Failed to load quick links");
+      navigate("/login");
     }
   };
 
   useEffect(() => {
     fetchLinks();
   }, []);
-
-  console.log("quickLinks:", quickLinks);
 
   if (error) {
     return (
@@ -64,16 +60,36 @@ const Dashboard = () => {
     );
   }
 
+  // Define stat cards for company and HR
+  const statCards = [
+    {
+      id: "total-employees",
+      label: "Total Employees",
+      value: dashboardData.total_employees,
+      icon: <FaIcons.FaUsers className="text-3xl text-blue-500" />,
+      url: "/employee-details",
+    },
+    {
+      id: "total-leave",
+      label: "Total Leave Requests",
+      value: dashboardData.total_leave_requests,
+      icon: <FaIcons.FaClipboardList className="text-3xl text-green-500" />,
+      url: "/leave-table",
+    },
+    {
+      id: "upcoming-events",
+      label: "Upcoming Events",
+      value: dashboardData.upcoming_events,
+      icon: <FaIcons.FaCalendarAlt className="text-3xl text-purple-500" />,
+      url: "/events",
+    },
+  ];
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold text-white">
-        <img
-          src="/path/to/your/logo.png"
-          alt="Company Logo"
-          className="w-full h-full object-cover"
-        />
           {dashboardData.company}
         </h2>
         <div className="flex justify-center mb-8">
@@ -85,74 +101,48 @@ const Dashboard = () => {
       <div className="flex-1 flex flex-col">
         <Header title={HeaderTitle} />
 
-        {/* Stats Cards */}
-
         <div className="p-6 overflow-y-auto flex-1">
           {(isCompany || roleId === 2) && (
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  {
-                    label: "Total Employees",
-                    value: dashboardData.total_employees,
-                    icon: (
-                      <FaIcons.FaUsers className="text-3xl text-blue-500" />
-                    ),
-                    url: "/employee-details",
-                  },
-                  {
-                    label: "Total Leave Requests",
-                    value: dashboardData.total_leave_requests,
-                    icon: (
-                      <FaIcons.FaClipboardList className="text-3xl text-green-500" />
-                    ),
-                    url: "/leave-table",
-                  },
-                  {
-                    label: "Upcoming Events",
-                    value: dashboardData.upcoming_events,
-                    icon: (
-                      <FaIcons.FaCalendarAlt className="text-3xl text-purple-500" />
-                    ),
-                    url: "/events",
-                  },
-                ].map(({ label, value, icon, url }, index) => (
-                  <Link
-                    to={url || "#"}
-                    key={index}
-                    className="bg-white rounded-2xl shadow-md p-6 flex items-center justify-between hover:shadow-lg transition-all hover:bg-gray-50"
-                  >
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-600">
-                        {label}
-                      </h4>
-                      <p className="text-3xl font-bold text-gray-800 mt-1">
-                        {value}
-                      </p>
-                    </div>
-                    <div>{icon}</div>
-                  </Link>
-                ))}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              {statCards.map(({ id, label, value, icon, url }) => (
+                <Link
+                  key={id}
+                  to={url || "#"}
+                  className="bg-white rounded-2xl shadow-md p-6 flex items-center justify-between hover:shadow-lg transition-all hover:bg-gray-50"
+                >
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-600">
+                      {label}
+                    </h4>
+                    <p className="text-3xl font-bold text-gray-800 mt-1">
+                      {value}
+                    </p>
+                  </div>
+                  <div>{icon}</div>
+                </Link>
+              ))}
             </div>
           )}
 
           {/* Quick Links */}
           <div className="bg-white shadow-lg rounded-xl p-6">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {quickLinks.dashboard_links?.map((link) => (
-                <div
-                  key={link.id}
-                  className={`bg-${link.color}-500 shadow-lg rounded-xl p-6`}
-                >
-                  <Link
-                    to={id ? `${link.path}/${id}` : link.path}
-                    className="block text-center text-white font-medium transition"
+              {quickLinks.dashboard_links?.map((link) => {
+                const uniqueKey = `${link.id || link.name}-${link.path}`;
+                return (
+                  <div
+                    key={uniqueKey}
+                    className={`bg-${link.color}-500 shadow-lg rounded-xl p-6`}
                   >
-                    {link.name}
-                  </Link>
-                </div>
-              ))}
+                    <Link
+                      to={id ? `${link.path}/${id}` : link.path}
+                      className="block text-center text-white font-medium transition"
+                    >
+                      {link.name}
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
