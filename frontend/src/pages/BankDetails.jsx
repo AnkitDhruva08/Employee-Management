@@ -42,7 +42,6 @@ const BankDetails = () => {
 
         if (!response.ok) throw new Error("Failed to fetch bank details");
         const data = await response.json();
-        console.log('Bank details:', data);
         if (data?.length > 0) {
           const bank = data[0];
           setBankData({

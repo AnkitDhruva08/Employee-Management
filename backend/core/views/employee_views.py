@@ -63,7 +63,8 @@ class EmployeeViewSet(APIView):
                 .annotate(
                     username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
                     role_name=F('role__role_name'),
-                    company_name=F('company__company__company_name')
+                    company_name=F('company__company__company_name'),
+                    team_size=F('company__company__team_size') 
                 ) \
                 .values(
                     'id',
@@ -74,8 +75,10 @@ class EmployeeViewSet(APIView):
                     'date_of_birth',
                     'gender',
                     'company_name',
+                    'team_size', 
                     'role_name'
                 ).order_by('-id')
+
 
             return Response(employees)
 

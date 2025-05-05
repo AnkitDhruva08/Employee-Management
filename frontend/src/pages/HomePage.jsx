@@ -6,7 +6,7 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       {/* Hero Section */}
       <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-20 px-6 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">Smart HRMS Portal</h1>
+        <h1 className="text-4xl md:text-5xl font-bold mb-4">Smart Employee Management Portal</h1>
         <p className="text-lg md:text-xl mb-8">Manage your company, employees, leaves, holidays, and more with ease.</p>
         <div className="flex justify-center gap-4">
           <Link to="/register" className="bg-white text-blue-700 font-semibold py-2 px-6 rounded-full shadow-md hover:bg-gray-100 transition">
@@ -38,7 +38,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-6 text-center">
-        <p>© {new Date().getFullYear()} Smart HRMS | All Rights Reserved</p>
+        <p>© {new Date().getFullYear()} Smart Employee Management System | All Rights Reserved</p>
       </footer>
     </div>
   );
