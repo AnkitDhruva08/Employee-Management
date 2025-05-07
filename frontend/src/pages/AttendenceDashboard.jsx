@@ -110,7 +110,7 @@ if (roleId !== 3) {
     setAttendanceData({ ...attendanceData, [name]: value });
   };
 
-  const handleSave = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const dataToSend = {
@@ -245,7 +245,7 @@ if (roleId !== 3) {
             <h3 className="text-2xl font-bold text-blue-700 mb-6">
               {roleId === 3 ? "Apply for Leave" : "Record Attendance"}
             </h3>
-            <form onSubmit={handleSave} className="bg-white p-6 rounded-xl shadow-md grid grid-cols-1 md:grid-cols-3 gap-6">
+            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md grid grid-cols-1 md:grid-cols-3 gap-6">
               {roleId !== 3 && (
                 <select
                   name="employee"
@@ -411,17 +411,24 @@ if (roleId !== 3) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRecords.map((record, index) => (
-                        <tr key={record.id} className="hover:bg-gray-50">
-                          <td className="p-3 border">{index + 1}</td>
-                          <td className="p-3 border">{record.username}</td>
-                          <td className="p-3 border">{record.date}</td>
-                          <td className="p-3 border">{new Date(record.login_time).toLocaleTimeString()}</td>
-                          <td className="p-3 border">{new Date(record.logout_time).toLocaleTimeString()}</td>
-                          <td className="p-3 border">{record.duration_hours?.toFixed(2)} hrs</td>
-                          <td className="p-3 border">{record.status}</td>
-                        </tr>
-                      ))}
+                    {filteredRecords.map((record, index) => (
+                      <tr key={record.id} className="hover:bg-gray-50">
+                        <td className="p-3 border">{index + 1}</td>
+                        <td className="p-3 border">{record.username}</td>
+                        <td className="p-3 border">{record.date ? record.date : ""}</td>
+                        <td className="p-3 border">
+                          {record.login_time ? new Date(record.login_time).toLocaleTimeString() : ""}
+                        </td>
+                        <td className="p-3 border">
+                          {record.logout_time ? new Date(record.logout_time).toLocaleTimeString() : ""}
+                        </td>
+                        <td className="p-3 border">
+                          {record.duration_hours != null ? `${record.duration_hours.toFixed(2)} hrs` : ""}
+                        </td>
+                        <td className="p-3 border">{record.status}</td>
+                      </tr>
+                    ))}
+
                     </tbody>
                   </table>
                 </div>
