@@ -35,6 +35,7 @@ const LeaveTable = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
+    console.log("Leave Requests Admin:", data);
     const list = data.results || data.data || [];
     setLeaveRequests(list);
   };

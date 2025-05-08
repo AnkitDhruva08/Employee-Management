@@ -10,6 +10,8 @@ from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
 import traceback
 from django.shortcuts import get_object_or_404
+from django.core.mail import send_mail
+from django.conf import settings
 
 User = get_user_model()
 
@@ -86,49 +88,66 @@ class EmployeeViewSet(APIView):
             print('Error:', e)
             return Response({'error': 'Something went wrong'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
         
     def post(self, request, *args, **kwargs):
         data = request.data.copy()
         username = request.user
+        print('[DEBUG] Incoming data:', data)
+
+        # Get company ID
         try:
             company_id = Company.objects.get(company_name=request.user).id
+            print(f"[DEBUG] Company ID for user '{request.user}':", company_id)
+            company_name = Company.objects.get(id=company_id).company_name
+            print(f"[DEBUG] Company name for user '{request.user}':", company_name)
         except Company.DoesNotExist:
+            print('[ERROR] Company does not exist for user:', request.user)
             return Response({'error': 'Invalid company or user.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 1. Get and validate role
         role_input = data.get('job_role') or data.get('Designation') or data.get('designation') or data.get('role')
+        print('[DEBUG] Role input received:', role_input)
         if not role_input:
             return Response({'error': 'Designation (Role) is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             role = Role.objects.get(id=int(role_input)) if str(role_input).isdigit() else Role.objects.get(role_name=role_input.strip())
+            print('[DEBUG] Role found:', role)
         except Role.DoesNotExist:
+            print('[ERROR] Role not found:', role_input)
             return Response({'error': f'Role "{role_input}" does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 2. Check if user exists
         email = data.get('company_email')
+        default_password = "Pass@123"
+        print('[DEBUG] Checking if user exists with email:', email)
         try:
             user = User.objects.get(email=email)
+            print('[DEBUG] User already exists:', user)
         except User.DoesNotExist:
+            print('[DEBUG] Creating new user...')
             try:
                 user = User.objects.create_user(
                     username=data.get('first_name'),
                     email=email,
-                    password="Pass@123",
+                    password=default_password,
                     first_name=data.get('first_name', ''),
                     last_name=data.get('last_name', ''),
                     is_employee=True
                 )
+                print('[DEBUG] User created successfully:', user)
             except Exception as e:
+                print('[ERROR] User creation failed:', str(e))
                 return Response({'error': f'User creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 3. Check for existing Employee
         if Employee.objects.filter(company_email=email).exists():
+            print('[ERROR] Employee already exists with email:', email)
             return Response({'error': 'Employee with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 4. Create employee
         try:
+            print('[DEBUG] Creating new employee...')
             employee = Employee.objects.create(
                 first_name=data.get('first_name'),
                 middle_name=data.get('middle_name'),
@@ -141,9 +160,35 @@ class EmployeeViewSet(APIView):
                 role_id=role.id,
                 company_id=company_id
             )
-            return Response({'success': 'Employee created successfully.'}, status=status.HTTP_201_CREATED)
+            print('[DEBUG] Employee created successfully:', employee)
+
+            # 5. Send success email
+            subject = f"Welcome to {company_name} Employee Management System Access Details"
+            message = (
+                f"Hi {data.get('first_name')} {data.get('last_name')},\n\n"
+                "Welcome to our team! Your employee account has been successfully created.\n\n"
+                "Below are your login credentials to access the Employee Management System:\n\n"
+                f"🔗 Login URL: http://localhost:5173/login\n"
+                f"📧 Username: {email}\n"
+                f"🔐 Password: {default_password}\n\n"
+                "For your security, please change your password after logging in.\n\n"
+                "Through the portal, you can manage your profile, attendance, payroll, and more.\n\n"
+                f"If you face any issues, contact IT support at support@{company_name}.com.\n\n"
+                "Best regards,\n"
+                f"{company_name} HR Team"
+            )
+
+            print('[DEBUG] Sending email to:', email)
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+            print('[DEBUG] Email sent successfully.')
+
+            return Response({'success': 'Employee created and email sent successfully.'}, status=status.HTTP_201_CREATED)
+
         except Exception as e:
+            print('[ERROR] Employee creation failed:', str(e))
             return Response({'error': f'Employee creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
     # For Update Employee
     def put(self, request, pk=None, *args, **kwargs):

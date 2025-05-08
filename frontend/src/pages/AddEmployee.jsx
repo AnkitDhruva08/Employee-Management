@@ -69,7 +69,7 @@ const AddEmployee = () => {
   useEffect(() => {
     const fetchRoles = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/roles-dropdown/");
+        const res = await fetch("http://localhost:8000/api/roles/");
         if (!res.ok) throw new Error("Failed to fetch roles");
         const data = await res.json();
         setRoles(data);
@@ -108,7 +108,7 @@ const AddEmployee = () => {
         },
         body: JSON.stringify(formData),
       });
-
+        console.log('response ===>', response.json())
       if (response.ok) {
         // Display Success Message
         Swal.fire({

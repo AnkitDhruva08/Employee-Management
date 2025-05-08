@@ -9,6 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
 from core.utils.leave_utils import get_leave_requests
+from core.utils.utils import is_profile_complete
 
 class LeaveRequestViewSet(APIView):
     queryset = LeaveRequest.objects.all()
@@ -31,7 +32,16 @@ class LeaveRequestViewSet(APIView):
                     return Response({'error': 'Employee not found'}, status=404)
 
             data = get_leave_requests(is_company, role_id, emp_id)
-            return Response({'data': list(data)}, status=200)
+            print("Leave requests data:", data)
+            if data.get('success') is False:
+                return Response({
+                    "is_complete": data.get('is_complete', False),
+                    "message": data.get('message', 'Profile incomplete.'),
+                    "missing_sections": data.get('missing_sections', None),
+                    "data": None
+                }, status=200)
+
+            return Response(data, status=200)
 
         except Exception as e:
             return Response({'error': str(e)}, status=500)

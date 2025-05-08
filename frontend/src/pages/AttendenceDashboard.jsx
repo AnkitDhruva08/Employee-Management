@@ -14,11 +14,12 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-
+import { useNavigate } from "react-router-dom";
 import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
 
 function Attendance() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
@@ -46,7 +47,7 @@ function Attendance() {
 
   const generateSummary = (records) => {
     const summaryMap = {};
-    records.forEach((record) => {
+    records?.forEach((record) => {
       const month = new Date(record.date).toLocaleString("default", {
         month: "short",
       });
@@ -62,20 +63,41 @@ function Attendance() {
     }));
     setSummary(data);
   };
-
   const fetchEmployeesAttendance = async (token) => {
     try {
       const response = await fetch("http://localhost:8000/api/attendance/", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("Failed to fetch attendance");
+  
       const data = await response.json();
-      return data.data;
+      console.log("Attendance data:", data);
+  
+      // Block if profile is incomplete
+      if (data.is_complete === false) {
+        Swal.fire({
+          icon: "warning",
+          title: "Profile Incomplete",
+          text: data.message || "Please complete your profile before accessing attendance features.",
+          footer: `Missing: ${data.missing_sections || "Required Sections"}`
+        });
+        navigate('/dashboard');
+        return; 
+      }
+  
+      // Everything is fine
+      return data.data || [];
+  
     } catch (error) {
-      console.error("Error fetching attendance:", error);
-      return [];
+      console.error("Failed to fetch attendance:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Something went wrong while loading attendance records.",
+      });
+      return null;
     }
   };
+  
 
   const fetchData = async () => {
     let empData = [];
@@ -92,7 +114,7 @@ if (roleId !== 3) {
     setAttendanceRecords(attData);
 
     if (roleId === 3) {
-      const employeeData = attData.filter((record) => String(record.id) === String(roleId));
+      const employeeData = attData?.filter((record) => String(record.id) === String(roleId));
       setFilteredRecords(employeeData);
       generateSummary(employeeData);
     } else {
@@ -182,7 +204,7 @@ if (roleId !== 3) {
   };
 
   const exportToExcel = () => {
-    const formattedData = filteredRecords.map((record, index) => ({
+    const formattedData = filteredRecords?.map((record, index) => ({
       "Sr No.": index + 1,
       "Employee": record.username || "",
       "Date": record.date || "",
@@ -211,7 +233,7 @@ if (roleId !== 3) {
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.text("Attendance Report", 14, 10);
-    const tableData = filteredRecords.map((record, index) => [
+    const tableData = filteredRecords?.map((record, index) => [
       index + 1,
       record.username,
       record.date,
@@ -411,7 +433,7 @@ if (roleId !== 3) {
                       </tr>
                     </thead>
                     <tbody>
-                    {filteredRecords.map((record, index) => (
+                    {filteredRecords?.map((record, index) => (
                       <tr key={record.id} className="hover:bg-gray-50">
                         <td className="p-3 border">{index + 1}</td>
                         <td className="p-3 border">{record.username}</td>

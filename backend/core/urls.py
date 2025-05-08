@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from core.views.role_views import InsertRoleView, RoleDropdownView
+from core.views.role_views import RoleViews
 from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.employee_report_views import EmployeePDFReportView
@@ -43,10 +43,9 @@ urlpatterns = [
     path('employees/', EmployeeViewSet.as_view(), name='employees'),
     path('employees/<int:pk>/', EmployeeViewSet.as_view(), name='employee'),
 
-    # insert Roles 
-    path('roles/', InsertRoleView.as_view(), name='roles'),
-    # role dropdownlist
-    path('roles-dropdown/', RoleDropdownView.as_view(), name='roles-dropdown'),
+    #  Roles 
+    path('roles/', RoleViews.as_view(), name='roles'),
+    path('roles/<int:pk>/', RoleViews.as_view(), name='roles'),
 
 
     # dashboard 

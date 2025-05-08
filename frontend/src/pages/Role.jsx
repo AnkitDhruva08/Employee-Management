@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Header from "../components/header/Header";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Pencil, Trash2, Eye } from "lucide-react";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
+import Swal from 'sweetalert2';
 
 const Role = () => {
   const [formData, setFormData] = useState({ role_name: '' });
@@ -16,6 +17,8 @@ const Role = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingRoleId, setEditingRoleId] = useState(null);
 
   const rolePerPage = 5;
   const HeaderTitle = "Roles";
@@ -23,23 +26,28 @@ const Role = () => {
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (/^[a-zA-Z\s]*$/.test(value)) {
+      setFormData({ ...formData, [name]: value });
+      setError(null);
+    } else {
+      setError("Only alphabet characters (A-Z, a-z) are allowed.");
+    }
   };
 
   const fetchRoles = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/roles-dropdown/", {
+      setLoading(true);
+      const res = await fetch("http://localhost:8000/api/roles/", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Failed to fetch roles");
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setRoles(data);
-      } else {
-        throw new Error("Unexpected response format");
-      }
+      if (Array.isArray(data)) setRoles(data);
+      else throw new Error("Unexpected response format");
     } catch (err) {
       console.error("Error loading roles:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,16 +71,25 @@ const Role = () => {
     (currentPage - 1) * rolePerPage,
     currentPage * rolePerPage
   );
-
   const totalPages = Math.ceil(roles.length / rolePerPage);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
+    if (!formData.role_name.trim()) {
+      setError("Role name is required.");
+      return;
+    }
+
     try {
-      const response = await fetch('http://localhost:8000/api/roles/', {
-        method: 'POST',
+      const url = isEditMode
+        ? `http://localhost:8000/api/roles/${editingRoleId}/`
+        : `http://localhost:8000/api/roles/`;
+      const method = isEditMode ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -82,16 +99,56 @@ const Role = () => {
 
       const data = await response.json();
 
-      if (response.status === 201) {
-        setFormData({ role_name: '' }); // Clear form
-        fetchRoles(); // Refresh roles
-        setShowModal(false); // Close modal
+      if (response.ok) {
+        setFormData({ role_name: '' });
+        setShowModal(false);
+        setIsEditMode(false);
+        setEditingRoleId(null);
+        fetchRoles();
       } else {
-        setError(data.error || 'Something went wrong');
+        setError(data.error || "Something went wrong");
       }
     } catch (err) {
       console.error(err);
       setError("An error occurred. Please try again.");
+    }
+  };
+
+  const handleEditClick = (role) => {
+    setFormData({ role_name: role.role_name });
+    setEditingRoleId(role.id);
+    setIsEditMode(true);
+    setShowModal(true);
+  };
+
+  const deleteRole = async (id) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "This will delete the role permanently.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete it!",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`http://localhost:8000/api/roles/${id}/`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          fetchRoles();
+          Swal.fire("Deleted!", "The role has been deleted.", "success");
+        } else {
+          throw new Error("Failed to delete");
+        }
+      } catch (err) {
+        console.error("Delete error:", err);
+        Swal.fire("Error!", "Failed to delete the role.", "error");
+      }
     }
   };
 
@@ -109,20 +166,21 @@ const Role = () => {
       <main className="flex-1 flex flex-col overflow-y-auto">
         <Header title={HeaderTitle} />
 
-        {/* Page Heading and Add Button */}
         <div className="mx-[10px] bg-[#2b4d76] text-white px-6 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 rounded-t mt-6 mb-0">
-          <h2 className="text-xl font-semibold">
-            Manage <span className="font-bold">Roles</span>
-          </h2>
+          <h2 className="text-xl font-semibold">Manage <span className="font-bold">Roles</span></h2>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setShowModal(true);
+              setIsEditMode(false);
+              setFormData({ role_name: '' });
+              setError(null);
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
           >
             <FontAwesomeIcon icon={faUserPlus} /> Add New Role
           </button>
         </div>
 
-        {/* Modal */}
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
             <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-2xl relative">
@@ -132,7 +190,9 @@ const Role = () => {
               >
                 ×
               </button>
-              <h2 className="text-3xl font-bold mb-6 text-center text-blue-700">Insert Roles</h2>
+              <h2 className="text-3xl font-bold mb-6 text-center text-blue-700">
+                {isEditMode ? "Update Role" : "Insert Role"}
+              </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label className="block text-gray-700 font-medium mb-1">Role Name</label>
@@ -145,23 +205,18 @@ const Role = () => {
                     className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
-
-                {error && (
-                  <div className="text-red-500 text-sm mt-2">{error}</div>
-                )}
-
+                {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
                 <button
                   type="submit"
                   className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition"
                 >
-                  Submit
+                  {isEditMode ? "Update" : "Submit"}
                 </button>
               </form>
             </div>
           </div>
         )}
 
-        {/* Table */}
         <div className="overflow-x-auto p-4">
           {loading ? (
             <div className="p-6 text-center text-gray-500">Loading Roles...</div>
@@ -177,20 +232,14 @@ const Role = () => {
               <tbody>
                 {currentRole.map((role, index) => (
                   <tr key={role.id} className="border hover:bg-gray-50">
-                    <td className="p-3 border">{index + 1}</td>
+                    <td className="p-3 border">{(currentPage - 1) * rolePerPage + index + 1}</td>
                     <td className="p-3 border">{role.role_name}</td>
                     <td className="p-3 border">
                       <div className="flex space-x-3">
-                        <button className="text-blue-600 hover:text-blue-800">
-                          <Eye size={18} />
-                        </button>
-                        <Link to={`/add-employees/${role.id}`} className="text-yellow-500 hover:text-yellow-600">
+                        <button onClick={() => handleEditClick(role)} className="text-yellow-500 hover:text-yellow-600">
                           <Pencil size={18} />
-                        </Link>
-                        <button
-                          onClick={() => deleteEmployee(role.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
+                        </button>
+                        <button onClick={() => deleteRole(role.id)} className="text-red-600 hover:text-red-700">
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -201,7 +250,6 @@ const Role = () => {
             </table>
           )}
         </div>
-
       </main>
     </div>
   );

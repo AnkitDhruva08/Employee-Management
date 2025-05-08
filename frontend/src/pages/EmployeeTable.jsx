@@ -7,6 +7,10 @@ import Swal from "sweetalert2";
 import Header from "../components/header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+import logo from "../assets/Logo.png";
 const EmployeeTable = () => {
   const token = localStorage.getItem("token");
   const HeaderTitle = "Employees Table";
@@ -46,6 +50,7 @@ const EmployeeTable = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+      console.log("Employee data:", data);
       if (Array.isArray(data)) {
         setEmployees(data);
       } else {
@@ -97,26 +102,125 @@ const EmployeeTable = () => {
 
   const totalPages = Math.ceil(employees.length / employeesPerPage);
 
-  const downloadEmployeePDF = async () => {
-    const res = await fetch(
-      "http://localhost:8000/api/download-employee-report/",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    const blob = await res.blob();
-    console.log("blob:", blob);
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "employee_report.pdf";
-    a.click();
-    window.URL.revokeObjectURL(url);
+  // Function to convert image URL to base64
+  const getBase64ImageFromURL = (url) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const dataURL = canvas.toDataURL('image/png');
+        resolve(dataURL);
+      };
+      img.onerror = (error) => reject(error);
+      img.src = url;
+    });
   };
 
+  // Function to download the PDF
+  async function downloadEmployeePDF(employees) {
+    const doc = new jsPDF('landscape');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    // Add logo and header
+    let logoBase64 = null;
+    try {
+      if (logo) {
+        logoBase64 = await getBase64ImageFromURL(logo);
+        doc.addImage(logoBase64, 'PNG', 15, 10, 30, 15);
+      }
+    } catch (error) {
+      console.warn('Logo not added. Error loading image:', error);
+    }
+
+    // Add company name in the header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(40, 40, 40);
+    doc.text(dashboardData?.company, pageWidth / 2, 20, { align: 'center' });
+
+    // Add report title
+    doc.setFontSize(14);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Employee Report", pageWidth / 2, 30, { align: 'center' });
+
+    // Subtle underline for header
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 123, 255);
+    doc.line(10, 35, pageWidth - 10, 35);
+
+    // Table columns
+    const tableColumn = [
+      "Sr No.",
+      "Name",
+      "Company",
+      "Company Email",
+      "Personal Email",
+      "Phone",
+      "Role",
+      "DOB",
+      "Gender",
+    ];
+
+    // Table rows
+    const tableRows = employees.map((emp, index) => [
+      index + 1,
+      emp.username || '',
+      emp.company_name || '',
+      emp.company_email || '',
+      emp.personal_email || '',
+      emp.contact_number || '',
+      emp.role_name || '',
+      emp.date_of_birth || '',
+      emp.gender || '',
+    ]);
+
+    // Generate the table in the PDF using autoTable
+    autoTable(doc, {
+      startY: 40,
+      head: [tableColumn],
+      body: tableRows,
+      styles: {
+        fontSize: 10,
+        cellPadding: 5,
+        valign: 'middle',
+        overflow: 'linebreak',
+      },
+      headStyles: {
+        fillColor: [0, 123, 255],
+        textColor: 255,
+        fontStyle: 'bold',
+        fontSize: 12,
+        halign: 'center',
+      },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      columnStyles: {
+        0: { cellWidth: 15, halign: 'center' }, // Sr No.
+        1: { cellWidth: 40 }, // Name
+        2: { cellWidth: 40 }, // Company
+        3: { cellWidth: 50 }, // Company Email
+        4: { cellWidth: 50 }, // Personal Email
+        5: { cellWidth: 30, halign: 'center' }, // Phone
+        6: { cellWidth: 30, halign: 'center' }, // Role
+        7: { cellWidth: 30, halign: 'center' }, // DOB
+        8: { cellWidth: 20, halign: 'center' }, // Gender
+      },
+    });
+
+    // Footer
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("Generated on: " + new Date().toLocaleDateString(), 15, pageHeight - 10);
+    doc.text("Page " + doc.internal.getNumberOfPages(), pageWidth - 30, pageHeight - 10);
+
+    // Save the PDF
+    doc.save("employee_report.pdf");
+  }
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -148,11 +252,12 @@ const EmployeeTable = () => {
           )}
 
           <button
-            onClick={downloadEmployeePDF}
+            onClick={() => downloadEmployeePDF(employees)}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded font-medium"
           >
-            Download Employee Report
+             Export PDF
           </button>
+
         </div>
 
         {/* Error Message */}

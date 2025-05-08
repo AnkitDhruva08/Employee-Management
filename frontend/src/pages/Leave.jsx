@@ -8,6 +8,7 @@ import "react-date-range/dist/theme/default.css";
 import Header from "../components/header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
+import Swal from 'sweetalert2';
 
 const LeaveRequest = () => {
   const [leaves, setLeaves] = useState([]);
@@ -50,13 +51,37 @@ const LeaveRequest = () => {
 
 
   const fetchLeaveRequests = async () => {
-    const res = await fetch("http://localhost:8000/api/leave-requests/", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    const list = data.results || data.data || [];
-    setLeaveRequests(list);
+    try {
+      const res = await fetch("http://localhost:8000/api/leave-requests/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      console.log('data  employee ===>', data);
+  
+      // If user is blocked due to incomplete profile
+      if (data.is_complete === false) {
+        Swal.fire({
+          icon: "warning",
+          title: "Profile Incomplete",
+          text: data.message || "Please complete your profile before accessing leave features.",
+          footer: `Missing: ${data.missing_sections || "Required Sections"}`
+        });
+        navigate('/dashboard');
+        return; 
+      }
+  
+      const list = data.data || [];
+      setLeaveRequests(list);
+    } catch (error) {
+      console.error("Failed to fetch leave requests:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Something went wrong while loading leave requests.",
+      });
+    }
   };
+  
 
   // calling useEffect to fetch nominee details and dashboard data
   useEffect(() => {

@@ -12,7 +12,7 @@ import traceback
 from django.shortcuts import get_object_or_404
 from datetime import date
 
-from datetime import date
+
 
 def dashboard_links(role_id, is_company, email):
     try:
@@ -62,6 +62,8 @@ def dashboard_links(role_id, is_company, email):
             return Response(data, status=status.HTTP_200_OK)
 
         elif role_id == 3:
+            employee_id = Employee.objects.get(company_email=email).id
+            print('employee_id', employee_id)
             dashboard_links = EmployeeDashboardLink.objects.filter(active=True).order_by("id")
             serializer = EmployeeDashboardLinkSerializer(dashboard_links, many=True)
             return Response({"dashboard_links": serializer.data}, status=status.HTTP_200_OK)
@@ -71,4 +73,9 @@ def dashboard_links(role_id, is_company, email):
 
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
 
