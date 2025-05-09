@@ -32,7 +32,6 @@ def get_leave_requests(is_company, role_id, emp_id):
         leave_requests = base_query
     elif role_id == 3:  # Employee
         result = is_profile_complete(emp_id)
-        print("Profile completeness check result:", result)
         if not result['is_complete']:
                 return {
                     "success": False,

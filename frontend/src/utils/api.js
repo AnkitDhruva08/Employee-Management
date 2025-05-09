@@ -40,6 +40,7 @@ export const fetchDashboardLink = async (token) => {
       Authorization: `Bearer ${token}`,
     },
   });
+
   return await handleResponse(res);
 };
 

@@ -31,6 +31,8 @@ const Dashboard = () => {
   const fetchLinks = async () => {
     try {
       const links = await fetchDashboardLink(token);
+      console.log("Links:", links);
+ 
       const empDashboard = await fetchDashboard(token);
       setQuickLinks(links.data || links);
       setDashboardData(empDashboard);
@@ -125,26 +127,7 @@ const Dashboard = () => {
           )}
 
           {/* Quick Links */}
-          <div className="bg-white shadow-lg rounded-xl p-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {quickLinks.dashboard_links?.map((link) => {
-                const uniqueKey = `${link.id || link.name}-${link.path}`;
-                return (
-                  <div
-                    key={uniqueKey}
-                    className={`bg-${link.color}-500 shadow-lg rounded-xl p-6`}
-                  >
-                    <Link
-                      to={id ? `${link.path}/${id}` : link.path}
-                      className="block text-center text-white font-medium transition"
-                    >
-                      {link.name}
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+    
         </div>
       </div>
     </div>

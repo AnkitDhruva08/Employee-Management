@@ -1,7 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { FaSignOutAlt } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { logout } from '../../utils/api';
+import {
+  ChevronDown,
+  LogOut,
+  User,
+  Settings,
+  CreditCard,
+  FileText,
+  Users,
+  UserPlus,
+  HelpCircle,
+  MessageCircle,
+} from "lucide-react"; // Ensure lucide-react is installed
+ // Install: npm install lucide-react
 
 const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
@@ -24,8 +36,6 @@ const Header = ({ title }) => {
         if (!res.ok) throw new Error("Unauthorized");
         const data = await res.json();
         setUserData(data);
-
-     
       } catch (err) {
         setError("Failed to load user info");
       }
@@ -34,9 +44,8 @@ const Header = ({ title }) => {
     fetchUserDetails();
   }, []);
 
- const handleLogout = async () => {
+  const handleLogout = async () => {
     const token = localStorage.getItem("token");
-  
     try {
       await logout(token);
       localStorage.removeItem("token");
@@ -46,44 +55,94 @@ const Header = ({ title }) => {
     }
   };
 
-
   if (error) return <div className="text-red-600 text-center">{error}</div>;
   if (!userData) return <div className="text-center">Loading...</div>;
 
   const role = userData?.role;
   const isCompany = userData?.is_company;
   const displayName = isCompany ? userData?.company : userData?.employee_details?.[0]?.first_name || "User";
-  
   const email = userData?.email || "example@example.com";
-  const firstLetter = (displayName || "U").charAt(0).toUpperCase();
+  const firstLetter = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="w-full bg-white shadow p-4 flex justify-between items-center">
       <div className="text-xl font-semibold text-gray-800">{title}</div>
 
-      <div className="relative flex items-center gap-4 cursor-pointer" onClick={() => setShowDropdown(!showDropdown)}>
-        <div className="text-right">
-          <h4 className="font-semibold text-gray-800">{role} || {displayName}</h4>
-          <p className="text-sm text-gray-500">{email}</p>
-        </div>
-        <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
-          {firstLetter}
+      <div className="relative">
+        <div
+          className="flex items-center gap-3 cursor-pointer"
+          onClick={() => setShowDropdown(!showDropdown)}
+        >
+          <div className="text-right hidden sm:block">
+            <h4 className="font-semibold text-gray-800">{role} || {displayName}</h4>
+            <p className="text-sm text-gray-500">{email}</p>
+          </div>
+          <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
+            {firstLetter}
+          </div>
         </div>
 
         {showDropdown && (
-          <div className="absolute right-0 top-14 w-64 bg-white shadow-md rounded-md p-4 z-50">
-            <h4 className="font-semibold text-gray-800 mb-1">{displayName}</h4>
-            <p className="text-sm text-gray-500 mb-4">{email}</p>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md"
-            >
-              <FaSignOutAlt /> Logout
-            </button>
+          <div className="absolute right-0 mt-4 w-64 bg-white rounded-xl shadow-2xl z-50 p-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
+                {firstLetter}
+              </div>
+              <div>
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-gray-500">{email}</p>
+              </div>
+            </div>
+
+            <div className="divide-y divide-gray-100 text-sm">
+              <div className="space-y-1 pb-3">
+                <DropdownItem icon={<User />} label="View Profile" path="/user-profile-card" />
+                <DropdownItem icon={<Settings />} label="Settings" shortcut="⌘ G" active />
+                <DropdownItem icon={<CreditCard />} label="Subscription" shortcut="⌘ B" />
+              </div>
+
+              <div className="space-y-1 py-3">
+                <DropdownItem icon={<FileText />} label="Changelog" shortcut="⌘ E" />
+                <DropdownItem icon={<Users />} label="Team" shortcut="⌘ T" />
+                <DropdownItem icon={<UserPlus />} label="Invite Member" shortcut="⌘ F" />
+              </div>
+
+              <div className="space-y-1 py-3">
+                <DropdownItem icon={<HelpCircle />} label="Support" shortcut="⌘ R" />
+                <DropdownItem icon={<MessageCircle />} label="Community" shortcut="⌘ U" />
+              </div>
+
+              {/* <div className="pt-3">
+                <DropdownItem icon={<LogOut />} label="Sign Out" shortcut="⌘ Q" />
+              </div> */}
+
+              <div className="pt-3">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center justify-between w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-md"
+                >
+                  <span className="flex items-center gap-2"><LogOut className="w-4 h-4" /> Logout</span>
+                  <span className="text-xs text-gray-400">⌘ Q</span>
+                </button>
+              </div>
+            </div>
+
+    
           </div>
         )}
       </div>
     </div>
+  );
+};
+
+const DropdownItem = ({ icon, label, path }) => {
+  return (
+    <Link
+      to={path}
+      className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+    >
+      <span className="flex items-center gap-2">{icon} {label}</span>
+    </Link>
   );
 };
 

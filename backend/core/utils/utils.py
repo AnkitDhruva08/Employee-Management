@@ -1,7 +1,4 @@
 
-# utils.py
-# This file contains utility functions for the backend of the application.
-# It includes functions for checking if an employee's profile is complete and for validating email addresses.
 import re
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
@@ -35,7 +32,6 @@ def validate_email_address(email):
 
 #  function for check if employee have updated their profile or not
 def is_profile_complete(employee_id):
-    print("Checking profile completeness for employee_id:", employee_id)
 
     try:
         if not BankDetails.objects.filter(employee_id=employee_id, active=True).exists():

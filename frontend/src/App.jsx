@@ -15,6 +15,11 @@ import EmployeeTable from './pages/EmployeeTable';
 import LeaveTable from './pages/LeaveTable';
 import Attendance from './pages/AttendenceDashboard';
 import HoliDays from './pages/HoliDays';
+import Profile from './pages/EmployeeProfile';
+import EmployeeForm from './components/form/EmployeeForm';
+import ProfilePage from './components/user/ProfilePage';
+import UserProfileCard from './components/user/ProfilePage1';
+import ProfileDropdown from './components/user/ProfileDropdown';
 function App() {
   return (
     <Router>
@@ -39,6 +44,12 @@ function App() {
         <Route path="/leave-table" element={<LeaveTable />} />
         <Route path="/attendance-module" element={<Attendance />} />
         <Route path="/holidays" element={<HoliDays />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/employee-form" element={<EmployeeForm />} />
+        <Route path="/profile-page" element={<ProfilePage />} />
+        <Route path="/user-profile-card" element={<UserProfileCard />} />
+        <Route path="/profile-dropdown" element={<ProfileDropdown />} />
+
       </Routes>
     </Router>
   );
