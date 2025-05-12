@@ -19,10 +19,35 @@ class CompanySerializer(serializers.ModelSerializer):
         fields = ['id', 'company_name', 'email', 'team_size', 'address', 'user']
 
 
+# class EmployeeSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Employee
+#         fields = '__all__'
+
+
 class EmployeeSerializer(serializers.ModelSerializer):
+    role_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Employee
-        fields = '__all__'
+        fields = [
+            'id', 'first_name', 'middle_name', 'last_name',
+            'contact_number', 'company_email', 'personal_email',
+            'date_of_birth', 'gender', 'profile_image', 'role_id', 'role_name'
+        ]
+
+    def get_role_name(self, obj):
+        try:
+            return Role.objects.get(id=obj.role_id).role_name
+        except Role.DoesNotExist:
+            return None
+        
+
+    def get_profile_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.profile_image:
+            return request.build_absolute_uri(obj.profile_image.url)
+        return None
 
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:

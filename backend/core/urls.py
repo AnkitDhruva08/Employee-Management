@@ -3,7 +3,7 @@ from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from core.views.role_views import RoleViews
-from core.views.employee_views import EmployeeViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView
+from core.views.employee_views import EmployeeViewSet, EmployeeProfileViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, ProfileImageUploadView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.employee_report_views import EmployeePDFReportView
 from core.views.event_views import EventViewSet
@@ -42,10 +42,16 @@ urlpatterns = [
     # ADD Empolyees
     path('employees/', EmployeeViewSet.as_view(), name='employees'),
     path('employees/<int:pk>/', EmployeeViewSet.as_view(), name='employee'),
+    # Employee Profile
+    path('employee-profile/', EmployeeProfileViewSet.as_view(), name='employee-profile'),
+    path('employee-profile/<int:pk>/', EmployeeProfileViewSet.as_view(), name='employee-profile'),
 
     #  Roles 
     path('roles/', RoleViews.as_view(), name='roles'),
     path('roles/<int:pk>/', RoleViews.as_view(), name='roles'),
+
+    # Profile picture
+    path('upload-profile-picture/', ProfileImageUploadView.as_view(), name='upload-profile-picture'),
 
 
     # dashboard 

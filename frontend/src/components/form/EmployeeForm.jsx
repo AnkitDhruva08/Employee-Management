@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useParams } from "react-router-dom";
 import PersonalInfoForm from "./PersonalInfoForm";
 import EmergencyContactForm from "./EmergencyContactForm";
 import NomineeDetailsForm from "./NomineeDetailsForm";
@@ -16,22 +17,29 @@ const steps = [
 ];
 
 export default function EmployeeForm() {
+  const { id } = useParams(); // 👈 Extract ID from the route
   const [currentStep, setCurrentStep] = useState(0);
+
+  const stepProps = {
+    onNext: () => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1)),
+    onPrev: () => setCurrentStep((prev) => Math.max(prev - 1, 0)),
+    employeeId: id, // 👈 Pass the ID as a prop to each form step
+  };
 
   const renderStep = () => {
     switch (currentStep) {
       case 0:
-        return <PersonalInfoForm />;
+        return <PersonalInfoForm {...stepProps} />;
       case 1:
-        return <EmergencyContactForm />;
+        return <EmergencyContactForm {...stepProps} />;
       case 2:
-        return <NomineeDetailsForm />;
+        return <NomineeDetailsForm {...stepProps} />;
       case 3:
-        return <BankDetailsForm />;
+        return <BankDetailsForm {...stepProps} />;
       case 4:
-        return <OfficeDetailsForm />;
+        return <OfficeDetailsForm {...stepProps} />;
       case 5:
-        return <DocumentsUploadForm />;
+        return <DocumentsUploadForm {...stepProps} />;
       default:
         return null;
     }
@@ -40,7 +48,7 @@ export default function EmployeeForm() {
   const percentage = ((currentStep + 1) / steps.length) * 100;
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white shadow-xl rounded-xl">
+    <div className="mt-20 max-w-5xl mx-auto p-6 bg-white shadow-xl rounded-xl">
       {/* Progress Header */}
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
@@ -78,24 +86,6 @@ export default function EmployeeForm() {
 
       {/* Form Section */}
       <div className="p-4">{renderStep()}</div>
-
-      {/* Navigation Buttons */}
-      <div className="flex justify-between mt-6">
-        <button
-          onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
-          disabled={currentStep === 0}
-          className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50"
-        >
-          Previous
-        </button>
-        <button
-          onClick={() => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))}
-          disabled={currentStep === steps.length - 1}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          Next
-        </button>
-      </div>
     </div>
   );
 }

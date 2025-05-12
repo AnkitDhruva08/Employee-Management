@@ -18,8 +18,10 @@ import HoliDays from './pages/HoliDays';
 import Profile from './pages/EmployeeProfile';
 import EmployeeForm from './components/form/EmployeeForm';
 import ProfilePage from './components/user/ProfilePage';
-import UserProfileCard from './components/user/ProfilePage1';
+import UserProfilePage from './components/user/UserProfileCard';
 import ProfileDropdown from './components/user/ProfileDropdown';
+// import UploadProfileImage from './components/File/UploadProfileImage';
+// import { FormProvider } from './utils/FormContext';
 function App() {
   return (
     <Router>
@@ -45,9 +47,9 @@ function App() {
         <Route path="/attendance-module" element={<Attendance />} />
         <Route path="/holidays" element={<HoliDays />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/employee-form" element={<EmployeeForm />} />
-        <Route path="/profile-page" element={<ProfilePage />} />
-        <Route path="/user-profile-card" element={<UserProfileCard />} />
+        <Route path="/employee-form/:id" element={<EmployeeForm />} />
+        <Route path="/profile-page" element={<UserProfilePage />} />
+        {/* <Route path="/upload-profile-image" element={<UploadProfileImage />} /> */}
         <Route path="/profile-dropdown" element={<ProfileDropdown />} />
 
       </Routes>

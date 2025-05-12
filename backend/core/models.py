@@ -43,6 +43,8 @@ class Role(models.Model):
     def __str__(self):
         return self.role_name
 
+def user_profile_image_path(instance, filename):
+    return f"profile_images/user_{instance.id}/{filename}"
 
 class Employee(models.Model):
     GENDER_CHOICES = [
@@ -59,6 +61,7 @@ class Employee(models.Model):
     personal_email = models.EmailField("Personal Email Address")
     date_of_birth = models.DateField("Date of Birth")
     gender = models.CharField("Gender", max_length=10, choices=GENDER_CHOICES)
+    profile_image = models.ImageField(upload_to=user_profile_image_path, null=True, blank=True)
     active = models.BooleanField(default=True)  # New field
 
     # Audit fields

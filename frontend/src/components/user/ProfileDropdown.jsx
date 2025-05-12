@@ -10,7 +10,7 @@ import {
   UserPlus,
   HelpCircle,
   MessageCircle,
-} from "lucide-react"; // Ensure lucide-react is installed
+} from "lucide-react"; 
 
 export default function ProfileDropdown() {
   const [open, setOpen] = useState(false);

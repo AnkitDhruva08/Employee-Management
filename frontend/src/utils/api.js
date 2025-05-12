@@ -97,3 +97,22 @@ export const fetchEmployeeDetails = async (token, id) => {
   const data = await handleResponse(res);
   return data
 };
+
+
+
+
+
+
+// 👤 User Profile
+export const fetchUserProfile = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/employee-profile/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};
+

@@ -1,54 +1,223 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { User, Phone, HeartHandshake, FileCheck } from "lucide-react";
+import Header from "../header/Header";
+import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
+import Sidebar from "../sidebar/Sidebar";
+import Swal from 'sweetalert2';
 
-export default function EmergencyContactForm({ onChange }) {
-  const [formData, setFormData] = useState({
+
+export default function EmergencyContactForm({ onNext, onPrev }) {
+  const [emergencyData, setEmergencyData] = useState({
     emergency_name: "",
     emergency_relation: "",
     emergency_contact: "",
   });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    const updated = { ...formData, [name]: value };
-    setFormData(updated);
-    if (onChange) onChange(updated);
+  const [quickLinks, setQuickLinks] = useState([]);
+  const [existingData, setExistingData] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const navigate = useNavigate();
+   const [id, setId] = useState(null);
+
+  const token = localStorage.getItem("token");
+  const headerTitle = "Emergency Contact Details";
+
+  //  Function for fetch emergency contact details
+  const fetchEmergencyDetails = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/employee-emergency-details/",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const emergency = data[0];
+          setEmergencyData(emergency);
+          setExistingData(emergency);
+          setId(emergency.id);
+          setIsUpdating(true);
+        }
+      }
+    } catch (err) {
+      setError("Failed to load emergency contact data.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // calling useEffect to fetch nominee details and dashboard data
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        const links = await fetchDashboardLink(token);
+        const dashboardData = await fetchDashboard(token);
+        setQuickLinks(links);
+        setDashboardData(dashboardData);
+      } catch (err) {
+        setError("Failed to load dashboard");
+      }
+    };
+
+    fetchLinks();
+    fetchEmergencyDetails();
+  }, [token]);
+
+  const handleChange = (e) => {
+    setEmergencyData({ ...emergencyData, [e.target.name]: e.target.value });
+  };
+
+  // Function for handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      for (const key in emergencyData) {
+        formData.append(key, emergencyData[key]);
+      }
+
+      const url = isUpdating
+        ? `http://localhost:8000/api/employee-emergency-details/${existingData.id}/`
+        : "http://localhost:8000/api/employee-emergency-details/";
+
+      const response = await fetch(url, {
+        method: isUpdating ? "PUT" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      if (onNext) onNext();
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData?.detail || `Error: ${response.status}`);
+      }
+
+      setSuccess(
+        isUpdating
+          ? "Emergency contact saved successfully."
+          : "Emergency contact saved successfully."
+      );
+      setIsUpdating(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
-    <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label className="block font-semibold">Emergency Contact Name</label>
-        <input
-          type="text"
-          name="emergency_name"
-          value={formData.emergency_name}
-          onChange={handleChange}
-          className="input"
-          placeholder="Jane Doe"
-        />
+    <div className="max-w-7xl mx-auto">
+    <Header title={headerTitle} />
+  
+    {loading ? (
+      <div className="text-center py-10 text-gray-500">Loading...</div>
+    ) : (
+      <div className="mt-8 bg-white shadow-xl border border-gray-200 rounded-3xl px-10 py-12">
+        <h2 className="text-4xl font-extrabold text-center text-blue-700 mb-10">
+          {isUpdating ? "Update Emergency Contact" : "Add Emergency Contact"}
+        </h2>
+  
+        <form onSubmit={handleSubmit} className="space-y-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <div className="flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-500" />
+                <input
+                  type="text"
+                  name="emergency_name"
+                  value={emergencyData.emergency_name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
+                />
+              </div>
+            </div>
+  
+            {/* Contact Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+              <div className="flex items-center gap-2">
+                <Phone className="w-5 h-5 text-blue-500" />
+                <input
+                  type="tel"
+                  name="emergency_contact"
+                  value={emergencyData.emergency_contact}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
+                />
+              </div>
+            </div>
+  
+            {/* Relation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+              <div className="flex items-center gap-2">
+                <HeartHandshake className="w-5 h-5 text-blue-500" />
+                <select
+                  name="emergency_relation"
+                  value={emergencyData.emergency_relation}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none bg-white"
+                >
+                  <option value="">Select Relation</option>
+                  <option value="parent">Parent</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="sibling">Sibling</option>
+                  <option value="child">Child</option>
+                  <option value="friend">Friend</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+  
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-8">
+            <button
+              type="button"
+              onClick={onPrev}
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+            >
+              Previous
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              {loading ? "Submitting..." : isUpdating ? "Next" : "Next"}
+            </button>
+          </div>
+  
+          {/* Status Messages */}
+          {error && <p className="text-center text-red-600 font-semibold">{error}</p>}
+          {success && <p className="text-center text-green-600 font-semibold">{success}</p>}
+        </form>
       </div>
-      <div>
-        <label className="block font-semibold">Relation</label>
-        <input
-          type="text"
-          name="emergency_relation"
-          value={formData.emergency_relation}
-          onChange={handleChange}
-          className="input"
-          placeholder="Sister, Father, Friend..."
-        />
-      </div>
-      <div>
-        <label className="block font-semibold">Emergency Contact Number</label>
-        <input
-          type="text"
-          name="emergency_contact"
-          value={formData.emergency_contact}
-          onChange={handleChange}
-          className="input"
-          placeholder="9876543210"
-        />
-      </div>
-    </form>
+    )}
+  </div>
+  
+  
   );
 }

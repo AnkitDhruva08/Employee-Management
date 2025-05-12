@@ -2,7 +2,7 @@ import React from "react";
 
 export default function UserProfilePage() {
   return (
-    <div className="min-h-screen bg-blue-500 flex justify-center items-center p-4">
+    <div className="flex justify-center items-center h-screen  p-2">
       <div className="bg-white rounded-xl shadow-lg max-w-5xl w-full p-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">

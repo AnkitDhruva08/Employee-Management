@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
+import Header from "../header/Header";
+import Sidebar from "../sidebar/Sidebar";
+import FileUpload from "../File/FileUpload";
+import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
 
-export default function DocumentsUploadForm({ onChange }) {
-  const [formData, setFormData] = useState({
-    insurance_number: "",
-    epf_member: "",
-    uan: "",
+export default function OfficeDocumentsForm({ onNext, onPrev }) {
+  const [employeeFormData, setEmployeeFormData] = useState({
+    id: null,
     photo: null,
     aadhar: null,
     pan: null,
@@ -13,152 +15,245 @@ export default function DocumentsUploadForm({ onChange }) {
     promotion: null,
     resume: null,
     esic_card: null,
+    insurance_number: "",
+    epf_member: "",
+    uan: "",
   });
 
-  const handleChange = (e) => {
-    const { name, value, type, files } = e.target;
-    if (type === "file") {
-      setFormData((prevState) => ({
-        ...prevState,
-        [name]: files[0],
-      }));
-    } else {
-      setFormData((prevState) => ({
-        ...prevState,
-        [name]: value,
-      }));
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [quickLinks, setQuickLinks] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
+
+  const token = localStorage.getItem("token");
+  const headerTitle = 'Employee Documents'
+
+  const fetchEmployeeDocuments = async () => {
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/employee-documents",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error("Unauthorized or no data found");
+
+      const data = await response.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const doc = data[0];
+        setEmployeeFormData({
+          ...doc,
+          photo: null,
+          aadhar: null,
+          pan: null,
+          dl: null,
+          appointment: null,
+          promotion: null,
+          resume: null,
+          esic_card: null,
+        });
+        setIsUpdating(true);
+      }
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
     }
-    if (onChange) onChange(formData);
   };
 
+  useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        const links = await fetchDashboardLink(token);
+        const dashboardData = await fetchDashboard(token);
+        setQuickLinks(links);
+        setDashboardData(dashboardData);
+      } catch (err) {
+        setError("Failed to load dashboard");
+      }
+    };
+
+    fetchLinks();
+    fetchEmployeeDocuments();
+  }, [token]);
+
+  const handleChange = (e) => {
+    setEmployeeFormData({
+      ...employeeFormData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+      const method = isUpdating ? "PUT" : "POST";
+
+      for (const key in employeeFormData) {
+        if (employeeFormData[key]) {
+          formData.append(key, employeeFormData[key]);
+        }
+      }
+
+      const endpoint = isUpdating
+        ? `http://localhost:8000/api/employee-documents/${employeeFormData.id}/`
+        : "http://localhost:8000/api/employee-documents/";
+
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(
+          "Failed to submit. " +
+            (errData?.detail || `Status: ${response.status}`)
+        );
+      }
+
+      setSuccess("Documents updated successfully.");
+      setIsUpdating(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePreviewFile = (filePath) => {
+    if (filePath) {
+      const url = `http://localhost:8000${filePath}`;
+      window.open(url, "_blank");
+    }
+  };
+
+  const fileFields = [
+    { name: "photo", label: "Photograph", accept: ".jpg,.jpeg,.png" },
+    { name: "aadhar", label: "Aadhar Card", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "pan", label: "PAN Card", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "dl", label: "Driving License", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "appointment", label: "Appointment Letter", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "promotion", label: "Promotion Letter", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "resume", label: "Resume", accept: ".jpg,.jpeg,.png,.pdf" },
+    { name: "esic_card", label: "ESIC Card", accept: ".jpg,.jpeg,.png,.pdf" },
+  ];
+
   return (
-    <form className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Insurance Number */}
-      <div>
-        <label className="block font-semibold">Insurance Number</label>
-        <input
-          type="text"
-          name="insurance_number"
-          value={formData.insurance_number}
-          onChange={handleChange}
-          className="input"
-          placeholder="e.g., INS123456"
-        />
-      </div>
+ 
 
-      {/* EPF Member */}
-      <div>
-        <label className="block font-semibold">EPF Member Number</label>
-        <input
-          type="text"
-          name="epf_member"
-          value={formData.epf_member}
-          onChange={handleChange}
-          className="input"
-          placeholder="e.g., EPF123456"
-        />
-      </div>
 
-      {/* UAN */}
-      <div>
-        <label className="block font-semibold">UAN (Universal Account Number)</label>
-        <input
-          type="text"
-          name="uan"
-          value={formData.uan}
-          onChange={handleChange}
-          className="input"
-          placeholder="e.g., UAN123456"
-        />
-      </div>
+<div className="max-w-7xl mx-auto">
+<Header title={headerTitle} />
 
-      {/* Photo */}
-      <div>
-        <label className="block font-semibold">Upload Photo</label>
-        <input
-          type="file"
-          name="photo"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
+{loading ? (
+  <div className="text-center py-10 text-gray-500">Loading...</div>
+) : (
+  <div className="mt-8 bg-white shadow-xl border border-gray-200 rounded-3xl px-10 py-12">
+    <h2 className="text-4xl font-extrabold text-center text-blue-700 mb-10">
+      {isUpdating ? "Update Documents Details" : "Upload Documents Details"}
+    </h2>
 
-      {/* Aadhar */}
-      <div>
-        <label className="block font-semibold">Upload Aadhar</label>
-        <input
-          type="file"
-          name="aadhar"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
+    <div className="space-y-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <InputField
+            label="Insurance Number"
+            name="insurance_number"
+            value={employeeFormData.insurance_number}
+            onChange={handleChange}
+          />
+          <InputField
+            label="EPF Member"
+            name="epf_member"
+            value={employeeFormData.epf_member}
+            onChange={handleChange}
+          />
+          <InputField
+            label="UAN"
+            name="uan"
+            value={employeeFormData.uan}
+            onChange={handleChange}
+          />
+        </div>
 
-      {/* PAN */}
-      <div>
-        <label className="block font-semibold">Upload PAN Card</label>
-        <input
-          type="file"
-          name="pan"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {fileFields.map((field) => (
+            <div key={field.name}>
+              <label className="block mb-1 text-sm font-medium text-gray-700">
+                {field.label} <span className="text-xs text-gray-400">(Optional)</span>
+              </label>
+              <FileUpload
+                isView={false}
+                isCombine={false}
+                initialFiles={
+                  employeeFormData[field.name] ? [employeeFormData[field.name]] : []
+                }
+                onFilesSelected={(files) => {
+                  setEmployeeFormData((prev) => ({
+                    ...prev,
+                    [field.name]: files[0]?.file || null,
+                  }));
+                }}
+                onDeletedFiles={() =>
+                  setEmployeeFormData((prev) => ({
+                    ...prev,
+                    [field.name]: null,
+                  }))
+                }
+                onPreviewFile={handlePreviewFile}
+              />
+            </div>
+          ))}
+        </div>
 
-      {/* Driving License */}
-      <div>
-        <label className="block font-semibold">Upload Driving License</label>
-        <input
-          type="file"
-          name="dl"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
+        <div className="flex justify-between mt-8">
+          <button
+            type="button"
+            onClick={onPrev}
+            className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+          >
+            Previous
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            onClick={handleSubmit} 
+            className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-lg"
+          >
+            {loading ? "Uploading..." : isUpdating ? "Update Details" : "Submit Details"}
+          </button>
+        </div>
 
-      {/* Appointment Letter */}
-      <div>
-        <label className="block font-semibold">Upload Appointment Letter</label>
-        <input
-          type="file"
-          name="appointment"
-          onChange={handleChange}
-          className="input"
-        />
+        {error && <p className="text-red-600 mt-4 text-sm text-center">{error}</p>}
+        {success && <p className="text-green-600 mt-4 text-sm text-center">{success}</p>}
       </div>
-
-      {/* Promotion Letter */}
-      <div>
-        <label className="block font-semibold">Upload Promotion Letter</label>
-        <input
-          type="file"
-          name="promotion"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
-
-      {/* Resume */}
-      <div>
-        <label className="block font-semibold">Upload Resume</label>
-        <input
-          type="file"
-          name="resume"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
-
-      {/* ESIC Card */}
-      <div>
-        <label className="block font-semibold">Upload ESIC Card</label>
-        <input
-          type="file"
-          name="esic_card"
-          onChange={handleChange}
-          className="input"
-        />
-      </div>
-    </form>
+  </div>
+)}
+</div>
   );
 }
+
+// Reusable Input Field
+const InputField = ({ label, name, value, onChange }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input
+      type="text"
+      name={name}
+      value={value}
+      onChange={onChange}
+      required
+      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
+    />
+  </div>
+);

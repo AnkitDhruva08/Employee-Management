@@ -16,6 +16,41 @@ from django.conf import settings
 User = get_user_model()
 
 
+
+class EmployeeProfileViewSet(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Fetch employee details
+            employee = Employee.objects.get(company_email=request.user.email)
+            role_name = Role.objects.get(id=employee.role_id).role_name
+
+            # Fetch related data
+            emergency_contacts = EmergencyContact.objects.filter(employee=employee)
+            office_details = OfficeDetails.objects.filter(employee=employee)
+
+            # Serialize data
+            employee_serializer = EmployeeSerializer(employee)
+            emergency_contacts_serializer = EmergencyContactSerializer(emergency_contacts, many=True)
+            office_details_serializer = EmployeeOfficeDetailsSerializer(office_details, many=True)
+
+            # Combine all data into a single response
+            profile_data = {
+                'employee': employee_serializer.data,
+                'role_name': role_name,
+                'emergency_contacts': emergency_contacts_serializer.data,
+                'office_details': office_details_serializer.data
+            }
+
+            return Response(profile_data, status=status.HTTP_200_OK)
+
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 # Employee ModelViewSet for Employee CRUD operations
 class EmployeeViewSet(APIView):
     queryset = Employee.objects.all()
@@ -24,7 +59,14 @@ class EmployeeViewSet(APIView):
     
     def get(self, request, pk=None, *args, **kwargs):
         try:
-            company = Company.objects.filter(email=request.user.email).first()
+            print('Request user:', request.user)
+            print('Request user email:', request.user.email)
+            employee_data = Employee.objects.get(company_email=request.user.email)
+            print('employee_data:', employee_data.company_id)
+            user_id = employee_data.id
+            print('user_id:', user_id)
+            company = Company.objects.filter(id=employee_data.company_id).first()
+            print('company:', company)
             employee_user = Employee.objects.filter(company_email=request.user.email).first()
 
             if not company and not employee_user:
@@ -39,10 +81,10 @@ class EmployeeViewSet(APIView):
 
             # Filter all active employees from the determined company
             employees_query = Employee.objects.filter(company=company_user, active=True)
-
-            if pk:
+            if user_id :
                 # Fetch specific employee details
-                employee = employees_query.filter(id=pk).values(
+                print('Fetching employee details for user_id:', user_id)
+                employee = employees_query.filter(id=user_id).values(
                     'id',
                     'first_name',
                     'middle_name',
@@ -54,8 +96,9 @@ class EmployeeViewSet(APIView):
                     'gender',
                     'role_id'
                 ).first()
-
+                print('employee:', employee)
                 if employee:
+                    print('Employee:', employee)
                     return Response(employee)
                 else:
                     return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -543,3 +586,38 @@ class EmployeeOfficeDetailsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
+
+
+class ProfileImageUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        print("Received request to upload profile image")
+
+        image = request.FILES.get('profile_image')
+        if not image:
+            print("No image provided in request.")
+            return Response({"error": "No image provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = request.user
+            print(f"Authenticated user: {user}")
+
+            employee = Employee.objects.get(company_email=request.user.email)
+            print(f"Found employee: {employee}")
+            employee_id = employee.id
+            print('employee_id ===<<<>>', employee_id)
+
+            employee.profile_image = image
+            employee.save()
+            print("Image successfully saved to employee profile.")
+
+            return Response({"message": "Profile image uploaded successfully."}, status=status.HTTP_200_OK)
+
+        except Employee.DoesNotExist:
+            print("Employee not found for the user.")
+            return Response({"error": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return Response({"error": "Something went wrong."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

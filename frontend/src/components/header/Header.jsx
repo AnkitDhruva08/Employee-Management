@@ -12,13 +12,15 @@ import {
   UserPlus,
   HelpCircle,
   MessageCircle,
-} from "lucide-react"; // Ensure lucide-react is installed
- // Install: npm install lucide-react
+} from "lucide-react";
+
+import UploadImageModal from '../File/UploadProfileImage';
 
 const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,6 +66,10 @@ const Header = ({ title }) => {
   const email = userData?.email || "example@example.com";
   const firstLetter = displayName.charAt(0).toUpperCase();
 
+  // Construct the profile image URL by appending the relative path to the base URL for media
+  const profileImagePath = userData?.employee_details?.[0]?.profile_image;
+  const profileImageUrl = profileImagePath ? `http://localhost:8000/media/${profileImagePath}` : null;
+
   return (
     <div className="w-full bg-white shadow p-4 flex justify-between items-center">
       <div className="text-xl font-semibold text-gray-800">{title}</div>
@@ -77,17 +83,36 @@ const Header = ({ title }) => {
             <h4 className="font-semibold text-gray-800">{role} || {displayName}</h4>
             <p className="text-sm text-gray-500">{email}</p>
           </div>
-          <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
-            {firstLetter}
-          </div>
+
+          {/* Conditional rendering of profile image or initial */}
+          {profileImageUrl ? (
+            <img
+              src={profileImageUrl}
+              alt="Profile"
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
+              A
+            </div>
+          )}
         </div>
 
         {showDropdown && (
           <div className="absolute right-0 mt-4 w-64 bg-white rounded-xl shadow-2xl z-50 p-4">
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
-                {firstLetter}
-              </div>
+              {/* Profile Image here as well */}
+              {profileImageUrl ? (
+                <img
+                  src={profileImageUrl}
+                  alt="Profile"
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
+                  {firstLetter}
+                </div>
+              )}
               <div>
                 <p className="text-sm font-medium">{displayName}</p>
                 <p className="text-xs text-gray-500">{email}</p>
@@ -96,25 +121,27 @@ const Header = ({ title }) => {
 
             <div className="divide-y divide-gray-100 text-sm">
               <div className="space-y-1 pb-3">
-                <DropdownItem icon={<User />} label="View Profile" path="/user-profile-card" />
+                <DropdownItem icon={<User />} label="View Profile" path="/profile-page" />
+                <div
+                  onClick={() => setShowImageModal(true)}
+                  className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2"><User /> Update Profile</span>
+                </div>
                 <DropdownItem icon={<Settings />} label="Settings" shortcut="⌘ G" active />
-                <DropdownItem icon={<CreditCard />} label="Subscription" shortcut="⌘ B" />
               </div>
 
               <div className="space-y-1 py-3">
+                <DropdownItem icon={<CreditCard />} label="Subscription" shortcut="⌘ B" />
                 <DropdownItem icon={<FileText />} label="Changelog" shortcut="⌘ E" />
                 <DropdownItem icon={<Users />} label="Team" shortcut="⌘ T" />
-                <DropdownItem icon={<UserPlus />} label="Invite Member" shortcut="⌘ F" />
               </div>
 
               <div className="space-y-1 py-3">
+                <DropdownItem icon={<UserPlus />} label="Invite Member" shortcut="⌘ F" />
                 <DropdownItem icon={<HelpCircle />} label="Support" shortcut="⌘ R" />
                 <DropdownItem icon={<MessageCircle />} label="Community" shortcut="⌘ U" />
               </div>
-
-              {/* <div className="pt-3">
-                <DropdownItem icon={<LogOut />} label="Sign Out" shortcut="⌘ Q" />
-              </div> */}
 
               <div className="pt-3">
                 <button
@@ -126,9 +153,19 @@ const Header = ({ title }) => {
                 </button>
               </div>
             </div>
-
-    
           </div>
+        )}
+
+        {/* ✅ Render Upload Image Modal */}
+        {showImageModal && (
+          <UploadImageModal
+            isOpen={showImageModal}
+            onClose={() => setShowImageModal(false)}
+            onUploadSuccess={() => {
+              setShowImageModal(false);
+              window.location.reload(); // reload to see updated image
+            }}
+          />
         )}
       </div>
     </div>

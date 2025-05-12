@@ -82,8 +82,9 @@ class DashboardView(APIView):
 
                     employee_details = Employee.objects.filter(active=True ).select_related('role').values('id',
                             'first_name', 'middle_name', 'last_name', 'contact_number', 'company_email',
-                            'personal_email', 'date_of_birth', 'gender', 'role__role_name'
+                            'personal_email', 'date_of_birth', 'gender',  'profile_image','role__role_name'
                         )
+                    
 
 
                     return Response({
@@ -110,7 +111,7 @@ class DashboardView(APIView):
                         company_name = Company.objects.filter(id=company_id).values('company_name').first()
                         role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
                         employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
-                                'personal_email', 'date_of_birth', 'gender')
+                                'personal_email', 'date_of_birth', 'gender', 'profile_image')
                         
 
                         return Response({
