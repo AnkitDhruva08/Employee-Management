@@ -50,7 +50,6 @@ const AddEmployee = () => {
           if (!res.ok) throw new Error("Failed to fetch employee");
           const data = await res.json();
         
-          console.log('Employee data:', data);
           setFormData({
             ...data,
             job_role: data.role_id

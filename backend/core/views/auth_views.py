@@ -87,9 +87,11 @@ class LoginLogoutView(APIView):
 
         role_data = Employee.objects.filter(company_email=email).values('role_id').first()
         company_data = User.objects.filter(email=email).values('is_company').first()
+        admin_data = User.objects.filter(email=email).values('is_superuser').first()
 
         role_id = role_data['role_id'] if role_data else None
         is_company = company_data['is_company'] if company_data else None
+        is_superuser = admin_data['is_superuser'] if admin_data else None
 
         user = authenticate(request, username=user.username, password=password)
         if user:
@@ -108,6 +110,7 @@ class LoginLogoutView(APIView):
                 "status": 200,
                 "role_id": role_id,
                 "is_company": is_company,
+                "is_superuser": is_superuser,
                 "tokens": {
                     "access": str(refresh.access_token),
                     "refresh": str(refresh)

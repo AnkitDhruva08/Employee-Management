@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { User, Phone, HeartHandshake, FileCheck } from "lucide-react";
 import Header from "../header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
@@ -8,6 +8,9 @@ import Swal from 'sweetalert2';
 
 
 export default function EmergencyContactForm({ onNext, onPrev }) {
+
+  const { id } = useParams();
+  console.log('emergency id ==<<>', id)
   const [emergencyData, setEmergencyData] = useState({
     emergency_name: "",
     emergency_relation: "",
@@ -22,38 +25,41 @@ export default function EmergencyContactForm({ onNext, onPrev }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
-   const [id, setId] = useState(null);
+   const [empId, setId] = useState(null);
 
   const token = localStorage.getItem("token");
   const headerTitle = "Emergency Contact Details";
 
   //  Function for fetch emergency contact details
   const fetchEmergencyDetails = async () => {
-    try {
-      const response = await fetch(
-        "http://localhost:8000/api/employee-emergency-details/",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+    if(id){
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/employee-emergency-details/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+  
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const emergency = data[0];
+            setEmergencyData(emergency);
+            setExistingData(emergency);
+            setId(emergency.id);
+            setIsUpdating(true);
+          }
         }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const emergency = data[0];
-          setEmergencyData(emergency);
-          setExistingData(emergency);
-          setId(emergency.id);
-          setIsUpdating(true);
-        }
+      } catch (err) {
+        setError("Failed to load emergency contact data.");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError("Failed to load emergency contact data.");
-    } finally {
-      setLoading(false);
     }
+   
   };
 
   // calling useEffect to fetch nominee details and dashboard data
@@ -91,9 +97,9 @@ export default function EmergencyContactForm({ onNext, onPrev }) {
       }
 
       const url = isUpdating
-        ? `http://localhost:8000/api/employee-emergency-details/${existingData.id}/`
+        ? `http://localhost:8000/api/employee-emergency-details/${id}/`
         : "http://localhost:8000/api/employee-emergency-details/";
-
+        console.log('url ==<<<<>>', url)
       const response = await fetch(url, {
         method: isUpdating ? "PUT" : "POST",
         headers: {

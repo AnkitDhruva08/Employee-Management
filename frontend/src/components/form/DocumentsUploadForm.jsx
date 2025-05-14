@@ -3,8 +3,13 @@ import Header from "../header/Header";
 import Sidebar from "../sidebar/Sidebar";
 import FileUpload from "../File/FileUpload";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
+import { useNavigate, useParams } from "react-router-dom";
 
 export default function OfficeDocumentsForm({ onNext, onPrev }) {
+
+  const { id } = useParams();
+  const navigate = useNavigate()
+
   const [employeeFormData, setEmployeeFormData] = useState({
     id: null,
     photo: null,
@@ -31,36 +36,39 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
   const headerTitle = 'Employee Documents'
 
   const fetchEmployeeDocuments = async () => {
-    try {
-      const response = await fetch(
-        "http://localhost:8000/api/employee-documents",
-        {
-          headers: { Authorization: `Bearer ${token}` },
+    if(id){
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/employee-documents/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        if (!response.ok) throw new Error("Unauthorized or no data found");
+  
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const doc = data[0];
+          setEmployeeFormData({
+            ...doc,
+            photo: null,
+            aadhar: null,
+            pan: null,
+            dl: null,
+            appointment: null,
+            promotion: null,
+            resume: null,
+            esic_card: null,
+          });
+          setIsUpdating(true);
         }
-      );
-      if (!response.ok) throw new Error("Unauthorized or no data found");
-
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const doc = data[0];
-        setEmployeeFormData({
-          ...doc,
-          photo: null,
-          aadhar: null,
-          pan: null,
-          dl: null,
-          appointment: null,
-          promotion: null,
-          resume: null,
-          esic_card: null,
-        });
-        setIsUpdating(true);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
       }
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
     }
+  
   };
 
   useEffect(() => {
@@ -103,7 +111,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
       }
 
       const endpoint = isUpdating
-        ? `http://localhost:8000/api/employee-documents/${employeeFormData.id}/`
+        ? `http://localhost:8000/api/employee-documents/${id}/`
         : "http://localhost:8000/api/employee-documents/";
 
       const response = await fetch(endpoint, {
@@ -122,8 +130,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
         );
       }
 
-      setSuccess("Documents updated successfully.");
+      // setSuccess("Documents updated successfully.");
       setIsUpdating(true);
+      navigate('/profile-page')
     } catch (err) {
       setError(err.message);
     } finally {

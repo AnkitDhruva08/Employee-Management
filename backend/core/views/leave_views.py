@@ -32,7 +32,6 @@ class LeaveRequestViewSet(APIView):
                     return Response({'error': 'Employee not found'}, status=404)
 
             data = get_leave_requests(is_company, role_id, emp_id)
-            print("Leave requests data:", data)
             if data.get('success') is False:
                 return Response({
                     "is_complete": data.get('is_complete', False),
@@ -68,7 +67,7 @@ class LeaveRequestViewSet(APIView):
                 serializer.save()
                 return Response({'success': 'Leave request created successfully.'}, status=status.HTTP_201_CREATED)
             else:
-                print('serializer errors:', serializer.errors)
+
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:

@@ -7,7 +7,7 @@ import Header from "../header/Header";
 
 export default function BankDetailsForm({ onNext, onPrev }) {
   const token = localStorage.getItem("token");
-
+  const { id } = useParams();
   const [bankData, setBankData] = useState({
     account_holder_name: '',
     bank_name: '',
@@ -23,7 +23,7 @@ export default function BankDetailsForm({ onNext, onPrev }) {
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
   const [existingData, setExistingData] = useState(null);
-  const [id, setId] = useState(null);
+  const [empId, setId] = useState(null);
 
 
   const headerTitle = "Bank Details";
@@ -31,38 +31,41 @@ export default function BankDetailsForm({ onNext, onPrev }) {
   useEffect(() => {
     const fetchBankDetails = async () => {
       setLoading(true);
-      try {
-        const response = await fetch("http://localhost:8000/api/employee-bank-details/", {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) throw new Error("Failed to fetch bank details");
-        const data = await response.json();
-
-        if (data?.length > 0) {
-          const bank = data[0];
-          setBankData({
-            id: bank.id,
-            account_holder_name: bank.account_holder_name || '',
-            bank_name: bank.bank_name || '',
-            branch_name: bank.branch_name || '',
-            ifsc_code: bank.ifsc_code || '',
-            account_number: bank.account_number || '',
-            account_type: bank.account_type || '',
-            bank_details_pdf: bank.bank_details_pdf || null,
+      if(id){
+        try {
+          const response = await fetch("http://localhost:8000/api/employee-bank-details/", {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           });
-          setIsUpdating(true);
-          setId(bank.id);
+  
+          if (!response.ok) throw new Error("Failed to fetch bank details");
+          const data = await response.json();
+  
+          if (data?.length > 0) {
+            const bank = data[0];
+            setBankData({
+              id: bank.id,
+              account_holder_name: bank.account_holder_name || '',
+              bank_name: bank.bank_name || '',
+              branch_name: bank.branch_name || '',
+              ifsc_code: bank.ifsc_code || '',
+              account_number: bank.account_number || '',
+              account_type: bank.account_type || '',
+              bank_details_pdf: bank.bank_details_pdf || null,
+            });
+            setIsUpdating(true);
+            setId(bank.id);
+          }
+  
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
         }
-
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
       }
+  
     };
 
     fetchBankDetails();
@@ -88,7 +91,7 @@ export default function BankDetailsForm({ onNext, onPrev }) {
     });
 
     const endpoint = isUpdating
-      ? `http://localhost:8000/api/employee-bank-details/${bankData.id}/`
+      ? `http://localhost:8000/api/employee-bank-details/${id}/`
       : "http://localhost:8000/api/employee-bank-details/";
 
     const method = isUpdating ? "PUT" : "POST";

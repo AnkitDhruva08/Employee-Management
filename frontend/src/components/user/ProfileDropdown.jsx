@@ -50,7 +50,7 @@ export default function ProfileDropdown() {
               <div className="space-y-1 pb-3">
                 <DropdownItem icon={<User />} label="View Profile" shortcut="⌘ P" />
                 <DropdownItem icon={<Settings />} label="Settings" shortcut="⌘ G" active />
-                <DropdownItem icon={<CreditCard />} label="Subscription" shortcut="⌘ B" />
+                <DropdownItem icon={<CreditCard />} label="Home" shortcut="⌘ B" />
               </div>
 
               <div className="space-y-1 py-3">

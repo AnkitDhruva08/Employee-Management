@@ -50,7 +50,6 @@ const EmployeeTable = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      console.log("Employee data:", data);
       if (Array.isArray(data)) {
         setEmployees(data);
       } else {
@@ -238,10 +237,10 @@ const EmployeeTable = () => {
         <Header title={HeaderTitle} />
 
         {/* Page Heading and Add Button */}
-        <div className="mx-[10px] bg-[#2b4d76] text-white px-6 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 rounded-t mt-6 mb-0">
-          <h2 className="text-xl font-semibold">
+        <div className="mx-4 text-white px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-t-xl mt-6 shadow-md">
+        {/* <h2 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium">
             Manage <span className="font-bold">Employees</span>
-          </h2>
+          </h2> */}
           {roleId !== 2 && (
             <Link
               to="/add-employees"
@@ -268,30 +267,31 @@ const EmployeeTable = () => {
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto p-4">
-          {loading ? (
+        <div className="overflow-x-auto p-4 bg-white mx-4 rounded-b-xl shadow-lg">
+        {loading ? (
             <div className="p-6 text-center text-gray-500">
               Loading employees...
             </div>
           ) : (
-            <table className="min-w-full text-sm border-t shadow-md rounded overflow-hidden">
-              <thead className="bg-gray-100 text-gray-700">
-                <tr>
-                  <th className="p-3 border text-left">Sr no.</th>
-                  <th className="p-3 border text-left">Employees Name</th>
-                  <th className="p-3 border text-left">Company Name</th>
-                  <th className="p-3 border text-left">Comapany Email</th>
-                  <th className="p-3 border text-left">Personal Email</th>
-                  <th className="p-3 border text-left">Contact Number</th>
-                  <th className="p-3 border text-left">Role</th>
-                  <th className="p-3 border text-left">Date Of Birth</th>
-                  <th className="p-3 border text-left">Gender</th>
-                  <th className="p-3 border text-left">Actions</th>
-                </tr>
-              </thead>
+          <table className="min-w-full text-sm text-left">
+           <thead className="bg-blue-700 text-white text-sm">
+          <tr>
+            <th className="p-3 border-b">Sr no.</th>
+            <th className="p-3 border-b">Employees Name</th>
+            <th className="p-3 border-b">Company Name</th>
+            <th className="p-3 border-b">Company Email</th>
+            <th className="p-3 border-b">Personal Email</th>
+            <th className="p-3 border-b">Contact Number</th>
+            <th className="p-3 border-b">Role</th>
+            <th className="p-3 border-b">Date Of Birth</th>
+            <th className="p-3 border-b">Gender</th>
+            <th className="p-3 border-b">Actions</th>
+          </tr>
+        </thead>
+
               <tbody>
                 {currentEmployees.map((emp, index) => (
-                  <tr key={emp.id} className="border hover:bg-gray-50">
+                  <tr key={emp.id} className="hover:bg-gray-50 even:bg-gray-50 border-b">
                     <td className="p-3 border">{index + 1}</td>
                     <td className="p-3 border">{emp.username}</td>
                     <td className="p-3 border">{emp.company_name}</td>
@@ -305,18 +305,23 @@ const EmployeeTable = () => {
                       <div className="flex space-x-3">
                         {/* View is always allowed */}
                         <button className="text-blue-600 hover:text-blue-800">
-                          <Eye size={18} />
+                          <Link
+                              to={`/employee-views/${emp.id}`}
+                              className="text-green-500 hover:text-yellow-600"
+                            >
+                              <Eye size={18} />
+                            </Link>
                         </button>
 
                         {/* Only show edit & delete if not role_id 2 */}
                         {roleId !== 2 && (
                           <>
-                            <Link
-                              to={`/add-employees/${emp.id}`}
+                            {/* <Link
+                              to={`/employee-form/${emp.id}`}
                               className="text-yellow-500 hover:text-yellow-600"
                             >
                               <Pencil size={18} />
-                            </Link>
+                            </Link> */}
                             <button
                               onClick={() => deleteEmployee(emp.id)}
                               className="text-red-600 hover:text-red-700"
@@ -336,8 +341,8 @@ const EmployeeTable = () => {
 
         {/* Pagination */}
         {!loading && employees.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-3 bg-white border-t text-sm rounded-b gap-2">
-            <span className="text-gray-700">
+          <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-white mx-4 rounded-b-xl shadow-md text-sm gap-2">
+          <span className="text-gray-700">
               Showing {currentEmployees.length} out of {employees.length}{" "}
               entries
             </span>

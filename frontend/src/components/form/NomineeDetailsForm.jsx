@@ -3,8 +3,14 @@ import { User, Banknote, CreditCard, FileCheck } from "lucide-react";
 import Header from "../header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
 import Swal from "sweetalert2";
+import { useNavigate, useParams } from "react-router-dom";
 
 export default function NomineeDetailsForm({ onNext, onPrev }) {
+
+  const { id } = useParams();
+
+  console.log('id for nominee ==<<>>', id)
+
   const [nomineeData, setNomineeData] = useState({
     nominee_name: "",
     nominee_dob: "",
@@ -19,35 +25,38 @@ export default function NomineeDetailsForm({ onNext, onPrev }) {
   const [success, setSuccess] = useState(null);
   const token = localStorage.getItem("token");
   const headerTitle = "Nominee Details";
-  const [id, setId] = useState(null);
+  const [empId, setId] = useState(null);
 
   const fetchNomineeDetails = async () => {
     setLoading(true);
-    try {
-      const response = await fetch("http://localhost:8000/api/employee-nominee-details", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const nominee = data[0];
-          setNomineeData(nominee);
-          setExistingData(nominee);
-          setIsUpdating(true);
-          setId(nominee.id);
-        } else {
-          setIsUpdating(false);
+    if(id){
+      try {
+        const response = await fetch(`http://localhost:8000/api/employee-nominee-details/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+  
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const nominee = data[0];
+            setNomineeData(nominee);
+            setExistingData(nominee);
+            setIsUpdating(true);
+            setId(nominee.id);
+          } else {
+            setIsUpdating(false);
+          }
         }
+  
+        setLoading(false);
+      } catch (err) {
+        console.error("Failed to fetch nominee details", err);
+        setLoading(false);
       }
-
-      setLoading(false);
-    } catch (err) {
-      console.error("Failed to fetch nominee details", err);
-      setLoading(false);
     }
+   
   };
 
   useEffect(() => {
@@ -81,7 +90,7 @@ export default function NomineeDetailsForm({ onNext, onPrev }) {
       }
 
       const url = isUpdating
-        ? `http://localhost:8000/api/employee-nominee-details/${existingData.id}/`
+        ? `http://localhost:8000/api/employee-nominee-details/${id}/`
         : "http://localhost:8000/api/employee-nominee-details/";
 
       const response = await fetch(url, {

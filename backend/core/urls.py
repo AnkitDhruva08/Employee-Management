@@ -3,7 +3,7 @@ from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from core.views.role_views import RoleViews
-from core.views.employee_views import EmployeeViewSet, EmployeeProfileViewSet, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, ProfileImageUploadView
+from core.views.employee_views import EmployeeViewSet, EmployeeProfileViewSet, EmployeeFormViews, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, ProfileImageUploadView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.employee_report_views import EmployeePDFReportView
 from core.views.event_views import EventViewSet
@@ -59,6 +59,10 @@ urlpatterns = [
     # Employee Bank Details
     path('employee-bank-details/', EmployeeBankDetailsView.as_view(), name='employee-bank-details'),
     path('employee-bank-details/<int:pk>/', EmployeeBankDetailsView.as_view(), name='employee-bank-detail'),
+
+    #  url for employee form views 
+    
+    path('Employee-Details-views/<int:pk>/', EmployeeFormViews.as_view(), name='Employee-Details-views'),
 
 
     # Nominee Details

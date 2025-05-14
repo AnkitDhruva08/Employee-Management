@@ -5,6 +5,8 @@ import Header from "../header/Header";
 
 export default function PersonalInfoForm({ onNext, onPrev }) {
 
+  const { id } = useParams();
+  console.log('id ==<<<>>', id)
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -25,7 +27,7 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
   const [loading, setLoading] = useState(true);
   const [headerContent, setHeaderContent] = useState("Loading...");
   const [buttonText, setButtonText] = useState("Loading...");
-  const [id, setId] = useState(null);
+  const [empId, setId] = useState(null);
   const [isRestricted, setIsRestricted] = useState(false);
 
   const role_id = localStorage.getItem("role_id");
@@ -38,51 +40,53 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
       setError("Unauthorized. Please login again.");
       return;
     }
-  
-    try {
-      const response = await fetch("http://localhost:8000/api/employees/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-  
-      if (!response.ok) throw new Error("Failed to fetch employee");
-  
-      const emp = await response.json();
-  
-      if (emp && emp.id) {
-        setHeaderContent("UPDATE EMPLOYEE RECORDS");
-        setButtonText("UPDATE");
-        setIsRestricted(role_id === "3");
-        setId(emp.id);
-        setIsUpdating(true);
-      } else {
+    if(id){
+      try {
+        const response = await fetch(`http://localhost:8000/api/employees/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+    
+        if (!response.ok) throw new Error("Failed to fetch employee");
+    
+        const emp = await response.json();
+    
+        if (emp && emp.id) {
+          setHeaderContent("UPDATE EMPLOYEE RECORDS");
+          setButtonText("UPDATE");
+          setIsRestricted(role_id === "3");
+          setId(emp.id);
+          setIsUpdating(true);
+        } else {
+          setHeaderContent("ADD NEW EMPLOYEE");
+          setIsUpdating(false);
+        }
+    
+        setFormData({
+          first_name: emp.first_name || "",
+          middle_name: emp.middle_name || "",
+          last_name: emp.last_name || "",
+          contact_number: emp.contact_number || "",
+          company_email: emp.company_email || "",
+          personal_email: emp.personal_email || "",
+          date_of_birth: emp.date_of_birth || "",
+          gender: emp.gender || "",
+          job_role: emp.role_id || "",
+        });
+    
+        setExistingData(emp);
+      } catch (err) {
+        console.error("Error loading employee:", err);
         setHeaderContent("ADD NEW EMPLOYEE");
-        setIsUpdating(false);
+        setButtonText("ADD");
+  
+        setError("Failed to load employee data.");
+      } finally {
+        setLoading(false);
       }
-  
-      setFormData({
-        first_name: emp.first_name || "",
-        middle_name: emp.middle_name || "",
-        last_name: emp.last_name || "",
-        contact_number: emp.contact_number || "",
-        company_email: emp.company_email || "",
-        personal_email: emp.personal_email || "",
-        date_of_birth: emp.date_of_birth || "",
-        gender: emp.gender || "",
-        job_role: emp.role_id || "",
-      });
-  
-      setExistingData(emp);
-    } catch (err) {
-      console.error("Error loading employee:", err);
-      setHeaderContent("ADD NEW EMPLOYEE");
-      setButtonText("ADD");
-
-      setError("Failed to load employee data.");
-    } finally {
-      setLoading(false);
     }
+   
   };
   
   

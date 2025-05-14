@@ -43,6 +43,7 @@ const Login = () => {
         localStorage.setItem("token", data.tokens.access);
         localStorage.setItem("role_id", data.role_id);
         localStorage.setItem("is_company", data.is_company);
+        localStorage.setItem("is_superuser", data.is_superuser);
         navigate("/dashboard");
       } else {
         setError("Invalid credentials. Please check your email or password.");

@@ -62,7 +62,12 @@ const Header = ({ title }) => {
 
   const role = userData?.role;
   const isCompany = userData?.is_company;
-  const displayName = isCompany ? userData?.company : userData?.employee_details?.[0]?.first_name || "User";
+  const isSuperUser = userData?.is_superuser;
+  const displayName = isSuperUser
+    ? "Superuser"
+    : isCompany
+    ? userData?.company
+    : userData?.employee_details?.[0]?.first_name || "User";
   const email = userData?.email || "example@example.com";
   const firstLetter = displayName.charAt(0).toUpperCase();
 
@@ -132,7 +137,7 @@ const Header = ({ title }) => {
               </div>
 
               <div className="space-y-1 py-3">
-                <DropdownItem icon={<CreditCard />} label="Subscription" shortcut="⌘ B" />
+                <DropdownItem icon={<CreditCard />} label="Home" path="/dashboard" />
                 <DropdownItem icon={<FileText />} label="Changelog" shortcut="⌘ E" />
                 <DropdownItem icon={<Users />} label="Team" shortcut="⌘ T" />
               </div>

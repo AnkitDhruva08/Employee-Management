@@ -15,26 +15,33 @@ const Dashboard = () => {
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
+  
+
+  const isSuperUser = localStorage.getItem("is_superuser") === "true";
 
   // Determine dashboard title based on user role
-  const HeaderTitle = isCompany
-    ? "Company Dashboard"
-    : roleId === 3
-    ? "Employee Dashboard"
-    : roleId === 2
-    ? "HR Dashboard"
-    : roleId === 1
-    ? "Admin Dashboard"
-    : "Dashboard";
+  const HeaderTitle = isSuperUser
+  ? "Superuser Dashboard"
+  : isCompany
+  ? "Company Dashboard"
+  : roleId === 3
+  ? "Employee Dashboard"
+  : roleId === 2
+  ? "HR Dashboard"
+  : roleId === 1
+  ? "Admin Dashboard"
+  : "Dashboard";
 
   // Fetch dashboard and quick links
+
   const fetchLinks = async () => {
     try {
+     if(! isSuperUser){
       const links = await fetchDashboardLink(token);
-      console.log("Links:", links);
- 
+       setQuickLinks(links.data || links);
+     }
       const empDashboard = await fetchDashboard(token);
-      setQuickLinks(links.data || links);
+     
       setDashboardData(empDashboard);
     } catch (err) {
       console.error("Error fetching quick links:", err);
@@ -63,29 +70,42 @@ const Dashboard = () => {
   }
 
   // Define stat cards for company and HR
-  const statCards = [
-    {
-      id: "total-employees",
-      label: "Total Employees",
-      value: dashboardData.total_employees,
-      icon: <FaIcons.FaUsers className="text-3xl text-blue-500" />,
-      url: "/employee-details",
-    },
-    {
-      id: "total-leave",
-      label: "Total Leave Requests",
-      value: dashboardData.total_leave_requests,
-      icon: <FaIcons.FaClipboardList className="text-3xl text-green-500" />,
-      url: "/leave-table",
-    },
-    {
-      id: "upcoming-events",
-      label: "Upcoming Events",
-      value: dashboardData.upcoming_events,
-      icon: <FaIcons.FaCalendarAlt className="text-3xl text-purple-500" />,
-      url: "/events",
-    },
-  ];
+  const superUserCards = isSuperUser
+  ? dashboardData.companies?.map((company) => ({
+      id: company.company_id,
+      label: company.company_name,
+      value: company.team_size,
+      icon: <FaIcons.FaBuilding className="text-3xl text-yellow-500" />,
+      url: "#", 
+    }))
+  : [];
+
+// Existing cards for Company and HR
+const statCards = !isSuperUser
+  ? [
+      {
+        id: "total-employees",
+        label: "Total Employees",
+        value: dashboardData.total_employees,
+        icon: <FaIcons.FaUsers className="text-3xl text-blue-500" />,
+        url: "/employee-details",
+      },
+      {
+        id: "total-leave",
+        label: "Total Leave Requests",
+        value: dashboardData.total_leave_requests,
+        icon: <FaIcons.FaClipboardList className="text-3xl text-green-500" />,
+        url: "/leave-table",
+      },
+      {
+        id: "upcoming-events",
+        label: "Upcoming Events",
+        value: dashboardData.upcoming_events,
+        icon: <FaIcons.FaCalendarAlt className="text-3xl text-purple-500" />,
+        url: "/events",
+      },
+    ]
+  : superUserCards;
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -104,7 +124,7 @@ const Dashboard = () => {
         <Header title={HeaderTitle} />
 
         <div className="p-6 overflow-y-auto flex-1">
-          {(isCompany || roleId === 2) && (
+          {(isSuperUser || isCompany || roleId === 1 || roleId === 2) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               {statCards.map(({ id, label, value, icon, url }) => (
                 <Link

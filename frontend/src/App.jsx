@@ -22,6 +22,8 @@ import UserProfilePage from './components/user/UserProfileCard';
 import ProfileDropdown from './components/user/ProfileDropdown';
 // import UploadProfileImage from './components/File/UploadProfileImage';
 // import { FormProvider } from './utils/FormContext';
+
+import EmplyeeViews from './pages/EmplyeeViews';
 function App() {
   return (
     <Router>
@@ -49,7 +51,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/employee-form/:id" element={<EmployeeForm />} />
         <Route path="/profile-page" element={<UserProfilePage />} />
-        {/* <Route path="/upload-profile-image" element={<UploadProfileImage />} /> */}
+        <Route path="/employee-views/:id" element={<EmplyeeViews />} />
         <Route path="/profile-dropdown" element={<ProfileDropdown />} />
 
       </Routes>

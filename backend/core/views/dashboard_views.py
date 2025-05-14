@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from datetime import date
 from core.utils.dashboard_link import dashboard_links
+from django.db.models import Count, Q
+
 
 # User Modek
 User = get_user_model()
@@ -18,7 +20,41 @@ class DashboardView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         is_company = User.objects.filter(username=user).values('is_company').first()
+        is_superuser = User.objects.filter(username=user).values('is_superuser').first()
         email = request.user.email
+        if is_superuser['is_superuser']:
+            try:
+                if hasattr(user, 'is_superuser') and user.is_superuser:
+                    superUser = User.objects.get(username=user)
+
+                    # Get all companies with employee counts (active only)
+                    companies_with_teams = User.objects.filter(
+                        employees__active=True
+                    ).annotate(
+                        team_size=Count('employees', filter=Q(employees__active=True))
+                    ).distinct()
+
+                    # Prepare the response data
+                    companies_data = []
+                    for company in companies_with_teams:
+                        companies_data.append({
+                            "company_id": company.id,
+                            "company_name": company.get_full_name() or company.username,
+                            "email": company.email,
+                            "team_size": company.team_size
+                        })
+
+                    return Response({
+                        "is_superuser": is_superuser['is_superuser'],
+                        "email": email,
+                        "role": "is_superuser",
+                        "companies": companies_data
+                    }, status=status.HTTP_200_OK)
+
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
         if(is_company['is_company']):
             try:
                 if hasattr(user, 'is_company') and user.is_company:
@@ -46,24 +82,37 @@ class DashboardView(APIView):
             # Admin Dashboard
             if(role_id['role_id'] == 1):
                 try:
-                    company = Company.objects.get(company_name=user)
-                    company_id = company.id
+                    role = Role.objects.get(id=role_id['role_id'])
+                    user_id = Employee.objects.get(company_email=email).company_id
+                    company = Company.objects.get(user_id=user_id).company_name
+                    company_id = Company.objects.get(user_id=user_id).id
                     total_employees = Employee.objects.filter(company_id=company_id).count()
                     total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
-                    upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
+                    upcoming_events = Event.objects.filter(
+                        company_id=company_id, 
+                        date__gte=date.today()
+                    ).values('title', 'date')
+
+                    employee_details = Employee.objects.filter(active=True ).select_related('role').values('id',
+                            'first_name', 'middle_name', 'last_name', 'contact_number', 'company_email',
+                            'personal_email', 'date_of_birth', 'gender',  'profile_image','role__role_name'
+                        )
+                    
+
 
                     return Response({
+                        "employee_details": employee_details,
                         "role_id": role_id['role_id'],
-                        'email': email,
-                        "role": "Company",
-                        "company": company.company_name,
+                        "role": role.role_name,
+                        "email": email,
+                        "company": company,
                         "total_employees": total_employees,
                         "total_leave_requests": total_leave_requests,
                         "upcoming_events": upcoming_events,
                     }, status=status.HTTP_200_OK)
-                
+
                 except Company.DoesNotExist:
-                        return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+                    return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
         
             
             # Hr Dashboard
@@ -134,14 +183,19 @@ class DashboardLinkViewSet(APIView):
             email = request.user.email
             is_company = False
             role_id = None
+            is_superuser = False
             if(user_data.is_company == True):
                 is_company = True
-            else:
-                employee = Employee.objects.get(company_email=request.user.email)
-                if employee:
+            if(user_data.is_superuser == True):
+                is_superuser = True
+            elif not user_data.is_company:
+                try:
+                    employee = Employee.objects.get(company_email=email)
                     role_id = employee.role_id
+                except Employee.DoesNotExist:
+                    return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
             
-            return dashboard_links(role_id, is_company, email)
+            return dashboard_links(role_id, is_company, email, is_superuser)
         except Employee.DoesNotExist:
             return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:

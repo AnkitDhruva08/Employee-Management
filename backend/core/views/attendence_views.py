@@ -14,65 +14,72 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+from calendar import monthrange
+
 class AttendanceView(ListAPIView):
     serializer_class = AttendanceSerializer
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        today = date.today()
         email = request.user.email
+        today = date.today()
+        month = int(request.query_params.get('month', today.month))
+        year = int(request.query_params.get('year', today.year))
 
-        # Determine if the user is a company
+        start_date = date(year, month, 1)
+        end_date = date(year, month, monthrange(year, month)[1])
+
+        # Check user role
         is_company = Company.objects.filter(email=email).exists()
-        role_id = None
-        emp_id = None
-
         if not is_company:
             try:
                 employee = Employee.objects.get(company_email=email)
-                role_id = employee.role_id
-                emp_id = employee.id
             except Employee.DoesNotExist:
                 return Response({'error': 'Employee not found'}, status=404)
 
-            # Check if profile is complete
-            data = is_profile_complete(emp_id)
-            if not data.get('success', False):
-                return Response({
-                    "is_complete": data.get('is_complete', False),
-                    "message": data.get('message', 'Profile incomplete.'),
-                    "missing_sections": data.get('missing_sections'),
-                    "data": None
-                }, status=200)
+            # Optionally restrict to only that employee’s attendance
+            attendance_qs = Attendance.objects.filter(user=request.user, date__range=(start_date, end_date))
+        else:
+            attendance_qs = Attendance.objects.filter(date__range=(start_date, end_date))
 
-        # Attendance subquery for today
-        attendance_qs = Attendance.objects.filter(
-            user=OuterRef('pk'),
-            date=today
-        )
+        # Optional filters:
+        employee_id = request.query_params.get('employee_id')
+        if employee_id:
+            attendance_qs = attendance_qs.filter(user_id=employee_id)
 
-        # Annotate users with attendance info
-        users_with_attendance = User.objects.annotate(
-            login_time=Subquery(attendance_qs.values('login_time')[:1]),
-            logout_time=Subquery(attendance_qs.values('logout_time')[:1]),
-            date=Subquery(attendance_qs.values('date')[:1]),
-            status=Coalesce(
-                Subquery(attendance_qs.values('status')[:1]),
-                Value('Absent')
-            ),
-            duration_seconds=ExpressionWrapper(
-                ExtractHour(Subquery(attendance_qs.values('logout_time')[:1]) - Subquery(attendance_qs.values('login_time')[:1])) * 3600 +
-                ExtractMinute(Subquery(attendance_qs.values('logout_time')[:1]) - Subquery(attendance_qs.values('login_time')[:1])) * 60 +
-                ExtractSecond(Subquery(attendance_qs.values('logout_time')[:1]) - Subquery(attendance_qs.values('login_time')[:1])),
-                output_field=FloatField()
-            )
-        ).annotate(
-            duration_hours=ExpressionWrapper(F('duration_seconds') / 3600.0, output_field=FloatField())
-        ).values(
-            'id', 'username', 'date', 'login_time', 'logout_time', 'status', 'duration_hours'
-        )
+        attendance_data = attendance_qs.values(
+            'user_id', 'user__username', 'date',
+            'login_time', 'logout_time', 'status'
+        ).order_by('user_id', 'date')
 
-        return Response({'data': list(users_with_attendance)}, status=200)
+        # Optional: group by user and calculate working days
+        report = {}
+        for entry in attendance_data:
+            uid = entry['user_id']
+            user = entry['user__username']
+            if uid not in report:
+                report[uid] = {
+                    'employee': user,
+                    'days': []
+                }
+
+            duration = None
+            if entry['login_time'] and entry['logout_time']:
+                duration = (entry['logout_time'] - entry['login_time']).total_seconds() / 3600.0
+
+            report[uid]['days'].append({
+                'date': entry['date'],
+                'login_time': entry['login_time'],
+                'logout_time': entry['logout_time'],
+                'status': entry['status'],
+                'hours_worked': round(duration, 2) if duration else 0.0
+            })
+
+        return Response({
+            'month': month,
+            'year': year,
+            'attendance': list(report.values())
+        }, status=200)
 
         
 

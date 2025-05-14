@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   Briefcase,
@@ -11,8 +10,11 @@ import Header from "../header/Header";
 import Sidebar from "../sidebar/Sidebar";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
 import Swal from "sweetalert2";
-
+import { useNavigate, useParams } from "react-router-dom";
 export default function OfficeDetailsForm({ onNext, onPrev }) {
+
+  const { id } = useParams();
+
   const [officeData, setOfficeData] = useState({
     date_of_joining: "",
     probation_end: "",
@@ -29,36 +31,39 @@ export default function OfficeDetailsForm({ onNext, onPrev }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [id, setId] = useState(null);
+  const [empId, setId] = useState(null);
 
   const token = localStorage.getItem("token");
   const headerTitle = "Employee Office Details";
   const navigate = useNavigate();
 
   const fetchOfficeDetails = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/employee-office-details/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const office = data[0];
-          setOfficeData(office);
-          calculateDuration(office.date_of_joining, office.date_of_leaving);
-          setExistingData(office);
-          setIsUpdating(true);
-          setId(office.id);
+    if(id){
+      try {
+        const res = await fetch(`http://localhost:8000/api/employee-office-details/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+  
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const office = data[0];
+            setOfficeData(office);
+            calculateDuration(office.date_of_joining, office.date_of_leaving);
+            setExistingData(office);
+            setIsUpdating(true);
+            setId(office.id);
+          }
         }
+      } catch (err) {
+        setError("Error fetching office details.");
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError("Error fetching office details.");
-    } finally {
-      setLoading(false);
     }
+
   };
 
   useEffect(() => {

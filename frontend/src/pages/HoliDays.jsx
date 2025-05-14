@@ -174,15 +174,15 @@ const HoliDays = () => {
         <div className="p-6 overflow-y-auto flex-1">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-              {isCompany && (
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                >
-                  Add New Holiday
-                </button>
-              )}
+            {isCompany || roleId === 1 && (
               <button
+                onClick={() => setShowModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+              >
+                Add New Holiday
+              </button>
+            )}
+                          <button
                 onClick={generatePDF}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
               >

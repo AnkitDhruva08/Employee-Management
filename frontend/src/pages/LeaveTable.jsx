@@ -16,7 +16,7 @@ const LeaveTable = () => {
   const token = localStorage.getItem("token");
   const roleId = localStorage.getItem("role_id");
 
-
+  const isCompany = localStorage.getItem("is_company") === "true";
   // Fetch dashboard links and data
   const fetchLinks = async () => {
     try {
@@ -35,7 +35,6 @@ const LeaveTable = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    console.log("Leave Requests Admin:", data);
     const list = data.results || data.data || [];
     setLeaveRequests(list);
   };
@@ -45,7 +44,8 @@ const LeaveTable = () => {
     fetchLinks();
   }, []);
 
-  const filteredLeaveRequests = leaveRequests.filter((leave) => {
+  const filteredLeaveRequests = leaveRequests
+  .filter((leave) => {
     const name =
       leave.username ||
       `${leave.employee?.first_name} ${leave.employee?.last_name}`;
@@ -53,6 +53,13 @@ const LeaveTable = () => {
       name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       leave.leave_type?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+  })
+  .filter((leave) => {
+    // If isCompany is true, show only Admin Approved leaves
+    if (isCompany) {
+      return leave.status === "Admin Approved";
+    }
+    return true; // Otherwise show all
   });
 
   const currentLeaveRequests = filteredLeaveRequests.slice(
@@ -179,21 +186,26 @@ const LeaveTable = () => {
                     {renderStatusBadge(leave.status)}
                   </td>
                   <td className="p-3 border">
-                    {leave.status === "Admin Approved" ||
-                    (leave.status === "HR Approved" && roleId === "2") ? (
-                      <span className="text-sm text-gray-400">No Actions</span>
-                    ) : (
-                      <button
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                        onClick={() => {
-                          setSelectedLeave(leave);
-                          setModalOpen(true);
-                        }}
-                      >
-                        Take Action
-                      </button>
-                    )}
-                  </td>
+                      {isCompany ? (
+                        <span className="text-sm text-gray-400">No Actions</span>
+                      ) : roleId === "1" || roleId === "2" ? (
+                        leave.status === "Admin Approved" && roleId === "2" ? (
+                          <span className="text-sm text-gray-400">No Actions</span>
+                        ) : (
+                          <button
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                            onClick={() => {
+                              setSelectedLeave(leave);
+                              setModalOpen(true);
+                            }}
+                          >
+                            Take Action
+                          </button>
+                        )
+                      ) : (
+                        <span className="text-sm text-gray-400">No Actions</span>
+                      )}
+                    </td>
                 </tr>
               ))}
             </tbody>

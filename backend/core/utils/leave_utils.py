@@ -28,6 +28,8 @@ def get_leave_requests(is_company, role_id, emp_id):
     # Filter based on role
     if is_company:
         leave_requests = base_query.filter(hr_reviewed=True)
+    elif role_id:
+        leave_requests = base_query.filter(hr_reviewed=True)
     elif role_id == 2:  # HR
         leave_requests = base_query
     elif role_id == 3:  # Employee

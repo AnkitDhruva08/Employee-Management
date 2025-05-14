@@ -305,7 +305,7 @@ if (roleId !== 3) {
                 type="submit"
                 className="col-span-1 md:col-span-3 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
               >
-                {roleId === 3 ? "Submit Leave" : "Record"}
+                {roleId === 3 ? "Submit " : "Record"}
               </button>
             </form>
 
