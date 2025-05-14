@@ -83,7 +83,11 @@ class DashboardView(APIView):
             if(role_id['role_id'] == 1):
                 try:
                     role = Role.objects.get(id=role_id['role_id'])
-                    user_id = Employee.objects.get(company_email=email).company_id
+                    user_data = Employee.objects.get(company_email=email)
+                    user_id = user_data.company_id
+                    profile_image = user_data.profile_image
+                    user_details = User.objects.get(email=email)
+                    admin_name = user_details.username                    
                     company = Company.objects.get(user_id=user_id).company_name
                     company_id = Company.objects.get(user_id=user_id).id
                     total_employees = Employee.objects.filter(company_id=company_id).count()
@@ -105,9 +109,14 @@ class DashboardView(APIView):
                         "role_id": role_id['role_id'],
                         "role": role.role_name,
                         "email": email,
+                        "admin_name": admin_name,
+                        "admin_profile":  str(profile_image) if profile_image else None,
                         "company": company,
                         "total_employees": total_employees,
                         "total_leave_requests": total_leave_requests,
+                        "total_projects": 12,
+                        "total_tasks": 10,
+                        "departments": 5,
                         "upcoming_events": upcoming_events,
                     }, status=status.HTTP_200_OK)
 

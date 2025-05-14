@@ -53,16 +53,16 @@ export default function ProfileDropdown() {
                 <DropdownItem icon={<CreditCard />} label="Home" shortcut="⌘ B" />
               </div>
 
-              <div className="space-y-1 py-3">
+              {/* <div className="space-y-1 py-3">
                 <DropdownItem icon={<FileText />} label="Changelog" shortcut="⌘ E" />
                 <DropdownItem icon={<Users />} label="Team" shortcut="⌘ T" />
                 <DropdownItem icon={<UserPlus />} label="Invite Member" shortcut="⌘ F" />
-              </div>
+              </div> */}
 
-              <div className="space-y-1 py-3">
+              {/* <div className="space-y-1 py-3">
                 <DropdownItem icon={<HelpCircle />} label="Support" shortcut="⌘ R" />
                 <DropdownItem icon={<MessageCircle />} label="Community" shortcut="⌘ U" />
-              </div>
+              </div> */}
 
               <div className="pt-3">
                 <DropdownItem icon={<LogOut />} label="Sign Out" shortcut="⌘ Q" />
