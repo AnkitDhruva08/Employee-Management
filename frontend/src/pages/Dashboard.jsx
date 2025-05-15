@@ -16,11 +16,21 @@ import {
   Legend,
 } from "chart.js";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
+// ChartJS setup
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Tooltip,
+  Legend
+);
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+
   const [dashboardData, setDashboardData] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
   const [error, setError] = useState(null);
@@ -29,6 +39,8 @@ const Dashboard = () => {
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
   const isSuperUser = localStorage.getItem("is_superuser") === "true";
+
+  const baseUrl = "http://localhost:8000";
 
   const HeaderTitle = isSuperUser
     ? "Superuser Dashboard"
@@ -42,42 +54,72 @@ const Dashboard = () => {
     ? "Admin Dashboard"
     : "Dashboard";
 
-  const fetchLinks = async () => {
-    try {
-      if (!isSuperUser) {
-        const links = await fetchDashboardLink(token);
-        setQuickLinks(links.data || links);
-      }
-      const empDashboard = await fetchDashboard(token);
-      setDashboardData(empDashboard);
-    } catch (err) {
-      console.error("Error fetching dashboard:", err);
-      navigate("/login");
-    }
-  };
-
   useEffect(() => {
+    const fetchLinks = async () => {
+      try {
+        if (!isSuperUser) {
+          const links = await fetchDashboardLink(token);
+          setQuickLinks(links.data || links);
+        }
+        const empDashboard = await fetchDashboard(token);
+        setDashboardData(empDashboard);
+      } catch (err) {
+        console.error("Error fetching dashboard:", err);
+        navigate("/login");
+      }
+    };
+
     fetchLinks();
   }, []);
 
   if (error) {
-    return <div className="text-red-600 text-center mt-10 text-xl animate-pulse">{error}</div>;
+    return (
+      <div className="text-red-600 text-center mt-10 text-xl animate-pulse">
+        {error}
+      </div>
+    );
   }
 
   if (!dashboardData) {
-    return <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">Loading dashboard...</div>;
+    return (
+      <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">
+        Loading dashboard...
+      </div>
+    );
   }
 
-  const superUserCards = isSuperUser
-    ? dashboardData.companies?.map((company) => ({
-        id: company.company_id,
-        label: company.company_name,
-        value: company.team_size,
-        icon: <FaIcons.FaBuilding className="text-4xl text-yellow-500" />,
-        url: "#",
-      }))
-    : [];
+  // Colors
+  const superUserColors = [
+    "from-yellow-400 to-red-500",
+    "from-green-400 to-blue-500",
+    "from-pink-400 to-purple-600",
+    "from-indigo-400 to-teal-500",
+    "from-red-400 to-pink-600",
+    "from-purple-400 to-indigo-600",
+  ];
 
+  const getColorByIndex = (index) => {
+    const hue = (index * 137.508) % 360;
+    return `hsl(${hue}, 70%, 60%)`;
+  };
+
+  // SuperUser Cards
+  const superUserCards =
+    isSuperUser && Array.isArray(dashboardData?.companies)
+      ? dashboardData.companies.map((company, index) => ({
+          id: company.company_id,
+          label: company.company_name,
+          value: company.team_size,
+          email: company.company_email,
+          contact: company.contact_number,
+          logo: company.company_logo
+            ? `${baseUrl}${company.company_logo}`
+            : null,
+          color: getColorByIndex(index),
+        }))
+      : [];
+
+  // Regular role cards
   const statCards = !isSuperUser
     ? [
         {
@@ -131,83 +173,84 @@ const Dashboard = () => {
       ]
     : superUserCards;
 
-  const lineChartData = {
-    labels: ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG"],
-    datasets: [
-      {
-        label: "USA",
-        data: [20, 35, 25, 40, 50, 55, 45, 60],
-        borderColor: "#7366ff",
-        backgroundColor: "transparent",
-      },
-      {
-        label: "UK",
-        data: [10, 25, 35, 30, 40, 35, 30, 45],
-        borderColor: "#f73164",
-        backgroundColor: "transparent",
-      },
-    ],
-  };
-
-  const doughnutData = {
-    labels: ["Search Engines", "Direct Click", "Bookmarks Click"],
-    datasets: [
-      {
-        data: [30, 30, 40],
-        backgroundColor: ["#5e72e4", "#2dce89", "#fb6340"],
-        borderWidth: 1,
-      },
-    ],
-  };
-
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold mb-4">{dashboardData.company}</h2>
-        <div className="flex justify-center mb-8">
+      {!isSuperUser && (
+        <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+          <h2 className="text-xl font-semibold mb-4">
+            {dashboardData.company}
+          </h2>
           <Sidebar quickLinks={quickLinks} />
         </div>
-      </div>
+      )}
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col">
         <Header title={HeaderTitle} />
 
         <div className="p-6 overflow-y-auto flex-1">
           {(isSuperUser || isCompany || roleId === 1 || roleId === 2) && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {statCards.map(({ id, label, value, icon, url, color }) => (
-                <Link
-                  key={id}
-                  to={url || "#"}
-                  className={`bg-gradient-to-r ${color} rounded-2xl shadow-md p-6 flex items-center justify-between text-white hover:scale-105 transform transition`}
-                >
-                  <div>
-                    <h4 className="text-lg font-medium">{label}</h4>
-                    <p className="text-3xl font-bold mt-1">{value}</p>
-                  </div>
-                  <div>{icon}</div>
-                </Link>
-              ))}
+              {statCards.map(
+                (
+                  { id, label, value, icon, email, contact, logo, color, url },
+                  index
+                ) =>
+                  isSuperUser ? (
+                    <div
+                      key={id}
+                      style={{
+                        background: `linear-gradient(135deg, ${getColorByIndex(
+                          index
+                        )} 0%, ${getColorByIndex(index + 1)} 100%)`,
+                      }}
+                      className="rounded-3xl p-6 shadow-lg text-white flex flex-col justify-between hover:scale-[1.03] transition-all"
+                    >
+                      <div className="flex justify-between items-center mb-4">
+                        <div>
+                          <h2 className="text-2xl font-bold mb-1">{label}</h2>
+                          <p className="text-sm opacity-80">{email}</p>
+                          <p className="text-sm opacity-80">{contact}</p>
+                        </div>
+                        {logo && (
+                          <img
+                            src={logo}
+                            alt={`${label} Logo`}
+                            className="w-28 h-28 object-contain rounded-full bg-white p-1 shadow"
+                          />
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center mt-4">
+                        <span className="text-xl font-semibold">
+                          Team Size: {value}
+                        </span>
+                        {icon}
+                      </div>
+                    </div>
+                  ) : (
+                    <Link
+                      key={id}
+                      to={url}
+                      className={`bg-gradient-to-r ${color} rounded-2xl shadow-md p-6 text-white flex flex-col justify-between hover:scale-105 transform transition`}
+                    >
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-lg font-medium">{label}</h4>
+                        {logo && (
+                          <img
+                            src={logo}
+                            alt={`${label} Logo`}
+                            className="w-12 h-12 object-contain rounded-full bg-white p-1 shadow"
+                          />
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-3xl font-bold">{value}</p>
+                        {icon}
+                      </div>
+                    </Link>
+                  )
+              )}
             </div>
           )}
-
-          {/* Charts */}
-          {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10"> */}
-            {/* Line Chart */}
-            {/* <div className="bg-white rounded-xl p-6 shadow-md">
-              <h3 className="text-xl font-semibold mb-4">Visit and Sales Statistics</h3>
-              <Line data={lineChartData} />
-            </div> */}
-
-            {/* Doughnut Chart */}
-            {/* <div className="bg-white rounded-xl p-6 shadow-md">
-              <h3 className="text-xl font-semibold mb-4">Traffic Sources</h3>
-              <Doughnut data={doughnutData} />
-            </div> */}
-          {/* </div> */}
-          
         </div>
       </main>
     </div>

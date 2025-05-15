@@ -12,13 +12,19 @@ class User(AbstractUser):
         return self.username
 
 
+
+def company_logo(instance, filename):
+    return f"profile_images/company_{instance.id}/{filename}"
+
 class Company(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="company")
     company_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     team_size = models.CharField(max_length=20)
     address = models.TextField()
+    contact_number = models.CharField(max_length=30, blank=True, null=True)
     active = models.BooleanField(default=True)  
+    profile_image = models.ImageField(upload_to=company_logo, null=True, blank=True)
 
     # Audit fields
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="company_created_by")

@@ -12,6 +12,7 @@ import traceback
 from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from django.conf import settings
+from core.utils.utils import get_user_by_email, get_employee_by_email, get_company_by_email
 
 User = get_user_model()
 
@@ -53,129 +54,90 @@ class EmployeeProfileViewSet(APIView):
 
 
 # Employee ModelViewSet for Employee CRUD operations
+
 class EmployeeViewSet(APIView):
-    queryset = Employee.objects.all()
-    serializer_class = EmployeeSerializer
     permission_classes = [IsAuthenticated]
-    
-    def get(self, request, pk=None, *args, **kwargs):
+
+    def get(self, request, pk=None):
+        try:
+            user_email = request.user.email
+            user = get_user_by_email(user_email)
+
+            if not user:
+                return Response({'error': 'User not found'}, status=404)
+
+            is_company = user.is_company
+            is_employee = user.is_employee
+
+            company_id, role_id, employee_instance = None, None, None
+
+            if is_company:
+                company = get_company_by_email(user_email)
+                if not company:
+                    return Response({'error': 'Company not found'}, status=404)
+                company_id = company.id
+
+            if is_employee:
+                employee_instance = get_employee_by_email(user_email)
+                if not employee_instance:
+                    return Response({'error': 'Employee not found'}, status=404)
+                role_id = employee_instance.role_id
+                company_id = employee_instance.company_id
+
+            if pk:  # CASE 1: Specific Employee
+                employee = Employee.objects.filter(id=pk, company_id=company_id, active=True).select_related('role', 'company').first()
+                if not employee:
+                    return Response({'error': 'Employee not found'}, status=404)
+
+                data = EmployeeSerializer(employee).data
+                return Response(data, status=200)
+
+            if is_company or role_id in [1, 2]:  # CASE 2: Company/Admin
+                employees = Employee.objects.filter(company_id=company_id, active=True) \
+                    .select_related('role', 'company') \
+                    .annotate(
+                        username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
+                        role_name=F('role__role_name'),
+                        company_name=F('company__company__company_name'),
+                        team_size=F('company__company__team_size')
+                    ).values(
+                        'id', 'username', 'contact_number', 'company_email', 'personal_email',
+                        'date_of_birth', 'gender', 'company_name', 'team_size', 'role_name'
+                    ).order_by('-id')
+                return Response(employees, status=200)
+
+            if is_employee:  # CASE 3: Regular Employee
+                employee_data = EmployeeSerializer(employee_instance).data
+                return Response(employee_data, status=200)
+
+            return Response({'error': 'Unauthorized'}, status=401)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+    def post(self, request):
+        try:
+            data = request.data.copy()
+            data['active'] = True
+            user_email = request.user.email
+            company = get_company_by_email(user_email)
+            if not company:
+                return Response({'error': 'Invalid company or user'}, status=400)
+
+            role_input = data.get('job_role') or data.get('designation') or data.get('role')
+            if not role_input:
+                return Response({'error': 'Role is required.'}, status=400)
+
             try:
-                user = request.user
-                user_email = user.email
-                user_instance = User.objects.filter(email=user_email).first()
+                role = Role.objects.get(id=int(role_input)) if str(role_input).isdigit() else Role.objects.get(role_name=role_input.strip())
+            except Role.DoesNotExist:
+                return Response({'error': f'Role "{role_input}" does not exist.'}, status=400)
 
-                if not user_instance:
-                    return Response({'error': 'User not found'}, status=404)
+            email = data.get('company_email')
+            default_password = "Pass@123"
 
-                is_company = user_instance.is_company
-                is_employee = user_instance.is_employee
-
-                # Get company ID and role if employee
-                employee_instance = None
-                company_id = None
-                role_id = None
-
-                if is_company:
-                    company = Company.objects.filter(email=user_email, active=True).first()
-                    if not company:
-                        return Response({'error': 'Company not found'}, status=404)
-                    company_id = company.id
-
-                if is_employee:
-                    employee_instance = Employee.objects.filter(company_email=user_email).first()
-                    if not employee_instance:
-                        return Response({'error': 'Employee not found'}, status=404)
-                    role_id = employee_instance.role_id
-                    company_id = employee_instance.company_id
-
-                # 🧠 CASE 1: Specific Employee Detail (Company or Employee)
-                if pk:
-                    employee = Employee.objects.filter(id=pk, company_id=company_id, active=True).select_related('role', 'company').first()
-                    if not employee:
-                        return Response({'error': 'Employee not found'}, status=404)
-
-                    data = {
-                        'id': employee.id,
-                        'first_name': employee.first_name,
-                        'middle_name': employee.middle_name,
-                        'last_name': employee.last_name,
-                        'contact_number': employee.contact_number,
-                        'company_email': employee.company_email,
-                        'personal_email': employee.personal_email,
-                        'date_of_birth': employee.date_of_birth,
-                        'gender': employee.gender,
-                        'role_id': employee.role_id
-                    }
-                    return Response(data, status=200)
-
-                # 🧠 CASE 2: All Employees (for Company or Admin/Manager roles)
-                if is_company or role_id in [1, 2]:
-                    employees = Employee.objects.filter(company_id=company_id, active=True) \
-                        .select_related('role', 'company') \
-                        .annotate(
-                            username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
-                            role_name=F('role__role_name'),
-                            company_name=F('company__company__company_name'),
-                            team_size=F('company__company__team_size')
-                        ).values(
-                            'id', 'username', 'contact_number', 'company_email', 'personal_email',
-                            'date_of_birth', 'gender', 'company_name', 'team_size', 'role_name'
-                        ).order_by('-id')
-
-                    return Response(employees, status=200)
-
-                # 🧠 CASE 3: Regular Employee – return own data
-                if is_employee:
-                    employee = {
-                        'id': employee_instance.id,
-                        'first_name': employee_instance.first_name,
-                        'middle_name': employee_instance.middle_name,
-                        'last_name': employee_instance.last_name,
-                        'contact_number': employee_instance.contact_number,
-                        'company_email': employee_instance.company_email,
-                        'personal_email': employee_instance.personal_email,
-                        'date_of_birth': employee_instance.date_of_birth,
-                        'gender': employee_instance.gender,
-                        'role_id': employee_instance.role_id
-                    }
-                    return Response(employee, status=200)
-
-                return Response({'error': 'Unauthorized'}, status=401)
-
-            except Exception as e:
-                print('Error:', e)
-                return Response({'error': 'Something went wrong'}, status=500)
-
-        
-    def post(self, request, *args, **kwargs):
-        data = request.data.copy()
-        data['active'] = True
-        username = request.user
-
-        # Get company ID
-        try:
-            company_id = Company.objects.get(company_name=request.user).id
-            company_name = Company.objects.get(id=company_id).company_name
-        except Company.DoesNotExist:
-            return Response({'error': 'Invalid company or user.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 1. Get and validate role
-        role_input = data.get('job_role') or data.get('Designation') or data.get('designation') or data.get('role')
-        if not role_input:
-            return Response({'error': 'Designation (Role) is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            role = Role.objects.get(id=int(role_input)) if str(role_input).isdigit() else Role.objects.get(role_name=role_input.strip())
-        except Role.DoesNotExist:
-            return Response({'error': f'Role "{role_input}" does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # 2. Check if user exists
-        email = data.get('company_email')
-        default_password = "Pass@123"
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            try:
+            user = get_user_by_email(email)
+            if not user:
                 user = User.objects.create_user(
                     username=data.get('first_name'),
                     email=email,
@@ -184,16 +146,10 @@ class EmployeeViewSet(APIView):
                     last_name=data.get('last_name', ''),
                     is_employee=True
                 )
-            except Exception as e:
-                print('[ERROR] User creation failed:', str(e))
-                return Response({'error': f'User creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 3. Check for existing Employee
-        if Employee.objects.filter(company_email=email).exists():
-            return Response({'error': 'Employee with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+            if Employee.objects.filter(company_email=email).exists():
+                return Response({'error': 'Employee with this email already exists.'}, status=400)
 
-        # 4. Create employee
-        try:
             employee = Employee.objects.create(
                 first_name=data.get('first_name'),
                 middle_name=data.get('middle_name'),
@@ -204,88 +160,53 @@ class EmployeeViewSet(APIView):
                 date_of_birth=data.get('date_of_birth'),
                 gender=data.get('gender'),
                 role_id=role.id,
-                company_id=company_id
+                company_id=company.id
             )
 
-            # 5. Send success email
-            subject = f"Welcome to {company_name} Employee Management System Access Details"
+            subject = f"Welcome to {company.company_name} Employee Management System"
             message = (
-                f"Hi {data.get('first_name')} {data.get('last_name')},\n\n"
-                "Welcome to our team! Your employee account has been successfully created.\n\n"
-                "Below are your login credentials to access the Employee Management System:\n\n"
-                f"🔗 Login URL: http://localhost:5173/login\n"
-                f"📧 Username: {email}\n"
-                f"🔐 Password: {default_password}\n\n"
-                "For your security, please change your password after logging in.\n\n"
-                "Through the portal, you can manage your profile, attendance, payroll, and more.\n\n"
-                f"If you face any issues, contact IT support at support@{company_name}.com.\n\n"
-                "Best regards,\n"
-                f"{company_name} HR Team"
+                f"Hi {employee.first_name} {employee.last_name},\n\n"
+                f"Your account has been created.\n"
+                f"🔗 Login: http://localhost:5173/login\n"
+                f"📧 Email: {email}\n🔐 Password: {default_password}\n\n"
+                f"Please change your password after logging in.\n\n"
+                f"- {company.company_name} HR Team"
             )
 
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
 
-            return Response({'success': 'Employee created and email sent successfully.'}, status=status.HTTP_201_CREATED)
+            return Response({'success': 'Employee created and email sent.'}, status=201)
 
         except Exception as e:
-            print('[ERROR] Employee creation failed:', str(e))
-            return Response({'error': f'Employee creation failed: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Employee creation failed: {str(e)}'}, status=400)
 
-
-
-    # For Update Employee
-    def put(self, request, pk=None, *args, **kwargs):
-        username = request.user.email
-        # Assuming you have an Employee model or serializer to update the employee
+    def put(self, request, pk=None):
         try:
-            # Fetch the employee by pk
-            employee = Employee.objects.get(id=pk)
+            employee = get_object_or_404(Employee, id=pk)
 
-            # You can update the employee with data from the request
-            employee.first_name = request.data.get('first_name', employee.first_name)
-            employee.middle_name = request.data.get('middle_name', employee.middle_name)
-            employee.last_name = request.data.get('last_name', employee.last_name)
-            employee.contact_number = request.data.get('contact_number', employee.contact_number)
-            employee.company_email = request.data.get('company_email', employee.company_email)
-            employee.personal_email = request.data.get('personal_email', employee.personal_email)
-            employee.date_of_birth = request.data.get('date_of_birth', employee.date_of_birth)
-            employee.gender = request.data.get('gender', employee.gender)
-            employee.role_id = request.data.get('job_role', employee.role_id)
+            updatable_fields = ['first_name', 'middle_name', 'last_name', 'contact_number',
+                                'company_email', 'personal_email', 'date_of_birth', 'gender', 'job_role']
+            for field in updatable_fields:
+                value = request.data.get(field)
+                if value:
+                    setattr(employee, 'role_id' if field == 'job_role' else field, value)
 
-            # Save the updated employee object
             employee.save()
+            return Response({'message': 'Employee updated successfully!', 'id': employee.id}, status=200)
 
-            # Return success response
-            return Response({
-                'message': 'Employee updated successfully!',
-                'employee': employee.id  # Optionally include updated data
-            }, status=status.HTTP_200_OK)
-            
         except Employee.DoesNotExist:
-            return Response({
-                'error': 'Employee not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': 'Employee not found'}, status=404)
         except Exception as e:
-            # Handle unexpected errors
-            return Response({
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=500)
 
-        
-    # For Delete Employee
-    def delete(self, request, pk=None, *args, **kwargs):
+    def delete(self, request, pk=None):
         try:
             employee = get_object_or_404(Employee, pk=pk)
-
             employee.active = False
             employee.save()
-
-            return Response({'success': 'Employee deactivated successfully.'}, status=status.HTTP_200_OK)
-
+            return Response({'success': 'Employee deactivated.'}, status=200)
         except Exception as e:
-            traceback.print_exc()
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
- 
+            return Response({'error': str(e)}, status=500)
 
 # Employee Bank Details CRUD operations
 class EmployeeBankDetailsView(APIView):
@@ -632,17 +553,27 @@ class ProfileImageUploadView(APIView):
 
     def post(self, request):
 
+       
+
         image = request.FILES.get('profile_image')
+        print('image==<<<>>', image)
         if not image:
             return Response({"error": "No image provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = request.user
+            is_comapany = user.is_company
+            if(user.is_company):
+                companay = Company.objects.get(email=request.user.email)
+                companay.profile_image = image
+                companay.save()
+
+                return Response({"message": "Profile image uploaded successfully."}, status=status.HTTP_200_OK)
+
 
             employee = Employee.objects.get(company_email=request.user.email)
-            employee_id = employee.id
-
             employee.profile_image = image
+
             employee.save()
 
             return Response({"message": "Profile image uploaded successfully."}, status=status.HTTP_200_OK)

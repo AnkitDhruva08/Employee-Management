@@ -11,6 +11,9 @@ from rest_framework import status
 from core.models import Employee, Company, EmployeeDashboardLink, Event, HrDashboardLink, CompanyDashboardLink, LeaveRequest, BankDetails, NomineeDetails, EmergencyContact, OfficeDetails
 from core.serializers import EmployeeDashboardLinkSerializer, HrDashboardLinkSerializer, CompanyDashboardLinkSerializer, EmployeeSerializer, BankDetailsSerializer, NomineeDetailsSerializer, EmergencyContactSerializer, EmployeeOfficeDetailsSerializer
 from datetime import date
+from django.shortcuts import get_object_or_404
+
+
 # User Model
 User = get_user_model()
 # Email validation function 
@@ -92,3 +95,23 @@ def check_profile_completion(employee_id):
     except Exception as e:
         print("Error in check_profile_completion:", str(e))
         return False
+
+
+
+
+
+
+
+
+def get_user_by_email(email):
+    return User.objects.filter(email=email).first()
+
+def get_company_by_email(email):
+    return Company.objects.filter(email=email, active=True).first()
+
+def get_employee_by_email(email):
+    return Employee.objects.filter(company_email=email).first()
+
+def get_role_name(role_id):
+    from core.models import Role
+    return Role.objects.get(id=role_id).role_name if role_id else None

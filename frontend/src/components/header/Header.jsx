@@ -14,13 +14,16 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-import UploadImageModal from "../File/UploadProfileImage";
+// import UploadImageModal from "../File/UploadProfileImage";
 
 const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
+
+  
+
+
   const navigate = useNavigate();
 
   const dropdownRef = useRef(null);
@@ -84,9 +87,7 @@ const Header = ({ title }) => {
   const role = userData?.role;
   const isCompany = userData?.is_company;
   const isSuperUser = userData?.is_superuser;
-  const displayName = isSuperUser
-  ? "Superuser"
-  : userData.role_id === 1
+  const displayName = isSuperUser ? "Superuser": userData.role_id === 1
     ? `${userData?.admin_name || "Admin"}`
     : isCompany
       ? userData?.company
@@ -95,15 +96,14 @@ const Header = ({ title }) => {
   const firstLetter = displayName.charAt(0).toUpperCase();
 
   // Construct the profile image URL by appending the relative path to the base URL for media
-  const profileImagePath =
-  userData?.role_id === 1
-    ? userData?.admin_profile
-    : userData?.employee_details?.[0]?.profile_image;
+  const profileImagePath = userData?.is_company? userData?.company_logo : userData?.role_id === 1
+ ? userData?.admin_profile : userData?.role_id === 2
+ ? userData?.hr_profile: userData?.employee_details?.[0]?.profile_image;
+
 
   const profileImageUrl = profileImagePath
     ? `http://localhost:8000/media/${profileImagePath}`
     : null;
-
 
   return (
     <div className="w-full bg-white shadow p-4 flex justify-between items-center">
@@ -168,14 +168,14 @@ const Header = ({ title }) => {
                     label="View Profile"
                     path="/profile-page"
                   />
-                  <div
+                  {/* <div
                     onClick={() => setShowImageModal(true)}
                     className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
                       <User /> Update Profile
                     </span>
-                  </div>
+                  </div> */}
                   <DropdownItem
                     icon={<Settings />}
                     label="Settings"
@@ -216,17 +216,7 @@ const Header = ({ title }) => {
           )}
         </div>
 
-        {/* ✅ Render Upload Image Modal */}
-        {showImageModal && (
-          <UploadImageModal
-            isOpen={showImageModal}
-            onClose={() => setShowImageModal(false)}
-            onUploadSuccess={() => {
-              setShowImageModal(false);
-              window.location.reload(); // reload to see updated image
-            }}
-          />
-        )}
+
       </div>
     </div>
   );

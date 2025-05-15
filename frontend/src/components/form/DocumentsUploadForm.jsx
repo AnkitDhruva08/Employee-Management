@@ -163,7 +163,6 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
 
 
 <div className="max-w-7xl mx-auto">
-<Header title={headerTitle} />
 
 {loading ? (
   <div className="text-center py-10 text-gray-500">Loading...</div>

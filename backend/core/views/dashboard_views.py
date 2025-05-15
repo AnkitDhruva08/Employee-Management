@@ -19,170 +19,119 @@ class DashboardView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        is_company = User.objects.filter(username=user).values('is_company').first()
-        is_superuser = User.objects.filter(username=user).values('is_superuser').first()
-        email = request.user.email
-        if is_superuser['is_superuser']:
-            try:
-                if hasattr(user, 'is_superuser') and user.is_superuser:
-                    superUser = User.objects.get(username=user)
+        email = user.email
 
-                    # Get all companies with employee counts (active only)
-                    companies_with_teams = User.objects.filter(
-                        employees__active=True
-                    ).annotate(
-                        team_size=Count('employees', filter=Q(employees__active=True))
-                    ).distinct()
+        if user.is_superuser:
+            return self._superuser_dashboard(user)
 
-                    # Prepare the response data
-                    companies_data = []
-                    for company in companies_with_teams:
-                        companies_data.append({
-                            "company_id": company.id,
-                            "company_name": company.get_full_name() or company.username,
-                            "email": company.email,
-                            "team_size": company.team_size
-                        })
+        if user.is_company:
+            return self._company_dashboard(user, email)
 
-                    return Response({
-                        "is_superuser": is_superuser['is_superuser'],
-                        "email": email,
-                        "role": "is_superuser",
-                        "companies": companies_data
-                    }, status=status.HTTP_200_OK)
+        return self._employee_dashboard(user, email)
 
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def _superuser_dashboard(self, user):
+        try:
+            companies_with_teams = User.objects.filter(
+                is_company=True
+            ).exclude(id=user.id).annotate(
+                team_size=Count('employees', filter=Q(employees__active=True))
+            )
 
+            companies_data = []
+            for company in companies_with_teams:
+                contact_number = getattr(company.company, 'contact_number', None)
+                profile_image = getattr(company.company, 'profile_image', None)
+                companies_data.append({
+                    "company_id": company.id,
+                    "company_name": company.get_full_name() or company.username,
+                    "company_email": company.email,
+                    "team_size": company.team_size,
+                    "contact_number": contact_number,
+                    "company_logo": profile_image.url if profile_image else None,
+                })
 
-        if(is_company['is_company']):
-            try:
-                if hasattr(user, 'is_company') and user.is_company:
-                    company = Company.objects.get(company_name=user)
-                    company_id = company.id
-                    total_employees = Employee.objects.filter(company_id=company_id).count()
-                    total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
-                    upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
+            return Response({
+                "is_superuser": True,
+                "email": user.email,
+                "role": "is_superuser",
+                "companies": companies_data
+            }, status=status.HTTP_200_OK)
 
-                    return Response({
-                        "is_company": is_company['is_company'],
-                        'email': email,
-                        "role": "Company",
-                        "company": company.company_name,
-                        "total_employees": total_employees,
-                        "total_leave_requests": total_leave_requests,
-                        "upcoming_events": upcoming_events,
-                    }, status=status.HTTP_200_OK)
-                
-            except Company.DoesNotExist:
-                    return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        else:
-            role_id = Employee.objects.filter(company_email=email).values('role_id').first()
-            # Admin Dashboard
-            if(role_id['role_id'] == 1):
-                try:
-                    role = Role.objects.get(id=role_id['role_id'])
-                    user_data = Employee.objects.get(company_email=email)
-                    user_id = user_data.company_id
-                    profile_image = user_data.profile_image
-                    user_details = User.objects.get(email=email)
-                    admin_name = user_details.username                    
-                    company = Company.objects.get(user_id=user_id).company_name
-                    company_id = Company.objects.get(user_id=user_id).id
-                    total_employees = Employee.objects.filter(company_id=company_id).count()
-                    total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
-                    upcoming_events = Event.objects.filter(
-                        company_id=company_id, 
-                        date__gte=date.today()
-                    ).values('title', 'date')
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-                    employee_details = Employee.objects.filter(active=True ).select_related('role').values('id',
-                            'first_name', 'middle_name', 'last_name', 'contact_number', 'company_email',
-                            'personal_email', 'date_of_birth', 'gender',  'profile_image','role__role_name'
-                        )
-                    
+    def _company_dashboard(self, user, email):
+        try:
+            company = Company.objects.get(company_name=user)
+            company_id = company.id
+            total_employees = Employee.objects.filter(company_id=company_id).count()
+            total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
+            upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
 
+            return Response({
+                "is_company": True,
+                "email": email,
+                "role": "Company",
+                "company": company.company_name,
+                "total_employees": total_employees,
+                "total_leave_requests": total_leave_requests,
+                "upcoming_events": upcoming_events,
+                "company_logo": str(company.profile_image) if company.profile_image else None
+            }, status=status.HTTP_200_OK)
 
-                    return Response({
-                        "employee_details": employee_details,
-                        "role_id": role_id['role_id'],
-                        "role": role.role_name,
-                        "email": email,
-                        "admin_name": admin_name,
-                        "admin_profile":  str(profile_image) if profile_image else None,
-                        "company": company,
-                        "total_employees": total_employees,
-                        "total_leave_requests": total_leave_requests,
-                        "total_projects": 12,
-                        "total_tasks": 10,
-                        "departments": 5,
-                        "upcoming_events": upcoming_events,
-                    }, status=status.HTTP_200_OK)
+        except Company.DoesNotExist:
+            return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
 
-                except Company.DoesNotExist:
-                    return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-            
-            # Hr Dashboard
-            elif role_id['role_id'] == 2:
-                try:
-                    role = Role.objects.get(id=role_id['role_id'])
-                    user_id = Employee.objects.get(company_email=email).company_id
-                    company = Company.objects.get(user_id=user_id).company_name
-                    company_id = Company.objects.get(user_id=user_id).id
-                    total_employees = Employee.objects.filter(company_id=company_id).count()
-                    total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
-                    upcoming_events = Event.objects.filter(
-                        company_id=company_id, 
-                        date__gte=date.today()
-                    ).values('title', 'date')
+    def _employee_dashboard(self, user, email):
+        role_info = Employee.objects.filter(company_email=email).values('role_id', 'company_id').first()
+        if not role_info:
+            return Response({"error": "Employee not found"}, status=status.HTTP_404_NOT_FOUND)
 
-                    employee_details = Employee.objects.filter(active=True ).select_related('role').values('id',
-                            'first_name', 'middle_name', 'last_name', 'contact_number', 'company_email',
-                            'personal_email', 'date_of_birth', 'gender',  'profile_image','role__role_name'
-                        )
-                    
+        role_id = role_info['role_id']
+        company_id = role_info['company_id']
+        role = Role.objects.filter(id=role_id).first()
+        employee_data = Employee.objects.filter(company_email=email).first()
+        profile_image = str(employee_data.profile_image) if employee_data.profile_image else None
+        company_name = Company.objects.filter(id=company_id).values('company_name').first()
 
+        common_data = {
+            "role_id": role_id,
+            "role": role.role_name if role else "Unknown",
+            "email": email,
+            "company": company_name['company_name'] if company_name else "N/A",
+        }
 
-                    return Response({
-                        "employee_details": employee_details,
-                        "role_id": role_id['role_id'],
-                        "role": role.role_name,
-                        "email": email,
-                        "company": company,
-                        "total_employees": total_employees,
-                        "total_leave_requests": total_leave_requests,
-                        "upcoming_events": upcoming_events,
-                    }, status=status.HTTP_200_OK)
+        if role_id in [1, 2]:  # Admin or HR
+            total_employees = Employee.objects.filter(company_id=company_id).count()
+            total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
+            upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
 
-                except Company.DoesNotExist:
-                    return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+            employee_details = Employee.objects.filter(active=True).select_related('role').values(
+                'id', 'first_name', 'middle_name', 'last_name', 'contact_number',
+                'company_email', 'personal_email', 'date_of_birth', 'gender',
+                'profile_image', 'role__role_name'
+            )
 
-            
+            return Response({
+                **common_data,
+                "employee_details": employee_details,
+                "total_employees": total_employees,
+                "total_leave_requests": total_leave_requests,
+                "upcoming_events": upcoming_events,
+                "admin_profile" if role_id == 1 else "hr_profile": profile_image,
+                **({"total_projects": 12, "total_tasks": 10, "departments": 5} if role_id == 1 else {})
+            }, status=status.HTTP_200_OK)
 
-            # Solution Engineer
-            else:
-                if role_id['role_id'] == 3:
-                    try:
-                        company_id = Employee.objects.get(company_email=email).company_id
-                        company_name = Company.objects.filter(id=company_id).values('company_name').first()
-                        role = Role.objects.filter(id=role_id['role_id']).values('role_name').first()
-                        employee_details = Employee.objects.filter(company_email=email).values('id','first_name', 'middle_name', 'last_name', 'contact_number', 'company_email', 
-                                'personal_email', 'date_of_birth', 'gender', 'profile_image')
-                        
+        # Solution Engineer or others
+        employee_details = Employee.objects.filter(company_email=email).values(
+            'id', 'first_name', 'middle_name', 'last_name', 'contact_number',
+            'company_email', 'personal_email', 'date_of_birth', 'gender', 'profile_image'
+        )
+        return Response({
+            **common_data,
+            "employee_details": employee_details
+        }, status=status.HTTP_200_OK)
 
-                        return Response({
-                            "employee_details": employee_details,
-                            'email': email,
-                            "role": role['role_name'],
-                            "role_id": role_id['role_id'],
-                            "company": company_name['company_name'],
-                        }, status=status.HTTP_200_OK)
-                    
-                    except Company.DoesNotExist:
-                            return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
-            
 # Employee Dashboard Links
 class DashboardLinkViewSet(APIView):
     permission_classes = [IsAuthenticated]

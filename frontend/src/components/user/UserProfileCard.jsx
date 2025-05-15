@@ -2,16 +2,35 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { fetchUserProfile } from "../../utils/api";
 import Header from "../header/Header";
+import Sidebar from "../sidebar/Sidebar";
+import UploadImageModal from "../File/UploadProfileImage";
+import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
+
 
 export default function UserProfilePage() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [quickLinks, setQuickLinks] = useState([]);
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+     const fetchLinks = async () => {
+        try {
+            const links = await fetchDashboardLink(token);
+            setQuickLinks(links.data || links);
+          const empDashboard = await fetchDashboard(token);
+          setDashboardData(empDashboard);
+        } catch (err) {
+          console.error("Error fetching dashboard:", err);
+          navigate("/login");
+        }
+      };
 
   useEffect(() => {
+    fetchLinks();
     const fetchData = async () => {
       try {
         const profileData = await fetchUserProfile(token);
@@ -54,8 +73,15 @@ export default function UserProfilePage() {
     userProfile;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 via-white to-blue-50 pb-10">
-      <Header title="Employee Profile" />
+    <div className="flex h-screen bg-gray-100">
+        <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+          <h2 className="text-xl font-semibold mb-4">
+            {dashboardData?.company}
+          </h2>
+          <Sidebar quickLinks={quickLinks} />
+        </div>
+        <main className="flex-1 flex flex-col">
+      <Header title="Profile" />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Card Container */}
@@ -70,13 +96,27 @@ export default function UserProfilePage() {
               <p className="text-sm text-gray-500">{employee.contact_number}</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
-       
-              <Link
+            <div>
+            <Link
                 to={`/employee-form/${employee.id}?step=4`}
                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-5 py-2 rounded-full text-sm font-medium shadow-lg hover:scale-105 transition-transform duration-200"
               >
                 ✏️ Update Profile
               </Link>
+            </div>
+            <div>
+
+            <Link
+                 onClick={() => setShowImageModal(true)}
+                 className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-indigo-600 hover:from-green-600 hover:to-green-700 text-white px-5 py-2 rounded-full text-sm font-medium shadow-lg hover:scale-105 transition-transform duration-200"
+               >
+                  Update Profile Picture
+              </Link>
+
+            </div>
+            
+
+
             </div>
           </div>
 
@@ -264,9 +304,26 @@ export default function UserProfilePage() {
                 </button>
               </div>
             </div>
+            
           </div>
         </div>
       </div>
+
+         {/* ✅ Render Upload Image Modal */}
+              {showImageModal && (
+                <UploadImageModal
+                  isOpen={showImageModal}
+                  onClose={() => setShowImageModal(false)}
+                  onUploadSuccess={() => {
+                    setShowImageModal(false);
+                    window.location.reload(); 
+                  }}
+                />
+              )}
+
+              </main>
     </div>
+
+    
   );
 }

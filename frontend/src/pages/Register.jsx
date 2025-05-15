@@ -8,6 +8,7 @@ const Register = () => {
     email: '',
     password: '',
     address: '',
+    contact_number : '',
   });
 
   const [error, setError] = useState(null);
@@ -91,6 +92,19 @@ const Register = () => {
               type="email"
               name="email"
               value={formData.email}
+              onChange={handleChange}
+              required
+              className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          {/* Contact number */}
+              <div>
+            <label className="block text-gray-700 font-medium mb-1">Company Contact Number</label>
+            <input
+              type="number"
+              name="contact_number"
+              value={formData.contact_number}
               onChange={handleChange}
               required
               className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"

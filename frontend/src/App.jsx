@@ -20,8 +20,7 @@ import EmployeeForm from './components/form/EmployeeForm';
 import UserProfilePage from './components/user/UserProfileCard';
 import ProfileDropdown from './components/user/ProfileDropdown';
 import Projects from './pages/Projects';
-// import UploadProfileImage from './components/File/UploadProfileImage';
-// import { FormProvider } from './utils/FormContext';
+import Events from './pages/Events';
 
 import EmplyeeViews from './pages/EmplyeeViews';
 function App() {
@@ -54,6 +53,7 @@ function App() {
         <Route path="/employee-views/:id" element={<EmplyeeViews />} />
         <Route path="/profile-dropdown" element={<ProfileDropdown />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/events" element={<Events />} />
 
       </Routes>
     </Router>
