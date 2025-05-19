@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import (
  
 from core.views.attendence_views import AttendanceView
 from core.views.dashboard_views import DashboardView, DashboardLinkViewSet
+from core.views.project_views import ProjectManagement
 from core.views.file_views import get_pdf
 from core.views.holidays_views import HolidaysViewset
 
@@ -104,6 +105,12 @@ urlpatterns = [
 
     # Attendance History
     path('attendance/', AttendanceView.as_view(), name='attendance'),
+
+    # Project management ProjectManagement 
+    path('project-management/', ProjectManagement.as_view(), name='project-management'),
+    path('create-project/', ProjectManagement.as_view(), name='create-project'),
+
+
 ]
 
 if settings.DEBUG is True:

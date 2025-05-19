@@ -23,6 +23,9 @@ import Projects from './pages/Projects';
 import Events from './pages/Events';
 
 import EmplyeeViews from './pages/EmplyeeViews';
+import BugTracker from './pages/Bug-Tracker';
+import EmployeeTaskTracker from './pages/EmployeeTaskTracker';
+import KanbanDashboard from './pages/Kanban';
 function App() {
   return (
     <Router>
@@ -54,6 +57,9 @@ function App() {
         <Route path="/profile-dropdown" element={<ProfileDropdown />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/bugs" element={<BugTracker />} />
+        <Route path="/employee-task" element={<EmployeeTaskTracker />} />
+        <Route path="/kanban-dashboard" element={<KanbanDashboard />} />
 
       </Routes>
     </Router>

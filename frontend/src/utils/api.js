@@ -116,3 +116,18 @@ export const fetchUserProfile = async (token) => {
   return data
 };
 
+
+
+
+//  User project
+export const fetchProjects = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/project-management/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};

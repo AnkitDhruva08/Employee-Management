@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance
+from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -166,3 +166,31 @@ class AttendanceSerializer(serializers.ModelSerializer):
 
     def get_duration(self, obj):
         return str(obj.duration) if obj.duration else None
+
+
+
+
+
+
+# Project Serializers
+
+class ProjectSerializer(serializers.ModelSerializer):
+    created_by = serializers.StringRelatedField(read_only=True)
+    updated_by = serializers.StringRelatedField(read_only=True)
+    company = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = Project
+        fields = [
+            'id',
+            'company',
+            'project_name',
+            'description',
+            'start_date',
+            'end_date',
+            'status',
+            'created_at',
+            'updated_at',
+            'created_by',
+            'updated_by',
+        ]

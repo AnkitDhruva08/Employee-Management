@@ -316,3 +316,35 @@ class Attendance(models.Model):
         if self.login_time and self.logout_time:
             return self.logout_time - self.login_time
         return None
+    
+
+
+
+
+
+
+
+
+# Project models 
+
+class Project(models.Model):
+    STATUS_CHOICES = [
+        ("In Progress", "In Progress"),
+        ("Done", "Done"),
+        ("Blocked", "Blocked"),
+    ]
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='projects')
+    project_name = models.CharField(max_length=255)
+    description = models.TextField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="In Progress")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="projects_created")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="projects_updated")
+    active = models.BooleanField(default=True) 
+
+
+    def __str__(self):
+        return self.project_name
