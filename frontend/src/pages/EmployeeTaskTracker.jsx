@@ -6,7 +6,7 @@ import { fetchDashboard } from "../utils/api";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const dummyEmployees = [
   { id: 1, name: "John Smith", initials: "JS", project: "Mobile App", task: "Fix login bug", status: "In Progress", date: "2025-05-15" },

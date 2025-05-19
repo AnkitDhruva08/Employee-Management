@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 const projectsData = [
   { id: 1, name: "New Website Launch", teamLead: "Alice Johnson", status: "In Progress", progress: 60, members: ["Alice Johnson", "Frank Wright", "Emily Davis"] },
   { id: 2, name: "Mobile App Development", teamLead: "Bob Smith", status: "New", progress: 10, members: ["Bob Smith", "Frank Wright"] },
@@ -37,47 +36,45 @@ export default function KanbanDashboard() {
     setSelectedProject(null);
   }
 
-  // Group projects by status for rendering
+  // Group projects by status for rendering, **in order**
   const projectsByStatus = statuses.reduce((acc, status) => {
     acc[status.key] = projects.filter(p => p.status === status.key);
     return acc;
   }, {});
 
   function onDragEnd(result) {
-    const { source, destination, draggableId } = result;
-
-    // Dropped outside any droppable
+    const { source, destination } = result;
     if (!destination) return;
-
-    // Dropped in same place
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return;
-    }
-
-    // Update project status and order
-    setProjects(prevProjects => {
-      // Clone current projects array
-      const updatedProjects = Array.from(prevProjects);
-
-      // Find dragged project
-      const draggedProjectIndex = updatedProjects.findIndex(
-        (p) => p.id.toString() === draggableId
-      );
-      if (draggedProjectIndex === -1) return prevProjects;
-
-      // Update status to new column
-      updatedProjects[draggedProjectIndex] = {
-        ...updatedProjects[draggedProjectIndex],
-        status: destination.droppableId
-      };
-
-      return updatedProjects;
+  
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+  
+    setProjects((prevProjects) => {
+      // Group projects by status
+      const grouped = statuses.reduce((acc, s) => {
+        acc[s.key] = prevProjects.filter(p => p.status === s.key);
+        return acc;
+      }, {});
+  
+      // Remove from source list
+      const sourceList = Array.from(grouped[source.droppableId]);
+      const [moved] = sourceList.splice(source.index, 1);
+  
+      // Update status if changed
+      const newStatus = destination.droppableId;
+      const updatedMoved = { ...moved, status: newStatus };
+  
+      // Insert into destination list
+      const destList = Array.from(grouped[newStatus]);
+      destList.splice(destination.index, 0, updatedMoved);
+  
+      grouped[source.droppableId] = sourceList;
+      grouped[newStatus] = destList;
+  
+      // Flatten to one array again
+      return statuses.flatMap(s => grouped[s.key]);
     });
   }
-
+  
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <header className="mb-6">
