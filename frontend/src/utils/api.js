@@ -131,3 +131,18 @@ export const fetchProjects = async (token) => {
   const data = await handleResponse(res);
   return data
 };
+
+
+
+//  function for fetch the bugs reports 
+export const fetchBugsReports = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/bugs-reportes/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};

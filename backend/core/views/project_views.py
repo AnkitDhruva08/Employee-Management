@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from core.models import Company, Project, Employee
-from core.serializers import ProjectSerializer
+from core.models import Company, Project, Employee, Bug
+from core.serializers import ProjectSerializer, BugSerializer
 from django.contrib.auth import get_user_model 
 
 # User Model
@@ -82,6 +82,44 @@ class ProjectManagement(APIView):
         except Exception as e:
             print("Error creating project:", e)
             return Response({"detail": "Internal Server Error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
+
+# For Bugs Report
+class BugsReportsA(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        user_data = User.objects.get(email=user.email)
+
+        company_id = None
+
+        if user_data.is_employee:
+            try:
+                employee_data = Employee.objects.get(company_email=user.email)
+                role_id = employee_data.role_id
+                company_id = employee_data.company_id
+
+                if role_id != 1:
+                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+            except Employee.DoesNotExist:
+                return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        elif user_data.is_company:
+            company_id = user_data.id
+        else:
+            return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+
+        bugs = Bug.objects.filter(company_id=company_id).order_by('-created')
+        serializer = BugSerializer(bugs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 
 
 

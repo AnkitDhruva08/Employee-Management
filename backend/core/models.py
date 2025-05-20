@@ -348,3 +348,31 @@ class Project(models.Model):
 
     def __str__(self):
         return self.project_name
+    
+
+
+# bugs models 
+class Bug(models.Model):
+    STATUS_CHOICES = [
+        ("Open", "Open"),
+        ("In Progress", "In Progress"),
+        ("Blocked", "Blocked"),
+        ("Done", "Done"),
+    ]
+
+    PRIORITY_CHOICES = [
+        ("Low", "Low"),
+        ("Medium", "Medium"),
+        ("High", "High"),
+        ("Critical", "Critical"),
+    ]
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='bugs')
+    title = models.CharField(max_length=255)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="bugs")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Open")
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="Medium")
+    assigned_to = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="assigned_bugs")
+    created = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.status})"

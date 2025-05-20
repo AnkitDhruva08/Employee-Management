@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project
+from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project, Bug
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -194,3 +194,32 @@ class ProjectSerializer(serializers.ModelSerializer):
             'created_by',
             'updated_by',
         ]
+
+
+
+
+# Bugs Serializers
+class BugSerializer(serializers.ModelSerializer):
+    project_name = serializers.CharField(source='project.project_name', read_only=True)
+    assigned_to_name = serializers.SerializerMethodField()
+
+
+    class Meta:
+        model = Bug
+        fields = [
+            'id',
+            'title',
+            'status',
+            'priority',
+            'created',
+            'company',
+            'project',
+            'project_name',          
+            'assigned_to',
+            'assigned_to_name'     
+        ]
+
+    def get_assigned_to_name(self, obj):
+        if obj.assigned_to:
+            return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}"
+        return None
