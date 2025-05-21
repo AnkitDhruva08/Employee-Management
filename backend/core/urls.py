@@ -109,7 +109,9 @@ urlpatterns = [
     # Project management ProjectManagement 
     path('project-management/', ProjectManagement.as_view(), name='project-management'),
     path('create-project/', ProjectManagement.as_view(), name='create-project'),
+    # bugs reports
     path('bugs-reportes/', BugsReportsA.as_view(), name='bugs-reportes'),
+    path('bugs-reportes/<int:pk>/', BugsReportsA.as_view(), name='bugs-reportes-detail'),
 
 
 ]

@@ -203,7 +203,6 @@ class BugSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source='project.project_name', read_only=True)
     assigned_to_name = serializers.SerializerMethodField()
 
-
     class Meta:
         model = Bug
         fields = [
@@ -214,12 +213,14 @@ class BugSerializer(serializers.ModelSerializer):
             'created',
             'company',
             'project',
-            'project_name',          
+            'project_name',
             'assigned_to',
-            'assigned_to_name'     
+            'assigned_to_name',
+            'description',
+            'active'
         ]
 
     def get_assigned_to_name(self, obj):
-        if obj.assigned_to:
-            return f"{obj.assigned_to.first_name} {obj.assigned_to.last_name}"
-        return None
+        names = [f"{emp.first_name} {emp.last_name}" for emp in obj.assigned_to.all()]
+        return ", ".join(names)
+

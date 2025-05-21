@@ -346,7 +346,7 @@ const Projects = () => {
                         </div>
                       </td> */}
                       <td className="px-6 py-4">
-                      <span className={`px-1 py-1 rounded-full text-white text-xs font-semibold ${project.status === "Done" ? "bg-green-500" : project.status === "In Progress" ? "bg-orange-400" : "bg-red-500"}`}>{project.status}</span>
+                      <span className={`px-1 py-1 rounded-full text-white text-xs font-semibold whitespace-nowrap  ${project.status === "Done" ? "bg-green-500" : project.status === "In Progress" ? "bg-orange-400" : "bg-red-500"}`}>{project.status}</span>
 
                       </td>
                     </tr>
@@ -396,7 +396,7 @@ const Projects = () => {
                 <td className="py-2">{bug.title}</td>
                 <td className="py-2">
                   <span
-                    className={`px-2 py-1 rounded-full text-white text-xs font-semibold ${
+                    className={`px-2 py-1 rounded-full whitespace-nowrap text-white text-xs font-semibold ${
                       bug.status === "Open"
                         ? "bg-red-600"
                         : bug.status === "Blocked"

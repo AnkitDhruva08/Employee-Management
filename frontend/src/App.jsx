@@ -21,10 +21,10 @@ import UserProfilePage from './components/user/UserProfileCard';
 import ProfileDropdown from './components/user/ProfileDropdown';
 import Projects from './pages/Projects';
 import Events from './pages/Events';
-
 import EmplyeeViews from './pages/EmplyeeViews';
 import BugTracker from './pages/Bug-Tracker';
 import TaskDahboard from './pages/TaskDashboard';
+import EmployeeTasksToday from './pages/EmployeeTasksToday';
 function App() {
   return (
     <Router>
@@ -57,6 +57,7 @@ function App() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/events" element={<Events />} />
         <Route path="/bugs" element={<BugTracker />} />
+        <Route path="/employee-task-today" element={<EmployeeTasksToday />} />
         <Route path="/task-dashboard" element={<TaskDahboard />} />
 
       </Routes>

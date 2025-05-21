@@ -369,10 +369,16 @@ class Bug(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='bugs')
     title = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="bugs")
+    description = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Open")
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="Medium")
-    assigned_to = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="assigned_bugs")
+    assigned_to = models.ManyToManyField(Employee, related_name="assigned_bugs")
     created = models.DateField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="bugs_created")
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="bugs_updated")
+    active = models.BooleanField(default=True) 
 
     def __str__(self):
         return f"{self.title} ({self.status})"

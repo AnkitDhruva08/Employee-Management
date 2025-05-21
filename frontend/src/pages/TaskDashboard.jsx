@@ -4,13 +4,56 @@ import Header from "../components/header/Header";
 import TaskSidebar from "../components/sidebar/TaskSideBar";
 import { fetchDashboard } from "../utils/api";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import Input from "../components/input/Input";
+import Select from "react-select";
+import CkEditor from "../components/editor/CkEditor";
 
 const projectsData = [
-  { id: 1, name: "New Website Launch", teamLead: "Alice Johnson", status: "In Progress", progress: 60, members: ["Alice Johnson", "Frank Wright", "Emily Davis"] },
-  { id: 2, name: "Mobile App Development", teamLead: "Bob Smith", status: "New", progress: 10, members: ["Bob Smith", "Frank Wright"] },
-  { id: 3, name: "Marketing Campaign", teamLead: "Carla Gomez", status: "Completed", progress: 100, members: ["Carla Gomez", "Emily Davis"] },
-  { id: 4, name: "Customer Support Upgrade", teamLead: "David Lee", status: "On Hold", progress: 40, members: ["David Lee"] },
-  { id: 5, name: "SEO Optimization", teamLead: "Emily Davis", status: "In Progress", progress: 30, members: ["Emily Davis", "Frank Wright"] }
+  {
+    id: 1,
+    name: "New Website Launch",
+    teamLead: "Alice Johnson",
+    status: "In Progress",
+    progress: 60,
+    members: ["Alice Johnson", "Frank Wright", "Emily Davis"],
+    description: "Description Data",
+  },
+  {
+    id: 2,
+    name: "Mobile App Development",
+    teamLead: "Bob Smith",
+    status: "New",
+    progress: 10,
+    members: ["Bob Smith", "Frank Wright"],
+    description: "Description Data",
+  },
+  {
+    id: 3,
+    name: "Marketing Campaign",
+    teamLead: "Carla Gomez",
+    status: "Completed",
+    progress: 100,
+    members: ["Carla Gomez", "Emily Davis"],
+    description: "Description Data",
+  },
+  {
+    id: 4,
+    name: "Customer Support Upgrade",
+    teamLead: "David Lee",
+    status: "On Hold",
+    progress: 40,
+    members: ["David Lee"],
+    description: "Description Data",
+  },
+  {
+    id: 5,
+    name: "SEO Optimization",
+    teamLead: "Emily Davis",
+    status: "In Progress",
+    progress: 30,
+    members: ["Emily Davis", "Frank Wright"],
+    description: "Description Data",
+  },
 ];
 
 const statuses = [
@@ -20,19 +63,28 @@ const statuses = [
   { key: "On Hold", label: "On Hold", color: "yellow-500" },
 ];
 
+// Dummy employee list for team members
+const employees = [
+  { id: 1, username: "Alice Johnson" },
+  { id: 2, username: "Bob Smith" },
+  { id: 3, username: "Frank Wright" },
+  { id: 4, username: "Emily Davis" },
+];
+
 const TaskDahboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [projects, setProjects] = useState(projectsData);
   const [selectedProject, setSelectedProject] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newTask, setNewTask] = useState({
+
+  const [formData, setFormData] = useState({
     name: "",
     teamLead: "",
-    status: "New",
+    status: null,
     progress: 0,
-    members: ""
+    members: [],
+    description: "",
   });
-
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -50,7 +102,7 @@ const TaskDahboard = () => {
   }, [navigate, token]);
 
   const projectsByStatus = statuses.reduce((acc, s) => {
-    acc[s.key] = projects.filter(p => p.status === s.key);
+    acc[s.key] = projects.filter((p) => p.status === s.key);
     return acc;
   }, {});
 
@@ -66,51 +118,63 @@ const TaskDahboard = () => {
       const [moved] = items.splice(source.index, 1);
       items.splice(destination.index, 0, moved);
 
-      // Reconstruct projects list keeping order intact
-      const otherProjects = projects.filter(p => p.status !== sourceCol);
+      const otherProjects = projects.filter((p) => p.status !== sourceCol);
       setProjects([...otherProjects, ...items]);
     } else {
-      // Move project to new status
-      const updated = projects.map(p =>
-        p.id === parseInt(result.draggableId)
-          ? { ...p, status: destCol }
-          : p
+      const updated = projects.map((p) =>
+        p.id === parseInt(result.draggableId) ? { ...p, status: destCol } : p
       );
       setProjects(updated);
     }
   };
 
   const handleAddTask = () => {
-    if (!newTask.name.trim() || !newTask.teamLead.trim()) {
-      alert("Please fill in project name and team lead.");
+    if (
+      !formData.name.trim() ||
+      !formData.teamLead.trim() ||
+      !formData.status
+    ) {
+      alert("Please fill in all required fields.");
       return;
     }
-    const id = projects.length ? Math.max(...projects.map(p => p.id)) + 1 : 1;
+
+    const id = projects.length ? Math.max(...projects.map((p) => p.id)) + 1 : 1;
+
     setProjects([
       ...projects,
       {
         id,
-        name: newTask.name,
-        teamLead: newTask.teamLead,
-        status: newTask.status,
-        progress: parseInt(newTask.progress) || 0,
-        members: newTask.members.split(",").map(m => m.trim()).filter(Boolean),
+        name: formData.name,
+        teamLead: formData.teamLead,
+        status: formData.status.value,
+        progress: parseInt(formData.progress) || 0,
+        members: formData.members.map((m) => m.label),
+        description : formData.description,
       },
     ]);
+
     setIsAddModalOpen(false);
-    setNewTask({ name: "", teamLead: "", status: "New", progress: 0, members: "" });
+    setFormData({
+      name: "",
+      teamLead: "",
+      status: null,
+      progress: 0,
+      members: [],
+      description: "",
+    });
   };
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold mb-4">{dashboardData?.company || "Company Name"}</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {dashboardData?.company || "Company Name"}
+        </h2>
         <TaskSidebar />
       </aside>
       <div className="flex flex-col flex-1">
         <Header title="Task Dashboard" />
         <main className="p-6 space-y-4 overflow-hidden">
-
           <div className="flex justify-between items-center mb-4">
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -127,7 +191,9 @@ const TaskDahboard = () => {
                   {(provided, snapshot) => (
                     <div
                       className={`bg-white rounded p-4 shadow border-2 transition-all ${
-                        snapshot.isDraggingOver ? 'border-blue-400' : 'border-transparent'
+                        snapshot.isDraggingOver
+                          ? "border-blue-400"
+                          : "border-transparent"
                       }`}
                       ref={provided.innerRef}
                       {...provided.droppableProps}
@@ -137,8 +203,12 @@ const TaskDahboard = () => {
                         width: 250,
                       }}
                     >
-                      <h2 className={`text-${color} text-md font-semibold`}>{label}</h2>
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">{projectsByStatus[key].length}</span>
+                      <h2 className={`text-${color} text-md font-semibold`}>
+                        {label}
+                      </h2>
+                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">
+                        {projectsByStatus[key].length}
+                      </span>
                       {projectsByStatus[key]?.map((project, index) => (
                         <Draggable
                           draggableId={project.id.toString()}
@@ -148,7 +218,7 @@ const TaskDahboard = () => {
                           {(provided, snapshot) => (
                             <div
                               className={`bg-white border border-gray-200 p-4 rounded-lg mb-3 shadow-sm hover:shadow-md transition ${
-                                snapshot.isDragging ? 'shadow-lg' : ''
+                                snapshot.isDragging ? "shadow-lg" : ""
                               }`}
                               ref={provided.innerRef}
                               {...provided.draggableProps}
@@ -156,7 +226,9 @@ const TaskDahboard = () => {
                               onClick={() => setSelectedProject(project)}
                             >
                               <h3 className="font-semibold">{project.name}</h3>
-                              <p className="text-sm text-gray-600">Lead: {project.teamLead}</p>
+                              <p className="text-sm text-gray-600">
+                                Lead: {project.teamLead}
+                              </p>
                               <div className="bg-gray-300 h-2 rounded mt-2">
                                 <div
                                   className={`bg-${color} h-2 rounded`}
@@ -176,53 +248,120 @@ const TaskDahboard = () => {
           </DragDropContext>
 
           {selectedProject && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setSelectedProject(null)}>
-              <div className="bg-white rounded p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold mb-4">{selectedProject.name}</h2>
-                <p><strong>Lead:</strong> {selectedProject.teamLead}</p>
-                <p><strong>Status:</strong> {selectedProject.status}</p>
-                <p><strong>Progress:</strong> {selectedProject.progress}%</p>
-                <p><strong>Members:</strong> {selectedProject.members.join(", ")}</p>
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              onClick={() => setSelectedProject(null)}
+            >
+              <div
+                className="bg-white rounded p-6 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-xl font-bold mb-4">
+                  {selectedProject.name}
+                </h2>
+                <p>
+                  <strong>Lead:</strong> {selectedProject.teamLead}
+                </p>
+                <p>
+                  <strong>Status:</strong> {selectedProject.status}
+                </p>
+                <p>
+                  <strong>Progress:</strong> {selectedProject.progress}%
+                </p>
+                <p>
+                  <strong>Members:</strong> {selectedProject.members.join(", ")}
+                </p>
+                <p>
+                  <strong>Description:</strong> {selectedProject.description}
+                </p>
               </div>
             </div>
           )}
 
           {isAddModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setIsAddModalOpen(false)}>
-              <div className="bg-white rounded p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+              onClick={() => setIsAddModalOpen(false)}
+            >
+              <div
+                className="bg-white rounded p-6 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <h2 className="text-xl font-bold mb-4">Add New Task</h2>
-                <input
-                  className="w-full p-2 mb-2 border rounded"
-                  placeholder="Project Name"
-                  value={newTask.name}
-                  onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
-                />
-                <input
-                  className="w-full p-2 mb-2 border rounded"
-                  placeholder="Team Lead"
-                  value={newTask.teamLead}
-                  onChange={(e) => setNewTask({ ...newTask, teamLead: e.target.value })}
-                />
-                <select
-                  className="w-full p-2 mb-2 border rounded"
-                  value={newTask.status}
-                  onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
-                >
-                  {statuses.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                </select>
-                <input
-                  type="number"
-                  className="w-full p-2 mb-2 border rounded"
-                  placeholder="Progress %"
-                  value={newTask.progress}
-                  onChange={(e) => setNewTask({ ...newTask, progress: e.target.value })}
-                />
-                <input
-                  className="w-full p-2 mb-4 border rounded"
-                  placeholder="Members (comma separated)"
-                  value={newTask.members}
-                  onChange={(e) => setNewTask({ ...newTask, members: e.target.value })}
-                />
+
+                <div className="mb-4">
+                  <Input
+                    label="Project Name"
+                    name="name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <Input
+                    label="Team Lead"
+                    name="teamLead"
+                    value={formData.teamLead}
+                    onChange={(e) =>
+                      setFormData({ ...formData, teamLead: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block mb-1 font-semibold">Status</label>
+                  <Select
+                    options={statuses}
+                    value={formData.status}
+                    onChange={(selected) =>
+                      setFormData({ ...formData, status: selected })
+                    }
+                    placeholder="Select Status"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <Input
+                    label="Progress %"
+                    name="progress"
+                    type="number"
+                    value={formData.progress}
+                    onChange={(e) =>
+                      setFormData({ ...formData, progress: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block mb-1 font-semibold">
+                    Team Members
+                  </label>
+                  <Select
+                    isMulti
+                    options={employees.map((emp) => ({
+                      value: emp.id,
+                      label: emp.username,
+                    }))}
+                    value={formData.members}
+                    onChange={(selected) =>
+                      setFormData({ ...formData, members: selected })
+                    }
+                    placeholder="Select Team Members"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <CkEditor
+                    value={formData.description}
+                    onChange={(data) =>
+                      setFormData({ ...formData, description: data })
+                    }
+                  />
+                </div>
+
                 <button
                   className="w-full p-2 bg-green-600 text-white rounded hover:bg-green-700"
                   onClick={handleAddTask}

@@ -3,11 +3,11 @@ import { FaTachometerAlt, FaProjectDiagram, FaBug, FaHistory, FaTasks } from "re
 import { NavLink } from "react-router-dom";
 
 const sidebarLinks = [
-  { name: "Dashboard", icon: <FaTachometerAlt />, path: "/dashboard" },
-  { name: "Projects", icon: <FaProjectDiagram />, path: "/projects" },
+  { name: "Home", icon: <FaTachometerAlt />, path: "/dashboard" },
+  { name: "Projects Dashboard", icon: <FaProjectDiagram />, path: "/projects" },
   { name: "Bugs & Testing", icon: <FaBug />, path: "/bugs" },
-  { name: "Retrospective", icon: <FaHistory />, path: "/retrospective" },
-  { name: "Employee Task Today", icon: <FaTasks />, path: "/employee-task" },
+  // { name: "Retrospective", icon: <FaHistory />, path: "/retrospective" },
+  { name: "Employee Task Today", icon: <FaTasks />, path: "/employee-task-today" },
 ];
 
 const ProjectSidebar = () => {

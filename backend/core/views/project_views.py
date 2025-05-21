@@ -115,11 +115,139 @@ class BugsReportsA(APIView):
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
-        bugs = Bug.objects.filter(company_id=company_id).order_by('-created')
+        bugs = Bug.objects.filter(company_id=company_id, active=True).order_by('-id')
         serializer = BugSerializer(bugs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def post(self, request, *args, **kwargs):
+            user = request.user
+
+            # Get user data
+            try:
+                user_data = User.objects.get(email=user.email)
+            except User.DoesNotExist:
+                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Determine company ID
+            if user_data.is_employee:
+                try:
+                    employee_data = Employee.objects.get(company_email=user.email)
+                    if employee_data.role_id != 1:
+                        return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                    company_id = employee_data.company_id
+                except Employee.DoesNotExist:
+                    return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
+            elif user_data.is_company:
+                company_id = user_data.id
+            else:
+                return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+
+            # Clean and prepare the data
+            data = request.data.copy()
+
+            # 🔐 Ensure 'id' is not passed to prevent conflict
+            data.pop('id', None)
+
+            # 🛠 Transform frontend field names to match model fields
+            data['company'] = company_id
+            data['project'] = data.pop('projectId', None)
+            data.pop('id', None)
+
+            # Assigned to - convert list of objects to list of IDs
+            if 'assignedTo' in data:
+                data['assigned_to'] = [item['value'] for item in data.get('assignedTo', [])]
+            else:
+                data['assigned_to'] = []
+
+            # Serialize and save
+            serializer = BugSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
 
 
+    def put(self, request, pk):
+        user = request.user
+
+        # Get user data
+        try:
+            user_data = User.objects.get(email=user.email)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Determine company ID
+        if user_data.is_employee:
+            try:
+                employee_data = Employee.objects.get(company_email=user.email)
+                if employee_data.role_id != 1:
+                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                company_id = employee_data.company_id
+            except Employee.DoesNotExist:
+                return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif user_data.is_company:
+            company_id = user_data.id
+        else:
+            return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Fetch the bug and check company ownership
+        try:
+            bug = Bug.objects.get(id=pk, company_id=company_id, active=True)
+        except Bug.DoesNotExist:
+            return Response({"detail": "Bug not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        data.pop('id', None)
+        data['company'] = company_id
+        data['project'] = data.pop('projectId', None)
+
+        if 'assignedTo' in data:
+            data['assigned_to'] = [item['value'] for item in data.get('assignedTo', [])]
+        else:
+            data['assigned_to'] = []
+
+        serializer = BugSerializer(bug, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+    def delete(self, request, pk):
+        user = request.user
+        print('pk for detelet')
+
+        # Get user data
+        try:
+            user_data = User.objects.get(email=user.email)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Determine company ID
+        if user_data.is_employee:
+            try:
+                employee_data = Employee.objects.get(company_email=user.email)
+                if employee_data.role_id != 1:
+                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                company_id = employee_data.company_id
+            except Employee.DoesNotExist:
+                return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif user_data.is_company:
+            company_id = user_data.id
+        else:
+            return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            bug = Bug.objects.get(id=pk, company_id=company_id, active=True)
+        except Bug.DoesNotExist:
+            return Response({"detail": "Bug not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        bug.active = False  # Soft delete
+        bug.save()
+        return Response({"detail": "Bug marked as inactive"}, status=status.HTTP_204_NO_CONTENT)
 
 
