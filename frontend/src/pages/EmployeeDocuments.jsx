@@ -147,7 +147,6 @@ const EmployeeDocuments = () => {
 
   const handlePreviewFile = (filePath) => {
     if (filePath) {
-      console.log("Previewing file:", filePath);
       const url = `http://localhost:8000${filePath}`;
       window.open(url, "_blank");
     }

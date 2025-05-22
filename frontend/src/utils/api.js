@@ -146,3 +146,49 @@ export const fetchBugsReports = async (token) => {
   const data = await handleResponse(res);
   return data
 };
+
+
+
+
+//  function for fetch the bugs reports 
+export const fecthTasks = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/task-management/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};
+
+
+//  function for fetch the bugs reports 
+export const fetchProjectSidebar = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/project-sidebar/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};
+
+
+//  function for fetch the bugs reports 
+export const fetchTaskSideBar = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/task-sidebar/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data
+};
+
+

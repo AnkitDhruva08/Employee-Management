@@ -3,7 +3,6 @@ import { useParams } from "react-router-dom";
 import Swal from 'sweetalert2';
 const AddEmployee = () => {
   const { id } = useParams();
-  console.log('id ===>', id)
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -107,7 +106,6 @@ const AddEmployee = () => {
         },
         body: JSON.stringify(formData),
       });
-        console.log('response ===>', response.json())
       if (response.ok) {
         // Display Success Message
         Swal.fire({

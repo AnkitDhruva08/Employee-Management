@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import Header from "../components/header/Header";
-import ProjectSidebar from "../components/sidebar/ProjectSidebar";
-import { fetchDashboardLink, fetchDashboard, fetchProjects } from "../utils/api";
+import Sidebar from "../components/sidebar/Sidebar";
+import { fetchDashboardLink, fetchDashboard, fetchProjects, fetchProjectSidebar } from "../utils/api";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import Swal from "sweetalert2";
 
@@ -43,13 +43,10 @@ const Projects = () => {
 
   const fetchLinks = async () => {
     try {
-      if (!isSuperUser) {
-        const links = await fetchDashboardLink(token);
-        setQuickLinks(links.data || links);
-      }
+      const links = await fetchProjectSidebar(token);
+      setQuickLinks(links.data || links);
       const empDashboard = await fetchDashboard(token);
       const projectsData = await fetchProjects(token);
-      console.log('projectsData ==<<<>>>', projectsData);
       setProjects(projectsData);
       
       setDashboardData(empDashboard);
@@ -118,7 +115,6 @@ const Projects = () => {
   // function for add new project
   const handleAddProject = async (e) => {
     e.preventDefault();
-    console.log('newProject ==<<<>>', newProject)
     // if (
     //   !newProject.project_name.trim() ||
     //   !newProject.description.trim() ||
@@ -182,7 +178,7 @@ const Projects = () => {
       {/* Sidebar */}
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold mb-4">{dashboardData.company}</h2>
-        <ProjectSidebar/>
+        <Sidebar quickLinks={quickLinks} />
       </aside>
 
       {/* Main content */}

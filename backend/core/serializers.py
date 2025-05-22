@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project, Bug
+from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -223,4 +223,53 @@ class BugSerializer(serializers.ModelSerializer):
     def get_assigned_to_name(self, obj):
         names = [f"{emp.first_name} {emp.last_name}" for emp in obj.assigned_to.all()]
         return ", ".join(names)
+    
 
+
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    project_name = serializers.CharField(source='project.project_name', read_only=True)
+    team_lead_name = serializers.SerializerMethodField()
+    member_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Task
+        fields = [
+            'id',
+            'company',
+            'task_name',
+            'status',
+            'progress',
+            'project',
+            'project_name',
+            'team_lead',
+            'team_lead_name',
+            'members',
+            'member_names',
+            'description',
+            'created_at',
+            'updated_at',
+            'active',
+        ]
+
+    def get_team_lead_name(self, obj):
+        if obj.team_lead:
+            return f"{obj.team_lead.first_name} {obj.team_lead.last_name}"
+        return None
+
+    def get_member_names(self, obj):
+        return ", ".join(f"{member.first_name} {member.last_name}" for member in obj.members.all())
+
+
+class ProjectSidebarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectSideBar
+        fields = ['name', 'path', 'color', 'icons']
+
+
+
+class TaskSidebarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaskSideBar
+        fields = ['name', 'path', 'color', 'icons']

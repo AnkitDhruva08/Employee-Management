@@ -255,7 +255,6 @@ class LeaveBalance(models.Model):
 
 
 #  company dashboar link 
-
 class CompanyDashboardLink(models.Model):
     name = models.CharField(max_length=255)
     path = models.CharField(max_length=255)
@@ -295,9 +294,6 @@ class HrDashboardLink(models.Model):
     
 
 
-
-
-
 # Attendance model
 class Attendance(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -320,13 +316,7 @@ class Attendance(models.Model):
 
 
 
-
-
-
-
-
 # Project models 
-
 class Project(models.Model):
     STATUS_CHOICES = [
         ("In Progress", "In Progress"),
@@ -382,3 +372,57 @@ class Bug(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.status})"
+    
+
+
+# models for task management 
+class Task(models.Model):
+    STATUS_CHOICES = [
+        ('New', 'New'),
+        ('In Progress', 'In Progress'),
+        ('Testing', 'Testing'),
+        ('Completed', 'Completed'),
+        ('On Hold', 'On Hold'),
+    ]
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='tasks')
+    task_name = models.CharField(max_length=255)
+    team_lead = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name='led_tasks')
+    project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='New')
+    progress = models.PositiveIntegerField(default=0) 
+    members = models.ManyToManyField(Employee, related_name='tasks')
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    active = models.BooleanField(default=True) 
+
+    def __str__(self):
+        return self.task_name
+    
+
+
+
+
+
+# Project side Bar 
+class ProjectSideBar(models.Model):
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=255)
+    color = models.CharField(max_length=50)
+    icons = models.CharField(max_length=50, blank=True, null=True) 
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+    
+
+#  Task side bar
+class TaskSideBar(models.Model):
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=255)
+    color = models.CharField(max_length=50)
+    icons = models.CharField(max_length=50, blank=True, null=True) 
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name

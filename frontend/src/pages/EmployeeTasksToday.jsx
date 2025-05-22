@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/header/Header";
-import ProjectSidebar from "../components/sidebar/ProjectSidebar";
+import Sidebar from "../components/sidebar/Sidebar";
 import {
   fetchDashboardLink,
   fetchDashboard,
   fetchProjects,
   fetchEmployees,
   fetchBugsReports,
+  fetchProjectSidebar,
 } from "../utils/api";
 
 const statusColors = {
@@ -64,22 +65,29 @@ const EmployeeTasksToday = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
-
+  const [quickLinks, setQuickLinks] = useState([]);
   const fetchData = async () => {
     try {
-      const [_, dashboard] = await Promise.all([
-        fetchDashboardLink(token),
-        fetchDashboard(token),
-        fetchProjects(token),
-        fetchEmployees(token),
-        fetchBugsReports(token),
-      ]);
+      const dashboardLinks = await fetchProjectSidebar(token);
+      setQuickLinks(dashboardLinks);
+      const dashboard = await fetchDashboard(token);
       setDashboardData(dashboard);
+  
+      // const projects = await fetchProjects(token);
+      // setProjects(projects);
+  
+      // const employees = await fetchEmployees(token);
+      // setEmployees(employees);
+  
+      // const bugsData = await fetchBugsReports(token);
+      // setBugs(bugsData);
+  
     } catch (err) {
       console.error("Error:", err);
       navigate("/login");
     }
   };
+  
 
   useEffect(() => {
     fetchData();
@@ -89,8 +97,7 @@ const EmployeeTasksToday = () => {
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold mb-4">{dashboardData?.company}</h2>
-        <ProjectSidebar />
-      </aside>
+        <Sidebar quickLinks={quickLinks} />      </aside>
 
       <div className="flex-1 flex flex-col">
         <Header title="Employee Task Today" />

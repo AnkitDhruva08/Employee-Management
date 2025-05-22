@@ -1,7 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.models import Employee, Company, EmployeeDashboardLink, LeaveRequest, Event, Holiday, Role
+from core.models import Employee, Company, EmployeeDashboardLink, LeaveRequest, Event, Holiday, ProjectSideBar, Role, TaskSideBar
+from core.serializers import ProjectSidebarSerializer, TaskSidebarSerializer
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework import status
@@ -159,7 +160,20 @@ class DashboardLinkViewSet(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-            
+
+
+
+class ProjectSideBarView(APIView):
+    def get(self, request):
+        projects = ProjectSideBar.objects.filter(active=True).order_by('id')
+        serializer = ProjectSidebarSerializer(projects, many=True)
+        return Response({"dashboard_links": serializer.data}) 
+
+class TaskSideBarView(APIView):
+    def get(self, request):
+        tasks = TaskSideBar.objects.filter(active=True).order_by('id')
+        serializer = TaskSidebarSerializer(tasks, many=True)
+        return Response({"dashboard_links": serializer.data}) 
 
        
 

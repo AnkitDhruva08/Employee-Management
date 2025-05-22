@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/header/Header";
-import ProjectSidebar from "../components/sidebar/ProjectSidebar";
+import Sidebar from "../components/sidebar/Sidebar";
 import CkEditor from "../components/editor/CkEditor";
 import {
   fetchDashboardLink,
@@ -9,6 +9,7 @@ import {
   fetchProjects,
   fetchEmployees,
   fetchBugsReports,
+  fetchProjectSidebar,
 } from "../utils/api";
 import Swal from "sweetalert2";
 import Select from "react-select";
@@ -56,6 +57,8 @@ const BugTracker = () => {
   const [priorityFilter, setPriorityFilter] = useState(null);
   const [modalMode, setModalMode] = useState('');
   const [selectedBug, setSelectedBug] = useState(null);
+  const [quickLinks, setQuickLinks] = useState([]);
+
 
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -75,24 +78,30 @@ const BugTracker = () => {
 
   const fetchData = async () => {
     try {
-      const [_, dashboard, proj, emps, bugsData] = await Promise.all([
-        fetchDashboardLink(token),
-        fetchDashboard(token),
-        fetchProjects(token),
-        fetchEmployees(token),
-        fetchBugsReports(token),
-      ]);
+      const dashboardLinks = await fetchProjectSidebar(token);
+      setQuickLinks(dashboardLinks);
+  
+      const dashboard = await fetchDashboard(token);
       setDashboardData(dashboard);
-      setProjects(proj);
-      console.log('emps ==<<>>', emps);
-      console.log('bugsData ===<<<>>', bugsData)
-      setEmployees(emps);
+  
+      const projects = await fetchProjects(token);
+      setProjects(projects);
+  
+      const employees = await fetchEmployees(token);
+      setEmployees(employees);
+  
+      const bugsData = await fetchBugsReports(token);
       setBugs(bugsData);
+  
     } catch (err) {
       console.error("Error:", err);
       navigate("/login");
     }
   };
+  
+
+
+  
 
   useEffect(() => {
     fetchData();
@@ -178,8 +187,6 @@ const BugTracker = () => {
     }
   };
   
-
-
   // function for update the bugs 
 
   const handleUpdateBug = async (e) => {
@@ -250,7 +257,6 @@ const BugTracker = () => {
     setShowModal(false);
     setSelectedBug(null);
   };
-
 
   // function for delete the bugs reports
   const handleDelete = async (id) => {
@@ -407,7 +413,6 @@ const BugTracker = () => {
   }, {});
 
   const openModal = (mode, bug) => {
-    console.log('mode ==<<>', mode)
     setModalMode(mode);
     setSelectedBug(bug);  
     if ((mode === "edit" || mode === "view") && bug) {
@@ -429,19 +434,12 @@ const BugTracker = () => {
   
     setShowModal(true);
   };
-
-
-  const assignedToMessage = formData.assignedTo
-  .map((a) => `${a.label} (ID: ${a.value})`)
-  .join(", ");
-
-console.log("Assigned To:", assignedToMessage);
   
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold mb-4">{dashboardData?.company}</h2>
-        <ProjectSidebar />
+        <Sidebar quickLinks={quickLinks} />
       </aside>
 
       <div className="flex-1 flex flex-col">
@@ -628,27 +626,27 @@ console.log("Assigned To:", assignedToMessage);
               }
             >
               <div className="mb-4">
-                 <Input label="Title" name="desciption" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
+                 <Input label="Title" name="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
               </div>
 
               <div className="mb-4">
                 <label className="block mb-1 font-semibold">Project *</label>
-                <select
-                  className="w-full border p-2 rounded"
-                  value={formData.projectId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, projectId: Number(e.target.value) })
-                  }
-                  disabled={modalMode === "view"}
-                  required
-                >
-                  <option value="">Select Project</option>
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.project_name}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                    options={projects.map((p) => ({
+                      value: p.id,
+                      label: p.project_name,
+                    }))}
+                    value={
+                      projects
+                        .map((p) => ({ value: p.id, label: p.project_name }))
+                        .find((opt) => opt.value === formData.projectId) || null
+                    }
+                    onChange={(opt) =>
+                      setFormData({ ...formData, projectId: opt?.value || "" })
+                    }
+                    isDisabled={modalMode === "view"}
+                    placeholder="Select Project"
+                  />
               </div>
 
               <div className="mb-4">

@@ -1,66 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/header/Header";
-import TaskSidebar from "../components/sidebar/TaskSideBar";
-import { fetchDashboard } from "../utils/api";
+import {
+  fetchDashboardLink,
+  fetchDashboard,
+  fetchProjects,
+  fetchEmployees,
+  fecthTasks,
+  fetchTaskSideBar
+} from "../utils/api";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import Input from "../components/input/Input";
 import Select from "react-select";
 import CkEditor from "../components/editor/CkEditor";
+import Swal from "sweetalert2";
+import { Eye, Pencil, Trash2 } from "lucide-react";
+import Sidebar from "../components/sidebar/Sidebar";
 
-const projectsData = [
-  {
-    id: 1,
-    name: "New Website Launch",
-    teamLead: "Alice Johnson",
-    status: "In Progress",
-    progress: 60,
-    members: ["Alice Johnson", "Frank Wright", "Emily Davis"],
-    description: "Description Data",
-  },
-  {
-    id: 2,
-    name: "Mobile App Development",
-    teamLead: "Bob Smith",
-    status: "New",
-    progress: 10,
-    members: ["Bob Smith", "Frank Wright"],
-    description: "Description Data",
-  },
-  {
-    id: 3,
-    name: "Marketing Campaign",
-    teamLead: "Carla Gomez",
-    status: "Completed",
-    progress: 100,
-    members: ["Carla Gomez", "Emily Davis"],
-    description: "Description Data",
-  },
-  {
-    id: 4,
-    name: "Customer Support Upgrade",
-    teamLead: "David Lee",
-    status: "On Hold",
-    progress: 40,
-    members: ["David Lee"],
-    description: "Description Data",
-  },
-  {
-    id: 5,
-    name: "SEO Optimization",
-    teamLead: "Emily Davis",
-    status: "In Progress",
-    progress: 30,
-    members: ["Emily Davis", "Frank Wright"],
-    description: "Description Data",
-  },
-];
 
 const statuses = [
   { key: "New", label: "New", color: "blue-500" },
   { key: "In Progress", label: "In Progress", color: "orange-400" },
+  { key: "Testing", label: "Testing", color: "yellow-500" },
   { key: "Completed", label: "Completed", color: "green-500" },
-  { key: "On Hold", label: "On Hold", color: "yellow-500" },
+  { key: "On Hold", label: "On Hold", color: "red-500" },
 ];
 
 // Dummy employee list for team members
@@ -73,13 +36,21 @@ const employees = [
 
 const TaskDahboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
-  const [projects, setProjects] = useState(projectsData);
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [tasks, setTask] = useState(null);
+  const [quickLinks, setQuickLinks] = useState([]);
+
+  const [projects, setProjects] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [selectedTask, setselectedTask] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("add");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
-    name: "",
-    teamLead: "",
+    task_name: "",
+    teamLead: null,
+    project_name: null,
     status: null,
     progress: 0,
     members: [],
@@ -88,75 +59,233 @@ const TaskDahboard = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  //  fetching data
+  const fetchData = async () => {
+    try {
+      const dashboard = await fetchDashboard(token);
+      const proj = await fetchProjects(token);
+      const taskData = await fecthTasks(token);
+      const emps = await fetchEmployees(token);
+      const links = await fetchTaskSideBar(token);
+  
+      setDashboardData(dashboard);
+      setProjects(proj);
+      setTask(taskData);
+      setEmployees(emps);
+      setQuickLinks(links.data || links);
+  
+    } catch (err) {
+      console.error("Error:", err);
+      navigate("/login");
+    }
+  };
+  
   useEffect(() => {
-    const fetchLinks = async () => {
-      try {
-        const empDashboard = await fetchDashboard(token);
-        setDashboardData(empDashboard);
-      } catch (err) {
-        console.error("Error fetching dashboard:", err);
-        navigate("/login");
-      }
-    };
-    fetchLinks();
-  }, [navigate, token]);
+    fetchData();
+  }, []);
 
-  const projectsByStatus = statuses.reduce((acc, s) => {
-    acc[s.key] = projects.filter((p) => p.status === s.key);
+  const taskByStatus = statuses.reduce((acc, s) => {
+    acc[s.key] = tasks?.filter((p) => p.status === s.key);
     return acc;
   }, {});
 
-  const onDragEnd = (result) => {
-    const { source, destination } = result;
-    if (!destination) return;
 
+  // Restriction condition
+  const allowedCompletedDestinations = ["In Progress", "Testing", "On Hold"];
+  const restrictedNewSourceStatuses = ["Completed", "In Progress", "Testing"];
+  
+  const onDragEnd = async (result) => {
+    const { source, destination, draggableId } = result;
+    if (!destination) return;
+  
     const sourceCol = source.droppableId;
     const destCol = destination.droppableId;
-
-    if (sourceCol === destCol) {
-      const items = Array.from(projectsByStatus[sourceCol]);
-      const [moved] = items.splice(source.index, 1);
-      items.splice(destination.index, 0, moved);
-
-      const otherProjects = projects.filter((p) => p.status !== sourceCol);
-      setProjects([...otherProjects, ...items]);
-    } else {
-      const updated = projects.map((p) =>
-        p.id === parseInt(result.draggableId) ? { ...p, status: destCol } : p
+  
+    // Skip if dropped in same location
+    if (sourceCol === destCol && source.index === destination.index) return;
+  
+    const taskId = parseInt(draggableId);
+    const draggedTask = tasks.find((task) => task.id === taskId);
+  
+    // Restrict moves for Completed tasks
+    if (
+      draggedTask.status === "Completed" &&
+      !allowedCompletedDestinations.includes(destCol)
+    ) {
+      Swal.fire(
+        "Invalid Move",
+        "Completed tasks can only be moved to In Progress, Testing, or On Hold.",
+        "warning"
       );
-      setProjects(updated);
+      return;
+    }
+  
+    // Restrict moving tasks from In Progress or Testing back to New
+    if (
+      restrictedNewSourceStatuses.includes(draggedTask.status) &&
+      destCol === "New"
+    ) {
+      Swal.fire(
+        "Invalid Move",
+        `${draggedTask.status} tasks cannot be moved back to New.`,
+        "warning"
+      );
+      return;
+    }
+  
+    // Optimistically update UI
+    const updatedTasks = tasks.map((task) =>
+      task.id === taskId ? { ...task, status: destCol } : task
+    );
+    setTask(updatedTasks);
+  
+    // Make PATCH request to update task status
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/task-management/${taskId}/`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: destCol }),
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error("Failed to update task status");
+      }
+  
+      const data = await response.json();
+    } catch (error) {
+      console.error("Error updating task status:", error);
+      Swal.fire("Error", "Could not update task status", "error");
+  
+      // Revert UI change on error
+      setTask(tasks);
     }
   };
+  
 
-  const handleAddTask = () => {
+  //  function for insert new task
+  const handleAddTask = async () => {
     if (
-      !formData.name.trim() ||
-      !formData.teamLead.trim() ||
-      !formData.status
+      !formData.task_name.trim() ||
+      !formData.teamLead ||
+      !formData.status ||
+      !formData.progress ||
+      !formData.members ||
+      !formData.description
     ) {
-      alert("Please fill in all required fields.");
+      Swal.fire(
+        "Validation Error",
+        "Please fill in all required fields.",
+        "warning"
+      );
       return;
     }
 
-    const id = projects.length ? Math.max(...projects.map((p) => p.id)) + 1 : 1;
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/task-management/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
-    setProjects([
-      ...projects,
-      {
-        id,
-        name: formData.name,
-        teamLead: formData.teamLead,
-        status: formData.status.value,
-        progress: parseInt(formData.progress) || 0,
-        members: formData.members.map((m) => m.label),
-        description : formData.description,
-      },
-    ]);
+      if (!response.ok) {
+        const errorData = await response.json();
+        Swal.fire("Error", errorData.message || "Failed to add bug", "error");
+        return;
+      }
 
-    setIsAddModalOpen(false);
+      const responseData = await response.json();
+      const id = tasks.length ? Math.max(...tasks.map((t) => t.id)) + 1 : 1;
+
+      setTask([
+        ...tasks,
+        {
+          id,
+          name: formData.task_name,
+          teamLead: formData.teamLead.value,
+          project_name: formData.project_name?.label || "",
+          status: formData.status.value,
+          progress: parseInt(formData.progress) || 0,
+          members: formData.members.map((m) => m.label),
+          description: formData.description,
+        },
+      ]);
+
+      setIsAddModalOpen(false);
+      setFormData({
+        task_name: "",
+        teamLead: null,
+        project_name: null,
+        status: null,
+        progress: 0,
+        members: [],
+        description: "",
+      });
+
+      Swal.fire("Success", "Task added successfully!", "success");
+    } catch (err) {
+      console.error("Add task error:", err);
+      Swal.fire(
+        "Error",
+        "Something went wrong while adding the task.",
+        "error"
+      );
+    }
+  };
+
+  //  function for open modal form
+  const openModal = (mode, tasksData = null) => {
+    setModalMode(mode);
+    setIsModalOpen(true);
+    if (mode === "edit" || mode === "view") {
+      setFormData({
+        task_name: tasksData.task_name,
+        teamLead: {
+          value: tasksData.team_lead,
+          label: tasksData.team_lead_name,
+        },
+        project: { value: tasksData.project, label: tasksData.project_name },
+        status: { value: tasksData.status, label: tasksData.status },
+        progress: tasksData.progress,
+        members: (tasksData.members || []).map((id) => {
+          const emp = employees.find((e) => e.id === id);
+          return { value: emp?.id, label: emp?.username };
+        }),
+        description: tasksData.description,
+      });
+      setselectedTask(tasksData);
+    } else {
+      setFormData({
+        task_name: "",
+        teamLead: null,
+        project: null,
+        status: null,
+        progress: 0,
+        members: [],
+        description: "",
+      });
+      setselectedTask(null);
+    }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setselectedTask(null);
     setFormData({
-      name: "",
-      teamLead: "",
+      task_name: "",
+      teamLead: null,
+      project: null,
       status: null,
       progress: 0,
       members: [],
@@ -164,28 +293,109 @@ const TaskDahboard = () => {
     });
   };
 
+  // function for update
+  const handleUpdateTask = async () => {
+    if (
+      !formData.task_name.trim() ||
+      !formData.teamLead ||
+      !formData.status ||
+      !formData.progress ||
+      !formData.members ||
+      !formData.description
+    ) {
+      Swal.fire(
+        "Validation Error",
+        "Please fill in all required fields.",
+        "warning"
+      );
+      return;
+    }
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/task-management/${selectedTask.id}/`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        Swal.fire("Error", errorData.message || "Failed to add bug", "error");
+        return;
+      }
+
+      Swal.fire("Success", "Task Updated successfully!", "success");
+      window.location.reload();
+    } catch (err) {
+      console.error("Add task error:", err);
+      Swal.fire(
+        "Error",
+        "Something went wrong while adding the task.",
+        "error"
+      );
+    }
+  };
+
+  // function for  Delete
+  const handleDelete = async (id) => {
+    const confirm = await Swal.fire({
+      title: "Delete Task?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/task-management/${id}/`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error("Failed to delete task.");
+
+      setTask(tasks.filter((task) => task.id !== id));
+      setselectedTask(null);
+      Swal.fire("Deleted!", "The task has been removed.", "success");
+    } catch (error) {
+      Swal.fire("Error", "Could not delete task.", "error");
+    }
+  };
+
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
-      <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+    <div className="flex flex-col lg:flex-row min-h-screen">
+      <aside className="bg-gray-800 text-white w-full lg:w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold mb-4">
           {dashboardData?.company || "Company Name"}
         </h2>
-        <TaskSidebar />
-      </aside>
-      <div className="flex flex-col flex-1">
+        <Sidebar quickLinks={quickLinks} />
+        </aside>
+      <div className="flex flex-col flex-1 bg-gray-500">
         <Header title="Task Dashboard" />
         <main className="p-6 space-y-4 overflow-hidden">
           <div className="flex justify-between items-center mb-4">
             <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={() => openModal("add")}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             >
               + Add Task
             </button>
           </div>
 
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-4">
+            <div className="flex flex-col md:flex-row gap-4 ">
               {statuses.map(({ key, label, color }) => (
                 <Droppable droppableId={key} key={key}>
                   {(provided, snapshot) => (
@@ -207,9 +417,9 @@ const TaskDahboard = () => {
                         {label}
                       </h2>
                       <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">
-                        {projectsByStatus[key].length}
+                        {(taskByStatus[key] || []).length}
                       </span>
-                      {projectsByStatus[key]?.map((project, index) => (
+                      {taskByStatus[key]?.map((project, index) => (
                         <Draggable
                           draggableId={project.id.toString()}
                           index={index}
@@ -223,12 +433,22 @@ const TaskDahboard = () => {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              onClick={() => setSelectedProject(project)}
+                              onClick={() => setselectedTask(project)}
                             >
-                              <h3 className="font-semibold">{project.name}</h3>
+                              <h3 className="font-semibold">
+                                {project.task_name}
+                              </h3>
                               <p className="text-sm text-gray-600">
-                                Lead: {project.teamLead}
+                                Lead: {project.team_lead_name}
                               </p>
+                              <p className="text-sm text-gray-600">
+                                Project Name : {project.project_name}
+                              </p>
+                              <div>
+                                <p className="text-sm text-gray-600">
+                                  status: {project.status}
+                                </p>
+                              </div>
                               <div className="bg-gray-300 h-2 rounded mt-2">
                                 <div
                                   className={`bg-${color} h-2 rounded`}
@@ -247,67 +467,119 @@ const TaskDahboard = () => {
             </div>
           </DragDropContext>
 
-          {selectedProject && (
+          {selectedTask && (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-              onClick={() => setSelectedProject(null)}
+              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50"
+              onClick={() => setselectedTask(null)}
             >
               <div
-                className="bg-white rounded p-6 w-full max-w-md"
+                className="bg-white rounded p-6 w-full max-w-md shadow-lg"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 className="text-xl font-bold mb-4">
-                  {selectedProject.name}
-                </h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">
+                    {selectedTask.task_name}
+                  </h2>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openModal("edit", selectedTask)}
+                      className="text-green-600 hover:text-green-800"
+                      title="Edit"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(selectedTask.id)}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
                 <p>
-                  <strong>Lead:</strong> {selectedProject.teamLead}
+                  <strong>Lead:</strong> {selectedTask.team_lead_name}
                 </p>
                 <p>
-                  <strong>Status:</strong> {selectedProject.status}
+                  <strong>Project Name:</strong> {selectedTask.project_name}
                 </p>
                 <p>
-                  <strong>Progress:</strong> {selectedProject.progress}%
+                  <strong>Status:</strong> {selectedTask.status}
                 </p>
                 <p>
-                  <strong>Members:</strong> {selectedProject.members.join(", ")}
+                  <strong>Progress:</strong> {selectedTask.progress}%
                 </p>
                 <p>
-                  <strong>Description:</strong> {selectedProject.description}
+                  <strong>Members:</strong> {selectedTask.member_names}
+                </p>
+                <p>
+                  <strong>Description:</strong> {selectedTask.description}
+                </p>
+                <p>
+                  <strong>Created:</strong>{" "}
+                  {new Date(selectedTask.created_at).toLocaleString()}
+                </p>
+                <p>
+                  <strong>Updated:</strong>{" "}
+                  {new Date(selectedTask.updated_at).toLocaleString()}
                 </p>
               </div>
             </div>
           )}
 
-          {isAddModalOpen && (
+          {isModalOpen && (
             <div
               className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-              onClick={() => setIsAddModalOpen(false)}
+              onClick={closeModal}
             >
               <div
-                className="bg-white rounded p-6 w-full max-w-md"
+                className="bg-white rounded p-6 min-h-[400px] max-h-[600px] overflow-y-auto min-w-[300px] max-w-[90vw]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 className="text-xl font-bold mb-4">Add New Task</h2>
+                <h2 className="text-xl font-semibold mb-4">
+                  {modalMode === "add" ? "Add New Task" : "Update Task"}
+                </h2>
 
                 <div className="mb-4">
+                  <label className="block mb-1 font-semibold">Task Name</label>
                   <Input
-                    label="Project Name"
-                    name="name"
-                    value={formData.name}
+                    name="task_name"
+                    value={formData.task_name}
                     onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
+                      setFormData({ ...formData, task_name: e.target.value })
                     }
                   />
                 </div>
 
                 <div className="mb-4">
-                  <Input
-                    label="Team Lead"
-                    name="teamLead"
-                    value={formData.teamLead}
-                    onChange={(e) =>
-                      setFormData({ ...formData, teamLead: e.target.value })
+                  <label className="block mb-1 font-semibold">Project</label>
+                  <Select
+                    options={projects.map((proj) => ({
+                      value: proj.id,
+                      label: proj.project_name,
+                    }))}
+                    value={formData.project}
+                    onChange={(selected) =>
+                      setFormData({ ...formData, project: selected })
                     }
+                    placeholder="Select Project"
+                    isClearable
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block mb-1 font-semibold">Team Lead</label>
+                  <Select
+                    options={employees.map((emp) => ({
+                      value: emp.id,
+                      label: emp.username,
+                    }))}
+                    value={formData.teamLead}
+                    onChange={(selected) =>
+                      setFormData({ ...formData, teamLead: selected })
+                    }
+                    placeholder="Select Team Lead"
                   />
                 </div>
 
@@ -324,8 +596,8 @@ const TaskDahboard = () => {
                 </div>
 
                 <div className="mb-4">
+                  <label className="block mb-1 font-semibold">Progress %</label>
                   <Input
-                    label="Progress %"
                     name="progress"
                     type="number"
                     value={formData.progress}
@@ -354,6 +626,9 @@ const TaskDahboard = () => {
                 </div>
 
                 <div className="mb-4">
+                  <label className="block mb-1 font-semibold">
+                    Description
+                  </label>
                   <CkEditor
                     value={formData.description}
                     onChange={(data) =>
@@ -361,13 +636,23 @@ const TaskDahboard = () => {
                     }
                   />
                 </div>
+                <div className="flex gap-4 mt-4">
+                  <button
+                    className="flex-1 p-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition duration-300"
+                    onClick={
+                      modalMode === "add" ? handleAddTask : handleUpdateTask
+                    }
+                  >
+                    {modalMode === "add" ? "Add Task" : "Update Task"}
+                  </button>
 
-                <button
-                  className="w-full p-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  onClick={handleAddTask}
-                >
-                  Add Task
-                </button>
+                  <button
+                    className="flex-1 p-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition duration-300"
+                    onClick={closeModal}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             </div>
           )}

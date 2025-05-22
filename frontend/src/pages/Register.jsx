@@ -20,7 +20,6 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('formData ===>>>', formData);
 
     try {
       const response = await fetch('http://localhost:8000/api/register/', {
@@ -32,11 +31,9 @@ const Register = () => {
       });
 
       const data = await response.json();
-      console.log('data ===<<<>>', data)
 
       if (data.status === 200) {
         localStorage.setItem("token", data.tokens.access);
-        console.log('Registration successful');
         // Redirect the user directly to the company dashboard
         navigate('/dashboard');  
       } else {

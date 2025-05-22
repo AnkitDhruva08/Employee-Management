@@ -14,10 +14,11 @@ from rest_framework_simplejwt.views import (
 )
  
 from core.views.attendence_views import AttendanceView
-from core.views.dashboard_views import DashboardView, DashboardLinkViewSet
+from core.views.dashboard_views import DashboardView, DashboardLinkViewSet, ProjectSideBarView, TaskSideBarView
 from core.views.project_views import ProjectManagement, BugsReportsA
 from core.views.file_views import get_pdf
 from core.views.holidays_views import HolidaysViewset
+from core.views.task_views import TaskManagementViews
 
 router = DefaultRouter()
 
@@ -109,10 +110,15 @@ urlpatterns = [
     # Project management ProjectManagement 
     path('project-management/', ProjectManagement.as_view(), name='project-management'),
     path('create-project/', ProjectManagement.as_view(), name='create-project'),
+     path('project-sidebar/', ProjectSideBarView.as_view(), name='project-sidebar'),
     # bugs reports
     path('bugs-reportes/', BugsReportsA.as_view(), name='bugs-reportes'),
     path('bugs-reportes/<int:pk>/', BugsReportsA.as_view(), name='bugs-reportes-detail'),
 
+    # task management
+    path('task-management/', TaskManagementViews.as_view(), name='task-management'),
+    path('task-management/<int:pk>/', TaskManagementViews.as_view(), name='task-management-details'),
+    path('task-sidebar/', TaskSideBarView.as_view(), name='task-sidebar'),
 
 ]
 

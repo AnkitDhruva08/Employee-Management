@@ -56,7 +56,6 @@ const LeaveRequest = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      console.log('data  employee ===>', data);
   
       // If user is blocked due to incomplete profile
       if (data.is_complete === false) {
