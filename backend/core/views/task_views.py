@@ -5,6 +5,7 @@ from rest_framework import status
 from core.models import Company, Project, Employee, Bug, Task
 from core.serializers import ProjectSerializer, BugSerializer, TaskSerializer
 from django.contrib.auth import get_user_model 
+from datetime import date
 
 # User Model
 User = get_user_model()
@@ -201,4 +202,43 @@ class TaskManagementViews(APIView):
         return Response({"detail": "Bug marked as inactive"}, status=status.HTTP_204_NO_CONTENT)
 
 
-            
+
+
+class TaskTrackingViews(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        print('currenly logged in user ==<<<>>', request.user)
+
+
+        tasks = Task.objects.filter(
+            active=True,
+        ).select_related('project').order_by('id')
+
+        print(f"[DEBUG] Number of active tasks assigned to employee: {tasks.count()}")
+
+        data = []
+        today = date.today()
+        print(f"[DEBUG] Today's date: {today}")
+
+        for task in tasks:
+            project = task.project
+            print(f"[DEBUG] Processing Task ID: {task.id}, Name: {task.task_name}")
+            if project:
+                print(f"[DEBUG] -> Related Project ID: {project.id}, Name: {project.project_name}")
+            else:
+                print("[DEBUG] -> No related project for this task")
+
+            data.append({
+                "task_id": task.id,
+                "task_name": task.task_name,
+                "status": task.status,
+                "progress": task.progress,
+                "description": task.description,
+                "project_id": project.id if project else None,
+                "project_name": project.project_name if project else None,
+                "project_status": project.status if project else None,
+            })
+
+        print(f"[DEBUG] Total tasks returned: {len(data)}")
+        return Response(data)

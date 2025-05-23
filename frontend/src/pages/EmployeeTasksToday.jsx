@@ -87,10 +87,33 @@ const EmployeeTasksToday = () => {
       navigate("/login");
     }
   };
+
+  const fetchEmployeeTaskDetails = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/api/tracking-employee-task/", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+  
+      const data = await res.json();
+      console.log('data ==<<<>>', data);
+    } catch (err) {
+      console.error('err ===<<<>>', err);
+    }
+  };
+  
   
 
   useEffect(() => {
     fetchData();
+    fetchEmployeeTaskDetails();
   }, []);
 
   return (

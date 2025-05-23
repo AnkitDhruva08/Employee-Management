@@ -18,7 +18,7 @@ from core.views.dashboard_views import DashboardView, DashboardLinkViewSet, Proj
 from core.views.project_views import ProjectManagement, BugsReportsA
 from core.views.file_views import get_pdf
 from core.views.holidays_views import HolidaysViewset
-from core.views.task_views import TaskManagementViews
+from core.views.task_views import TaskManagementViews, TaskTrackingViews
 
 router = DefaultRouter()
 
@@ -119,6 +119,10 @@ urlpatterns = [
     path('task-management/', TaskManagementViews.as_view(), name='task-management'),
     path('task-management/<int:pk>/', TaskManagementViews.as_view(), name='task-management-details'),
     path('task-sidebar/', TaskSideBarView.as_view(), name='task-sidebar'),
+
+    # Tracking the employee day to day activities
+    path('tracking-employee-task/', TaskTrackingViews.as_view(), name='tracking-employee-task/'),
+
 
 ]
 
