@@ -2,26 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
-import {
-  fetchDashboardLink,
-  fetchDashboard,
-  fetchProjects,
-  fetchProjectSidebar,
-} from "../utils/api";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
-} from "recharts";
+import { fetchDashboardLink, fetchDashboard, fetchProjects, fetchProjectSidebar } from "../utils/api";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import Swal from "sweetalert2";
+
+
 
 const Projects = () => {
   const navigate = useNavigate();
@@ -43,7 +28,6 @@ const Projects = () => {
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
   const isSuperUser = localStorage.getItem("is_superuser") === "true";
-  console.log("roleId:", roleId);
 
   const HeaderTitle = isSuperUser
     ? "Superuser Dashboard"
@@ -63,10 +47,8 @@ const Projects = () => {
       setQuickLinks(links.data || links);
       const empDashboard = await fetchDashboard(token);
       const projectsData = await fetchProjects(token);
-      console.log("Projects Data:", projectsData);
-
       setProjects(projectsData);
-
+      
       setDashboardData(empDashboard);
     } catch (err) {
       console.error("Error fetching dashboard:", err);
@@ -74,33 +56,53 @@ const Projects = () => {
     }
   };
 
+
+
+
   useEffect(() => {
     fetchLinks();
   }, []);
 
+
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "In Progress":
+        return "bg-orange-500";
+      case "Done":
+        return "bg-green-500";
+      case "Blocked":
+        return "bg-red-500";
+      default:
+        return "bg-gray-400";
+    }
+  };
+
+
+
   const statusDistribution = [
     {
       name: "In Progress",
-      value: projects.filter((p) => p.status === "In Progress").length,
+      value: projects.filter((p) => p.status === "In Progress").length
     },
     {
       name: "Done",
-      value: projects.filter((p) => p.status === "Done").length,
+      value: projects.filter((p) => p.status === "Done").length
     },
     {
       name: "Blocked",
-      value: projects.filter((p) => p.status === "Blocked").length,
-    },
+      value: projects.filter((p) => p.status === "Blocked").length
+    }
   ];
 
   const COLORS = ["#F97316", "#22C55E", "#EF4444"];
 
   const timelineData = projects
-    .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
-    .map((proj, index) => ({
-      date: proj.startDate,
-      total: index + 1,
-    }));
+  .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+  .map((proj, index) => ({
+    date: proj.startDate,
+    total: index + 1
+  }));
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewProject((prev) => ({
@@ -109,33 +111,41 @@ const Projects = () => {
     }));
   };
 
+
   // function for add new project
   const handleAddProject = async (e) => {
     e.preventDefault();
-
+    // if (
+    //   !newProject.project_name.trim() ||
+    //   !newProject.description.trim() ||
+    //   !newProject.startDate ||
+    //   !newProject.endDate ||
+    //   !newProject.status
+    // ) {
+    //   alert("Please fill in all fields");
+    //   return;
+    // }
+  
     try {
-      const response = await fetch(
-        "http://localhost:8000/api/create-project/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(newProject),
-        }
-      );
-
+      const response = await fetch("http://localhost:8000/api/create-project/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newProject),
+      });
+  
       if (response.ok) {
         const createdProject = await response.json();
-
+  
         await Swal.fire({
           title: "Success!",
           text: "Project has been added.",
           icon: "success",
           confirmButtonText: "OK",
         });
-
+  
         setProjects([...projects, createdProject]);
         setModalOpen(false);
         setNewProject({
@@ -156,19 +166,11 @@ const Projects = () => {
   };
 
   if (error) {
-    return (
-      <div className="text-red-600 text-center mt-10 text-xl animate-pulse">
-        {error}
-      </div>
-    );
+    return <div className="text-red-600 text-center mt-10 text-xl animate-pulse">{error}</div>;
   }
 
   if (!dashboardData) {
-    return (
-      <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">
-        Loading dashboard...
-      </div>
-    );
+    return <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">Loading dashboard...</div>;
   }
 
   return (
@@ -189,33 +191,30 @@ const Projects = () => {
           <h2 className="text-3xl font-bold text-blue-800 mb-6">Projects</h2>
 
           {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-1">Total Projects</h3>
-                <p className="text-3xl font-extrabold">{projects.length}</p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-1">Active Projects</h3>
-                <p className="text-3xl font-extrabold">
-                  {projects.filter((p) => p.status === "In Progress" ? "In Progress" : p.project_status).length}
-                </p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-1">
-                  Completed Projects
-                </h3>
-                <p className="text-3xl font-extrabold">
-                  {projects.filter((p) => p.status === "Done" ? p.status === "Done" : p.project_status ).length}
-                </p>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-semibold mb-1">Blocked Projects</h3>
-                <p className="text-3xl font-extrabold">
-                  {projects.filter((p) => p.status === "Blocked" ? p.status === "Blocked" : p.project_status).length}
-                </p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-1">Total Projects</h3>
+              <p className="text-3xl font-extrabold">{projects.length}</p>
             </div>
-         
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-1">Active Projects</h3>
+              <p className="text-3xl font-extrabold">
+                {projects.filter((p) => p.status === "In Progress").length}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-1">Completed Projects</h3>
+              <p className="text-3xl font-extrabold">
+                {projects.filter((p) => p.status === "Done").length}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-semibold mb-1">Blocked Projects</h3>
+              <p className="text-3xl font-extrabold">
+                {projects.filter((p) => p.status === "Blocked").length}
+              </p>
+            </div>
+          </div>
 
           {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -269,8 +268,7 @@ const Projects = () => {
           </div>
 
           {/* Add Project Button */}
-          {(roleId === 1 || roleId === 2 || isCompany) && (
-            <div className="flex justify-end mb-3">
+          <div className="flex justify-end mb-3">
             <button
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-semibold shadow"
               onClick={() => setModalOpen(true)}
@@ -278,218 +276,160 @@ const Projects = () => {
               + Add Project
             </button>
           </div>
-          )}
-          
 
           {/* Projects Table */}
-          <div className="overflow-x-auto shadow rounded-lg bg-white">
-            <table className="w-full text-sm">
-              <thead className="text-left text-gray-500">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project Name
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Start Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    End Date
-                  </th>
-                  {roleId === 3 && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Progress
-                    </th>
-                  )}
+             {/* Projects Table with progress bar added */}
+        <div className="overflow-x-auto shadow rounded-lg bg-white">
+          <table className="w-full text-sm">
+            <thead className="text-left text-gray-500">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Project Name
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Start Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  End Date
+                </th>
+                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Progress
+                </th> */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {projects.length > 0 ? (
+                projects.map((project, idx) => {
+                  // Calculate progress percentage based on status or dates
+                  // For example, a simple logic: 
+                  // if status === Done => 100%, In Progress => 50%, Blocked => 0%
+                  let progressPercent = 0;
+                  if (project.status === "Done") progressPercent = 100;
+                  else if (project.status === "In Progress") progressPercent = 50;
+                  else if (project.status === "Blocked") progressPercent = 0;
 
-                  {roleId === 3 && (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Team Leader
-                    </th>
-                  )}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {projects.length > 0 ? (
-                  projects.map((project, idx) => {
-                    return (
-                      <tr
-                        key={idx}
-                        className="hover:bg-gray-50 transition-colors duration-200"
-                      >
-                        <td className="px-6 py-4 whitespace-normal">
-                          {project.project_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-normal">
-                          {project.description
-                            ? project.description
-                            : project.project_description}
-                        </td>
-                        <td className="px-6 py-4">
-                          {project.start_date
-                            ? project.start_date
-                            : project.project_start_date}
-                        </td>
-                        <td className="px-6 py-4">
-                          {project.end_date
-                            ? project.end_date
-                            : project.project_end_date}
-                        </td>
-
-                        {roleId === 3 && (
-                          <td className="px-6 py-4 w-48">
-                            <div className="w-full bg-gray-200 rounded-full h-4">
-                              <div
-                                className={`h-4 rounded-full ${
-                                  project.progress === 100
-                                    ? "bg-green-500"
-                                    : project.progress >= 75
-                                    ? "bg-green-400"
-                                    : project.progress >= 50
-                                    ? "bg-yellow-400"
-                                    : project.progress >= 25
-                                    ? "bg-orange-400"
-                                    : "bg-red-500"
-                                }`}
-                                style={{ width: `${project.progress}%` }}
-                              ></div>
-                            </div>
-                          </td>
-                        )}
-
-                        {roleId === 3 && (
-                          <td className="px-6 py-4 w-48">
-                            {project.team_leader}
-                          </td>
-                        )}
-
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-1 py-1 rounded-full text-white text-xs font-semibold whitespace-nowrap  ${
-                              project.status === "Done"
-                                ? project.status === "Done"
-                                : project.project_status === "Done"
+                  return (
+                    <tr
+                      key={idx}
+                      className="hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      <td className="px-6 py-4 whitespace-normal">
+                        {project.project_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-normal">
+                        {project.description}
+                      </td>
+                      <td className="px-6 py-4">{project.start_date}</td>
+                      <td className="px-6 py-4">{project.end_date}</td>
+                      {/* <td className="px-6 py-4 w-48">
+                        <div className="w-full bg-gray-200 rounded-full h-4">
+                          <div
+                            className={`h-4 rounded-full ${
+                              progressPercent === 100
                                 ? "bg-green-500"
-                                : project.status === "In Progress"
-                                ? project.status === "In Progress"
-                                : project.project_status === "In Progress"
+                                : progressPercent === 50
                                 ? "bg-orange-400"
                                 : "bg-red-500"
                             }`}
-                          >
-                            {project.status
-                              ? project.status
-                              : project.project_status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-10 text-center text-gray-400"
-                    >
-                      No projects found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                            style={{ width: `${progressPercent}%` }}
+                          ></div>
+                        </div>
+                      </td> */}
+                      <td className="px-6 py-4">
+                      <span className={`px-1 py-1 rounded-full text-white text-xs font-semibold whitespace-nowrap  ${project.status === "Done" ? "bg-green-500" : project.status === "In Progress" ? "bg-orange-400" : "bg-red-500"}`}>{project.status}</span>
+
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-6 py-10 text-center text-gray-400"
+                  >
+                    No projects found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
           <div className="p-6 space-y-8 bg-gray-50 min-h-screen">
-            <div className="space-y-2"></div>
+      <div className="space-y-2">
 
-            {/* Bug Tracking */}
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-lg font-semibold mb-4 text-blue-600">
-                Bug Tracking
-              </h2>
-              <table className="w-full text-sm">
-                <thead className="text-left text-gray-500">
-                  <tr>
-                    <th className="py-2">ID</th>
-                    <th className="py-2">Title</th>
-                    <th className="py-2">Status</th>
-                    <th className="py-2">Priority</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    {
-                      id: "#124",
-                      title: "Login button not responsive",
-                      status: "Open",
-                      priority: "High",
-                    },
-                    {
-                      id: "#130",
-                      title: "Crash on submitting form",
-                      status: "Blocked",
-                      priority: "Critical",
-                    },
-                    {
-                      id: "#135",
-                      title: "UI misalignment on mobile",
-                      status: "In Progress",
-                      priority: "Medium",
-                    },
-                    {
-                      id: "#140",
-                      title: "Data sync failure",
-                      status: "Open",
-                      priority: "High",
-                    },
-                  ].map((bug, idx) => (
-                    <tr key={idx} className="border-t">
-                      <td className="py-2 font-mono">{bug.id}</td>
-                      <td className="py-2">{bug.title}</td>
-                      <td className="py-2">
-                        <span
-                          className={`px-2 py-1 rounded-full whitespace-nowrap text-white text-xs font-semibold ${
-                            bug.status === "Open"
-                              ? "bg-red-600"
-                              : bug.status === "Blocked"
-                              ? "bg-red-400"
-                              : "bg-orange-400"
-                          }`}
-                        >
-                          {bug.status}
-                        </span>
-                      </td>
-                      <td className="py-2">{bug.priority}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <Link to="/bugs">
-                <button className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                  View all bugs
-                </button>
-              </Link>
-            </div>
+      </div>
 
-            {/* Sprint Highlights */}
-            <div className="bg-white p-6 rounded-xl shadow">
-              <h2 className="text-lg font-semibold mb-4 text-blue-600">
-                Sprint Retrospective Highlights
-              </h2>
-              <ul className="list-disc pl-6 text-sm text-gray-700 space-y-2">
-                <li>Improve test coverage on the mobile app.</li>
-                <li>Address frequent crashes on submission.</li>
-                <li>Better documentation for REST APIs.</li>
-                <li>Schedule daily standups for dev and QA teams.</li>
-              </ul>
-            </div>
-          </div>
+
+      {/* Bug Tracking */}
+      <div className="bg-white p-6 rounded-xl shadow">
+        <h2 className="text-lg font-semibold mb-4 text-blue-600">Bug Tracking</h2>
+        <table className="w-full text-sm">
+          <thead className="text-left text-gray-500">
+            <tr>
+              <th className="py-2">ID</th>
+              <th className="py-2">Title</th>
+              <th className="py-2">Status</th>
+              <th className="py-2">Priority</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { id: "#124", title: "Login button not responsive", status: "Open", priority: "High" },
+              { id: "#130", title: "Crash on submitting form", status: "Blocked", priority: "Critical" },
+              { id: "#135", title: "UI misalignment on mobile", status: "In Progress", priority: "Medium" },
+              { id: "#140", title: "Data sync failure", status: "Open", priority: "High" },
+            ].map((bug, idx) => (
+              <tr key={idx} className="border-t">
+                <td className="py-2 font-mono">{bug.id}</td>
+                <td className="py-2">{bug.title}</td>
+                <td className="py-2">
+                  <span
+                    className={`px-2 py-1 rounded-full whitespace-nowrap text-white text-xs font-semibold ${
+                      bug.status === "Open"
+                        ? "bg-red-600"
+                        : bug.status === "Blocked"
+                        ? "bg-red-400"
+                        : "bg-orange-400"
+                    }`}
+                  >
+                    {bug.status}
+                  </span>
+                </td>
+                <td className="py-2">{bug.priority}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Link to="/bugs">
+        <button className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+          View all bugs
+        </button>
+      </Link>
+
+      </div>
+
+      {/* Sprint Highlights */}
+      <div className="bg-white p-6 rounded-xl shadow">
+        <h2 className="text-lg font-semibold mb-4 text-blue-600">Sprint Retrospective Highlights</h2>
+        <ul className="list-disc pl-6 text-sm text-gray-700 space-y-2">
+          <li>Improve test coverage on the mobile app.</li>
+          <li>Address frequent crashes on submission.</li>
+          <li>Better documentation for REST APIs.</li>
+          <li>Schedule daily standups for dev and QA teams.</li>
+        </ul>
+      </div>
+    </div>
         </main>
+
+     
       </div>
 
       {/* Modal */}

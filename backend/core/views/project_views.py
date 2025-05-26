@@ -7,6 +7,7 @@ from core.serializers import ProjectSerializer, BugSerializer
 from django.contrib.auth import get_user_model 
 from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
+from django.db.models import Avg, Max
 # User Model
 User = get_user_model()
 
@@ -31,33 +32,22 @@ class ProjectManagement(APIView):
                 # Only allow role_id 1 (admin) to fetch projects
                 if role_id == 3:
                     projects = Project.objects.filter(
-                        active=True,
-                        company__active=True,
-                        tasks__active=True,
-                        tasks__members__id=employee_id
-                    ).annotate(
-                        project_status=F('status'),
-                        project_description=F('description'),
-                        project_start_date=F('start_date'),
-                        project_end_date=F('end_date'),
-                        progress=F('tasks__progress'),
-                        team_leader=Concat(
-                            F('tasks__team_lead__first_name'),
-                            Value(' '),
-                            F('tasks__team_lead__middle_name'),
-                            Value(' '),
-                            F('tasks__team_lead__last_name'),
-                            output_field=CharField()
-                        )
-                    ).values(
-                        'project_name',
-                        'project_status',
-                        'project_description',
-                        'project_start_date',
-                        'project_end_date',
-                        'team_leader',
-                        'progress'
-                    )
+                    active=True,
+                    company__active=True,
+                    tasks__active=True,
+                    tasks__members__id=employee_id
+                ).annotate(
+                    avg_progress=Avg('tasks__progress'),
+                    first_team_lead=Max('tasks__team_lead__first_name') 
+                ).values(
+                    'project_name',
+                    'description',
+                    'start_date',
+                    'end_date',
+                    'avg_progress',
+                    'status',
+                    'first_team_lead'
+                ).distinct()
                     return Response(projects, status=status.HTTP_200_OK)
                 
             except Employee.DoesNotExist:
