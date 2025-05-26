@@ -104,7 +104,7 @@ def dashboard_links(role_id, is_company, email, is_superuser):
                 dashboard_links = EmployeeDashboardLink.objects.filter(active=True).order_by("id")
 
                 if not result['is_complete']:
-                    restricted_titles = ["Leave", "Holiday Calendar", "Payslips", "Attendance Overview"]
+                    restricted_titles = ["Leave", "Holiday Calendar", "Payslips", "Attendance Overview", "Projects", "Tasks"]
                     dashboard_links = dashboard_links.exclude(name__in=restricted_titles)
 
                     serializer = EmployeeDashboardLinkSerializer(dashboard_links, many=True)

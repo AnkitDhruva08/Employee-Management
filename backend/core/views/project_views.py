@@ -5,7 +5,8 @@ from rest_framework import status
 from core.models import Company, Project, Employee, Bug
 from core.serializers import ProjectSerializer, BugSerializer
 from django.contrib.auth import get_user_model 
-
+from django.db.models import F, Value, CharField
+from django.db.models.functions import Concat
 # User Model
 User = get_user_model()
 
@@ -13,8 +14,9 @@ class ProjectManagement(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
         user = request.user
+        print('user ==<<<>>', user)
         user_data = User.objects.get(email=user.email)
-
+        print('user_data ==<<<>>', user_data)
         company_id = None
 
         #  if user is admin
@@ -23,10 +25,41 @@ class ProjectManagement(APIView):
                 employee_data = Employee.objects.get(company_email=user.email)
                 role_id = employee_data.role_id
                 company_id = employee_data.company_id
+                print('role_id ==<<<>>', role_id)
+                employee_id = employee_data.id
+                print('employee_id ==<<<>>', employee_id)
                 # Only allow role_id 1 (admin) to fetch projects
-                if role_id != 1:
-                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-
+                if role_id == 3:
+                    projects = Project.objects.filter(
+                        active=True,
+                        company__active=True,
+                        tasks__active=True,
+                        tasks__members__id=employee_id
+                    ).annotate(
+                        project_status=F('status'),
+                        project_description=F('description'),
+                        project_start_date=F('start_date'),
+                        project_end_date=F('end_date'),
+                        progress=F('tasks__progress'),
+                        team_leader=Concat(
+                            F('tasks__team_lead__first_name'),
+                            Value(' '),
+                            F('tasks__team_lead__middle_name'),
+                            Value(' '),
+                            F('tasks__team_lead__last_name'),
+                            output_field=CharField()
+                        )
+                    ).values(
+                        'project_name',
+                        'project_status',
+                        'project_description',
+                        'project_start_date',
+                        'project_end_date',
+                        'team_leader',
+                        'progress'
+                    )
+                    return Response(projects, status=status.HTTP_200_OK)
+                
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
