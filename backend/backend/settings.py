@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'core',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -108,6 +109,10 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 
+
+  
+
+
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60), 
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  
     
@@ -122,8 +127,9 @@ REST_FRAMEWORK = {
     # },
     
     # pagination configuration and show 5 items per page for pagination
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 15,  
+        # Add filter backend globally or per view
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
+    'DEFAULT_PAGINATION_CLASS': 'core.utils.pagination.CustomPagination',
 }
 
 

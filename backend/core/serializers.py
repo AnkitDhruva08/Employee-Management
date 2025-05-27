@@ -198,6 +198,17 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 
+# employeee # Serializers
+class EmployeeProjectSerializer(serializers.Serializer):
+    project_name = serializers.CharField()
+    description = serializers.CharField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    progress = serializers.FloatField()
+    status = serializers.CharField()
+    team_leader = serializers.CharField(allow_blank=True, allow_null=True)
+
+
 # Bugs Serializers
 class BugSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source='project.project_name', read_only=True)

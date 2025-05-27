@@ -3,69 +3,79 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from core.models import Company, Project, Employee, Bug
-from core.serializers import ProjectSerializer, BugSerializer
+from core.serializers import EmployeeProjectSerializer, ProjectSerializer, BugSerializer
 from django.contrib.auth import get_user_model 
-from django.db.models import F, Value, CharField
 from django.db.models.functions import Concat
-from django.db.models import Avg, Max
+from django.db.models import Q, Avg, Max, F, Value, CharField
+from core.utils.pagination import CustomPagination
+from core.utils.filter_utils import apply_common_filters
 # User Model
 User = get_user_model()
 
 class ProjectManagement(APIView):
     permission_classes = [IsAuthenticated]
+
     def get(self, request, *args, **kwargs):
         user = request.user
-        print('user ==<<<>>', user)
         user_data = User.objects.get(email=user.email)
-        print('user_data ==<<<>>', user_data)
         company_id = None
+        paginator = CustomPagination()
 
-        #  if user is admin
         if user_data.is_employee:
             try:
                 employee_data = Employee.objects.get(company_email=user.email)
                 role_id = employee_data.role_id
                 company_id = employee_data.company_id
-                print('role_id ==<<<>>', role_id)
                 employee_id = employee_data.id
-                print('employee_id ==<<<>>', employee_id)
-                # Only allow role_id 1 (admin) to fetch projects
+
                 if role_id == 3:
                     projects = Project.objects.filter(
-                    active=True,
-                    company__active=True,
-                    tasks__active=True,
-                    tasks__members__id=employee_id
-                ).annotate(
-                    avg_progress=Avg('tasks__progress'),
-                    first_team_lead=Max('tasks__team_lead__first_name') 
-                ).values(
-                    'project_name',
-                    'description',
-                    'start_date',
-                    'end_date',
-                    'avg_progress',
-                    'status',
-                    'first_team_lead'
-                ).distinct()
-                    return Response(projects, status=status.HTTP_200_OK)
-                
+                        active=True,
+                        company__active=True,
+                        tasks__active=True,
+                        tasks__members__id=employee_id
+                    ).annotate(
+                        progress=Avg('tasks__progress'),
+                        team_leader=Concat(
+                            F('tasks__team_lead__first_name'),
+                            Value(' '),
+                            F('tasks__team_lead__middle_name'),
+                            Value(' '),
+                            F('tasks__team_lead__last_name'),
+                            output_field=CharField()
+                        )
+                    ).values(
+                        'id',
+                        'project_name',
+                        'description',
+                        'start_date',
+                        'end_date',
+                        'progress',
+                        'status',
+                        'team_leader'
+                    ).distinct().order_by('-start_date')
+
+                    # 🔹 Apply filters here
+                    projects = apply_common_filters(projects, request)
+                    paginated_projects = paginator.paginate_queryset(projects, request)
+                    return paginator.get_paginated_response(paginated_projects)
+
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        #  if user is company 
         elif user_data.is_company:
             company_id = user_data.id
 
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Common logic for both employee admin and company
+        # 🔹 For companies and non-role-3 employees
         projects = Project.objects.filter(company_id=company_id, active=True).order_by('-id')
-        serializer = ProjectSerializer(projects, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
+        projects = apply_common_filters(projects, request)
 
+        paginated_projects = paginator.paginate_queryset(projects, request)
+        serializer = ProjectSerializer(paginated_projects, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, *args, **kwargs):
         print('data coming from frontend ==<<<>>', request.data)
