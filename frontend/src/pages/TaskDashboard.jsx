@@ -4,7 +4,7 @@ import Header from "../components/header/Header";
 import {
   fetchDashboardLink,
   fetchDashboard,
-  fetchProjects,
+  fetchProjectsData,
   fetchEmployees,
   fecthTasks,
   fetchTaskSideBar
@@ -63,14 +63,16 @@ const TaskDahboard = () => {
   const fetchData = async () => {
     try {
       const dashboard = await fetchDashboard(token);
-      const proj = await fetchProjects(token);
+      const proj = await fetchProjectsData(token);
+      console.log('proj ===<<>>', proj);
       const taskData = await fecthTasks(token);
       const emps = await fetchEmployees(token);
       const links = await fetchTaskSideBar(token);
   
       setDashboardData(dashboard);
-      setProjects(proj);
+      setProjects(proj.results);
       setTask(taskData);
+      console.log('taskData ===<<<>>', taskData)
       setEmployees(emps);
       setQuickLinks(links.data || links);
   

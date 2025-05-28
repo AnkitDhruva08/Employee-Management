@@ -1,541 +1,725 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useParams } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
-import { fetchDashboardLink, fetchDashboard, fetchProjects, fetchProjectSidebar } from "../utils/api";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import CkEditor from "../components/editor/CkEditor";
+import { Eye, Pencil, Trash2 } from "lucide-react";
+import Select from "react-select";
+
+import {
+  fetchDashboard,
+  fetchProjects,
+  fetchProjectSidebar,
+  fetchEmployees,
+} from "../utils/api";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+} from "recharts";
 import Swal from "sweetalert2";
-
-
 
 const Projects = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
   const [dashboardData, setDashboardData] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
-  const [error, setError] = useState(null);
   const [projects, setProjects] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewProject, setViewProject] = useState(null);
+  const [employees, setEmployees] = useState([]);
   const [newProject, setNewProject] = useState({
-    project_name: "",
-    description: "",
-    startDate: "",
-    endDate: "",
-    status: "In Progress",
+    project_name: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    status: 'In Progress',
+    phase: '',
+    companyName: '',
+    clientName: '',
+    assignedTo: [],
+    designAvailable: false,
   });
-
+  const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 5;
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
   const isSuperUser = localStorage.getItem("is_superuser") === "true";
 
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+
+  const statusOptions = [
+    { value: "In Progress", label: "In Progress" },
+    { value: "Done", label: "Done" },
+    { value: "Blocked", label: "Blocked" },
+  ];
+
   const HeaderTitle = isSuperUser
     ? "Superuser Dashboard"
     : isCompany
-    ? "Company Projects Dashboard"
+    ? "Company Projects"
     : roleId === 3
-    ? "Employee Projects Dashboard"
+    ? "Employee Projects"
     : roleId === 2
-    ? "HR Projects Dashboard"
+    ? "HR Projects"
     : roleId === 1
-    ? "Admin Projects Dashboard"
-    : "Dashboard";
-
-  const fetchLinks = async () => {
-    try {
-      const links = await fetchProjectSidebar(token);
-      setQuickLinks(links.data || links);
-      const empDashboard = await fetchDashboard(token);
-      const projectsData = await fetchProjects(token);
-      setProjects(projectsData);
-      
-      setDashboardData(empDashboard);
-    } catch (err) {
-      console.error("Error fetching dashboard:", err);
-      navigate("/login");
-    }
-  };
-
-
-
+    ? "Admin Projects"
+    : "Projects";
 
   useEffect(() => {
-    fetchLinks();
-  }, []);
+    const fetchData = async () => {
+      try {
+        const links = await fetchProjectSidebar(token);
+        const empDashboard = await fetchDashboard(token);
+        const projectsData = await fetchProjects(
+          token,
+          currentPage,
+          pageSize,
+          statusFilter?.value || "",
+          selectedProjectId
+        );
+        console.log(projectsData);
 
+        setQuickLinks(links.data || links);
+        setDashboardData(empDashboard);
+        setProjects(projectsData.results);
+        setTotalCount(projectsData.count);
+        const employeesData = await fetchEmployees(token);
+        setEmployees(Array.isArray(employeesData) ? employeesData : [employeesData]);
+      } catch (err) {
+        navigate("/login");
+      }
+    };
+    fetchData();
+  }, [token, navigate, currentPage, statusFilter, selectedProjectId]);
 
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "In Progress":
-        return "bg-orange-500";
-      case "Done":
-        return "bg-green-500";
-      case "Blocked":
-        return "bg-red-500";
-      default:
-        return "bg-gray-400";
-    }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewProject((prev) => ({ ...prev, [name]: value }));
   };
 
 
-
-  const statusDistribution = [
-    {
-      name: "In Progress",
-      value: projects.filter((p) => p.status === "In Progress").length
-    },
-    {
-      name: "Done",
-      value: projects.filter((p) => p.status === "Done").length
-    },
-    {
-      name: "Blocked",
-      value: projects.filter((p) => p.status === "Blocked").length
-    }
-  ];
-
-  const COLORS = ["#F97316", "#22C55E", "#EF4444"];
-
-  const timelineData = projects
-  .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
-  .map((proj, index) => ({
-    date: proj.startDate,
-    total: index + 1
-  }));
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
     setNewProject((prev) => ({
       ...prev,
-      [name]: value,
+      srsDocument: file, // Store the actual file object
     }));
   };
 
-
-  // function for add new project
-  const handleAddProject = async (e) => {
+  const handleAddOrUpdateProject = async (e) => {
     e.preventDefault();
-    // if (
-    //   !newProject.project_name.trim() ||
-    //   !newProject.description.trim() ||
-    //   !newProject.startDate ||
-    //   !newProject.endDate ||
-    //   !newProject.status
-    // ) {
-    //   alert("Please fill in all fields");
-    //   return;
-    // }
-  
+    const url = isEditMode
+      ? `http://localhost:8000/api/update-project/${currentProjectId}/`
+      : `http://localhost:8000/api/create-project/`;
+
     try {
-      const response = await fetch("http://localhost:8000/api/create-project/", {
-        method: "POST",
+      const response = await fetch(url, {
+        method: isEditMode ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(newProject),
       });
-  
-      if (response.ok) {
-        const createdProject = await response.json();
-  
-        await Swal.fire({
-          title: "Success!",
-          text: "Project has been added.",
-          icon: "success",
-          confirmButtonText: "OK",
-        });
-  
-        setProjects([...projects, createdProject]);
-        setModalOpen(false);
-        setNewProject({
-          project_name: "",
-          description: "",
-          startDate: "",
-          endDate: "",
-          status: "In Progress",
-        });
-      } else {
+
+      if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to add project");
+        throw new Error(errorData.detail || "Failed to save project");
       }
+
+      const savedProject = await response.json();
+      if (isEditMode) {
+        setProjects((prev) =>
+          prev.map((proj) =>
+            proj.id === currentProjectId ? savedProject : proj
+          )
+        );
+      } else {
+        setProjects((prev) => [...prev, savedProject]);
+      }
+
+      Swal.fire(
+        "Success!",
+        `Project ${isEditMode ? "updated" : "created"} successfully.`,
+        "success"
+      );
+      setModalOpen(false);
+      setIsEditMode(false);
+      setNewProject({
+        project_name: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        status: "In Progress",
+      });
     } catch (err) {
-      console.error("Error adding project:", err);
-      Swal.fire("Error", err.message || "Failed to add project", "error");
+      Swal.fire("Error", err.message, "error");
     }
   };
 
-  if (error) {
-    return <div className="text-red-600 text-center mt-10 text-xl animate-pulse">{error}</div>;
-  }
+  const openEditModal = (project) => {
+    setNewProject({
+      project_name: project.project_name,
+      description: project.description,
+      startDate: project.start_date,
+      endDate: project.end_date,
+      status: project.status,
+    });
+    setCurrentProjectId(project.id);
+    setIsEditMode(true);
+    setModalOpen(true);
+  };
 
-  if (!dashboardData) {
-    return <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">Loading dashboard...</div>;
-  }
+  const statusColors = {
+    "In Progress": "#F97316",
+    Done: "#22C55E",
+    Blocked: "#EF4444",
+  };
+
+  const statusDistribution = Object.keys(statusColors).map((status) => ({
+    name: status,
+    value: projects.filter((p) => p.status === status).length,
+  }));
+
+  const timelineData = projects
+    .sort((a, b) => new Date(a.start_date) - new Date(b.start_date))
+    .map((proj, index) => ({
+      date: proj.start_date,
+      total: index + 1,
+    }));
+
+  const handleDelete = async (projectId) => {
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/delete-project/${projectId}/`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to delete project");
+      }
+      setProjects((prev) => prev.filter((proj) => proj.id !== projectId));
+      Swal.fire(
+        "Deleted!",
+        "Project has been deleted successfully.",
+        "success"
+      );
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    }
+  };
+
+  // Filtered projects based on selected filters
+  const filteredProjects = projects.filter((project) => {
+    const matchesProject =
+      !selectedProjectId || project.id === selectedProjectId;
+    const matchesStatus =
+      !statusFilter || project.status === statusFilter.value;
+    return matchesProject && matchesStatus;
+  });
+  
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold mb-4">{dashboardData.company}</h2>
+      <aside className="bg-gray-800 text-white w-64 p-6">
+        <h2 className="text-xl font-semibold mb-4">{dashboardData?.company}</h2>
         <Sidebar quickLinks={quickLinks} />
       </aside>
 
-      {/* Main content */}
       <div className="flex flex-col flex-1">
-        {/* Header */}
         <Header title={HeaderTitle} />
 
-        {/* Scrollable content area */}
         <main className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-3xl font-bold text-blue-800 mb-6">Projects</h2>
+          <h2 className="text-2xl font-bold mb-6 text-indigo-700">
+            Projects Overview
+          </h2>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-1">Total Projects</h3>
-              <p className="text-3xl font-extrabold">{projects.length}</p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-1">Active Projects</h3>
-              <p className="text-3xl font-extrabold">
-                {projects.filter((p) => p.status === "In Progress").length}
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-1">Completed Projects</h3>
-              <p className="text-3xl font-extrabold">
-                {projects.filter((p) => p.status === "Done").length}
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-1">Blocked Projects</h3>
-              <p className="text-3xl font-extrabold">
-                {projects.filter((p) => p.status === "Blocked").length}
-              </p>
-            </div>
+          {/* Dashboard cards */}
+          <div className="grid grid-cols-1 whitespace-nowrap   md:grid-cols-4 gap-4 mb-6">
+            {["Total", "In Progress", "Done", "Blocked"].map((label, idx) => (
+              <div key={idx} className="bg-white p-5 shadow rounded">
+                <p className="text-sm text-gray-500">{label} Projects</p>
+                <h3 className="text-2xl font-bold text-indigo-700">
+                  {label === "Total"
+                    ? projects.length
+                    : projects.filter((p) => p.status === label).length}
+                </h3>
+              </div>
+            ))}
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-4">
-                Project Status Distribution
-              </h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={statusDistribution}
-                      dataKey="value"
-                      nameKey="name"
-                      outerRadius={80}
-                      label
-                    >
-                      {statusDistribution.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={COLORS[index % COLORS.length]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="bg-white p-6 rounded shadow">
+              <h3 className="text-lg font-semibold mb-4">Project Status</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={statusDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={80}
+                    label
+                  >
+                    {statusDistribution.map((entry, index) => (
+                      <Cell key={index} fill={statusColors[entry.name]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-semibold mb-4">Projects Over Time</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={timelineData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="total"
-                      stroke="#6366F1"
-                      strokeWidth={3}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div className="bg-white p-6 rounded shadow">
+              <h3 className="text-lg font-semibold mb-4">Timeline</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={timelineData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#6366F1"
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Add Project Button */}
-          <div className="flex justify-end mb-3">
-            <button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-semibold shadow"
-              onClick={() => setModalOpen(true)}
-            >
-              + Add Project
-            </button>
-          </div>
-
-          {/* Projects Table */}
-             {/* Projects Table with progress bar added */}
-        <div className="overflow-x-auto shadow rounded-lg bg-white">
-          <table className="w-full text-sm">
-            <thead className="text-left text-gray-500">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Project Name
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Start Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  End Date
-                </th>
-                {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Progress
-                </th> */}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {projects.length > 0 ? (
-                projects.map((project, idx) => {
-                  // Calculate progress percentage based on status or dates
-                  // For example, a simple logic: 
-                  // if status === Done => 100%, In Progress => 50%, Blocked => 0%
-                  let progressPercent = 0;
-                  if (project.status === "Done") progressPercent = 100;
-                  else if (project.status === "In Progress") progressPercent = 50;
-                  else if (project.status === "Blocked") progressPercent = 0;
-
-                  return (
-                    <tr
-                      key={idx}
-                      className="hover:bg-gray-50 transition-colors duration-200"
-                    >
-                      <td className="px-6 py-4 whitespace-normal">
-                        {project.project_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-normal">
-                        {project.description}
-                      </td>
-                      <td className="px-6 py-4">{project.start_date}</td>
-                      <td className="px-6 py-4">{project.end_date}</td>
-                      {/* <td className="px-6 py-4 w-48">
-                        <div className="w-full bg-gray-200 rounded-full h-4">
-                          <div
-                            className={`h-4 rounded-full ${
-                              progressPercent === 100
-                                ? "bg-green-500"
-                                : progressPercent === 50
-                                ? "bg-orange-400"
-                                : "bg-red-500"
-                            }`}
-                            style={{ width: `${progressPercent}%` }}
-                          ></div>
-                        </div>
-                      </td> */}
-                      <td className="px-6 py-4">
-                      <span className={`px-1 py-1 rounded-full text-white text-xs font-semibold whitespace-nowrap  ${project.status === "Done" ? "bg-green-500" : project.status === "In Progress" ? "bg-orange-400" : "bg-red-500"}`}>{project.status}</span>
-
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-6 py-10 text-center text-gray-400"
-                  >
-                    No projects found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-          <div className="p-6 space-y-8 bg-gray-50 min-h-screen">
-      <div className="space-y-2">
-
-      </div>
-
-
-      {/* Bug Tracking */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h2 className="text-lg font-semibold mb-4 text-blue-600">Bug Tracking</h2>
-        <table className="w-full text-sm">
-          <thead className="text-left text-gray-500">
-            <tr>
-              <th className="py-2">ID</th>
-              <th className="py-2">Title</th>
-              <th className="py-2">Status</th>
-              <th className="py-2">Priority</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { id: "#124", title: "Login button not responsive", status: "Open", priority: "High" },
-              { id: "#130", title: "Crash on submitting form", status: "Blocked", priority: "Critical" },
-              { id: "#135", title: "UI misalignment on mobile", status: "In Progress", priority: "Medium" },
-              { id: "#140", title: "Data sync failure", status: "Open", priority: "High" },
-            ].map((bug, idx) => (
-              <tr key={idx} className="border-t">
-                <td className="py-2 font-mono">{bug.id}</td>
-                <td className="py-2">{bug.title}</td>
-                <td className="py-2">
-                  <span
-                    className={`px-2 py-1 rounded-full whitespace-nowrap text-white text-xs font-semibold ${
-                      bug.status === "Open"
-                        ? "bg-red-600"
-                        : bug.status === "Blocked"
-                        ? "bg-red-400"
-                        : "bg-orange-400"
-                    }`}
-                  >
-                    {bug.status}
-                  </span>
-                </td>
-                <td className="py-2">{bug.priority}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <Link to="/bugs">
-        <button className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-          View all bugs
-        </button>
-      </Link>
-
-      </div>
-
-      {/* Sprint Highlights */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h2 className="text-lg font-semibold mb-4 text-blue-600">Sprint Retrospective Highlights</h2>
-        <ul className="list-disc pl-6 text-sm text-gray-700 space-y-2">
-          <li>Improve test coverage on the mobile app.</li>
-          <li>Address frequent crashes on submission.</li>
-          <li>Better documentation for REST APIs.</li>
-          <li>Schedule daily standups for dev and QA teams.</li>
-        </ul>
-      </div>
-    </div>
-        </main>
-
-     
-      </div>
-
-      {/* Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-11/12 max-w-lg p-8 relative">
-            <button
-              onClick={() => setModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 font-bold text-xl"
-              aria-label="Close modal"
-            >
-              &times;
-            </button>
-            <h3 className="text-xl font-semibold mb-6">Add New Project</h3>
-            <form onSubmit={handleAddProject} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block font-semibold mb-1">
-                  Project Name
-                </label>
-                <input
-                  type="text"
-                  id="project_name"
-                  name="project_name"
-                  value={newProject.project_name}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="description"
-                  className="block font-semibold mb-1"
-                >
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={newProject.description}
-                  onChange={handleInputChange}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 resize-y focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                ></textarea>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="startDate"
-                    className="block font-semibold mb-1"
-                  >
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    id="startDate"
-                    name="startDate"
-                    value={newProject.startDate}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="endDate" className="block font-semibold mb-1">
-                    End Date
-                  </label>
-                  <input
-                    type="date"
-                    id="endDate"
-                    name="endDate"
-                    value={newProject.endDate}
-                    onChange={handleInputChange}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="status" className="block font-semibold mb-1">
-                  Status
-                </label>
-                <select
-                  id="status"
-                  name="status"
-                  value={newProject.status}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                >
-                  <option value="In Progress">In Progress</option>
-                  <option value="Done">Done</option>
-                  <option value="Blocked">Blocked</option>
-                </select>
-              </div>
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-4">
+            {/* Add Project Button */}
+            {roleId === 1 && (
               <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-semibold shadow"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-indigo-700 whitespace-nowrap"
+                onClick={() => {
+                  setIsEditMode(false);
+                  setNewProject({
+                    project_name: "",
+                    description: "",
+                    startDate: "",
+                    endDate: "",
+                    status: "In Progress",
+                  });
+                  setModalOpen(true);
+                }}
               >
-                Add Project
+                + Add Project
               </button>
-            </form>
+            )}
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 lg:gap-6 items-center flex-1 lg:justify-end">
+              <Select
+                className="w-full sm:w-48 lg:w-60"
+                options={projects.map((p) => ({
+                  value: p.id,
+                  label: p.project_name,
+                }))}
+                onChange={(opt) => setSelectedProjectId(opt?.value)}
+                isClearable
+                placeholder="Filter by Project"
+              />
+              <Select
+                className="w-full sm:w-48 lg:w-60"
+                options={statusOptions}
+                onChange={setStatusFilter}
+                isClearable
+                placeholder="Filter by Status"
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          {/* Project Table */}
+          <div className="bg-white rounded-xl shadow-md overflow-x-auto">
+            <table className="min-w-full text-sm text-gray-700">
+              <thead className="bg-blue-50 text-gray-600 uppercase text-xs tracking-wider">
+                <tr>
+                  <th className="px-6 py-4 text-left">Name</th>
+                  <th className="px-6 py-4 text-left">Start</th>
+                  <th className="px-6 py-4 text-left">End</th>
+                  <th className="px-6 py-4 text-left">Status</th>
+                  {roleId === 3 && (
+                    <th className="px-6 py-4 text-left">Progress</th>
+                  )}
+                  {roleId === 3 && (
+                    <th className="px-6 py-4 text-left">Team Leader</th>
+                  )}
+                  <th className="px-6 py-4 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredProjects.map((project, index) => (
+                  <tr
+                    key={index}
+                    className="hover:bg-blue-50 transition-all duration-150"
+                  >
+                    <td className="px-6 py-4 font-medium">
+                      {project.project_name}
+                    </td>
+                    <td className="px-6 py-4">{project.start_date}</td>
+                    <td className="px-6 py-4">{project.end_date}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className="inline-block px-2 py-1 whitespace-nowrap rounded-full text-white text-xs font-medium"
+                        style={{
+                          backgroundColor:
+                            statusColors[project.status] || "#9CA3AF",
+                        }}
+                      >
+                        {project.status}
+                      </span>
+                    </td>
+                    {roleId === 3 && (
+                      <td className="px-6 py-4">
+                        {project.progress ? (
+                          <div className="w-full bg-gray-200 rounded-full h-4">
+                            <div
+                              className="h-4 rounded-full text-[10px] font-semibold text-white text-center"
+                              style={{
+                                width: `${project.progress}%`,
+                                backgroundColor:
+                                  project.progress >= 80
+                                    ? "#22C55E"
+                                    : project.progress >= 50
+                                    ? "#F97316"
+                                    : "#EF4444",
+                              }}
+                            >
+                              {project.progress}%
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
+                    )}
+                    {roleId === 3 && (
+                      <td className="px-6 py-4 text-gray-800">
+                        {project.team_leader || (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-6 py-4 space-x-2 whitespace-nowrap">
+                      <button
+                        className="text-blue-500 hover:text-blue-700 transition"
+                        onClick={() => {
+                          setViewProject(project);
+                          setViewModalOpen(true);
+                        }}
+                      >
+                        <Eye size={18} />
+                      </button>
+                      <button
+                        className="text-green-500 hover:text-green-700 transition"
+                        onClick={() => openEditModal(project)}
+                      >
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        className="text-red-500 hover:text-red-700 transition"
+                        onClick={() => handleDelete(project.id)}
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination controls */}
+          <div className="flex justify-between items-center mt-4 px-6 py-2 bg-gray-100 rounded-b">
+            <div className="text-sm text-gray-600">
+              Page {currentPage} of {Math.ceil(totalCount / pageSize)}
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => {
+                  if (currentPage > 1) {
+                    setCurrentPage(currentPage - 1);
+                  }
+                }}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => {
+                  if (currentPage < Math.ceil(totalCount / pageSize)) {
+                    setCurrentPage(currentPage + 1);
+                  }
+                }}
+                disabled={currentPage === Math.ceil(totalCount / pageSize)}
+                className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          {modalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+              <div className="bg-white rounded-xl w-full max-w-2xl relative max-h-[90vh] overflow-y-auto p-6 shadow-lg">
+                <button
+                  onClick={() => setModalOpen(false)}
+                  className="absolute top-3 right-4 text-gray-600 text-2xl hover:text-black"
+                >
+                  &times;
+                </button>
+
+                <h3 className="text-2xl font-bold mb-6 text-center">
+                  {isEditMode ? "Update Project" : "Add New Project"}
+                </h3>
+
+                {/* Project Name */}
+                <div className="mb-4">
+                  <label className="block font-medium mb-1">Project Name *</label>
+                  <input
+                    type="text"
+                    name="project_name"
+                    value={newProject.project_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter project name"
+                    required
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="mb-4">
+                  <label className="block font-medium mb-1">Project Description</label>
+                  <CkEditor
+                    value={newProject.description}
+                    onChange={(val) =>
+                      setNewProject((prev) => ({ ...prev, description: val }))
+                    }
+                  />
+                </div>
+
+                {/* SRS Upload */}
+                <div className="mb-4">
+                  <label className="block font-medium mb-1">Upload SRS Document</label>
+                  <input
+                    type="file"
+                    name="srs"
+                    onChange={handleFileChange}
+                    className="w-full border rounded px-3 py-2"
+                    accept=".pdf,.doc,.docx"
+                  />
+                </div>
+
+                {/* Design Availability */}
+                <div className="flex items-center gap-2 mb-4">
+                  <input
+                    type="checkbox"
+                    name="designAvailable"
+                    checked={newProject.designAvailable}
+                    onChange={(e) =>
+                      setNewProject((prev) => ({
+                        ...prev,
+                        designAvailable: e.target.checked,
+                      }))
+                    }
+                  />
+                  <label>Design available in Figma</label>
+                </div>
+
+                {/* Start & End Dates */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block font-medium mb-1">Start Date *</label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={newProject.startDate}
+                      onChange={handleInputChange}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">End Date *</label>
+                    <input
+                      type="date"
+                      name="endDate"
+                      value={newProject.endDate}
+                      onChange={handleInputChange}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                {/* Phase */}
+                <div className="mb-4">
+                  <label className="block font-medium mb-1">Project Phase</label>
+                  <input
+                    type="text"
+                    name="phase"
+                    value={newProject.phase}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Development"
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+
+                {/* Optional Company & Client */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block font-medium mb-1">Company Name (Optional)</label>
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={newProject.companyName}
+                      onChange={handleInputChange}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">Client Name (Optional)</label>
+                    <input
+                      type="text"
+                      name="clientName"
+                      value={newProject.clientName}
+                      onChange={handleInputChange}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                </div>
+
+                {/* Assign Team */}
+                <div className="mb-4">
+                  <label className="block font-medium mb-1">Assign to Teams</label>
+                  <Select
+                    isMulti
+                    options={employees.map((emp) => ({
+                      value: emp.id,
+                      label: `${emp.username}`,
+                    }))}
+                    value={newProject.assignedTo}
+                    onChange={(selected) =>
+                      setNewProject((prev) => ({ ...prev, assignedTo: selected || [] }))
+                    }
+                    placeholder="Select employees"
+                  />
+                </div>
+
+                {/* Status */}
+                <div className="mb-6">
+                  <label className="block font-medium mb-1">Project Status</label>
+                  <select
+                    name="status"
+                    value={newProject.status}
+                    onChange={handleInputChange}
+                    className="w-full border rounded px-3 py-2"
+                  >
+                    <option>In Progress</option>
+                    <option>Done</option>
+                    <option>Blocked</option>
+                  </select>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => setModalOpen(false)}
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddOrUpdateProject} // manually call handler
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-800"
+                  >
+                    {isEditMode ? "Update Project" : "Create Project"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+
+          {/* modal form for view */}
+          {viewModalOpen && viewProject && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+              <div className="bg-white rounded p-6 w-full max-w-lg relative">
+                <button
+                  onClick={() => setViewModalOpen(false)}
+                  className="absolute top-3 right-4 text-gray-600 text-xl"
+                >
+                  &times;
+                </button>
+                <h3 className="text-xl font-semibold mb-4">Project Details</h3>
+                <div className="space-y-2">
+                  <p>
+                    <strong>Name:</strong> {viewProject.project_name}
+                  </p>
+                  <p>
+                    <strong>Description:</strong>
+                  </p>
+                  <div
+                    className="prose prose-sm max-w-none p-2 border rounded bg-gray-50"
+                    dangerouslySetInnerHTML={{
+                      __html: viewProject.description,
+                    }}
+                  />
+                  <p>
+                    <strong>Start Date:</strong> {viewProject.start_date}
+                  </p>
+                  <p>
+                    <strong>End Date:</strong> {viewProject.end_date}
+                  </p>
+                  <p>
+                    <strong>Status:</strong>{" "}
+                    <span
+                      className="px-2 py-1 rounded text-white text-xs"
+                      style={{
+                        backgroundColor:
+                          statusColors[viewProject.status] || "#9CA3AF",
+                      }}
+                    >
+                      {viewProject.status}
+                    </span>
+                  </p>
+                  <div className="flex justify-end mt-4">
+                    <button
+                      onClick={() => setViewModalOpen(false)}
+                      className="bg-red-500 text-white  px-4 py-2 rounded hover:bg-red-900"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 };

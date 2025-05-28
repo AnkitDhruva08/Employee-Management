@@ -124,7 +124,6 @@ class ProjectManagement(APIView):
 # For Bugs Report
 class BugsReportsA(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request, *args, **kwargs):
         user = request.user
         user_data = User.objects.get(email=user.email)
@@ -137,6 +136,20 @@ class BugsReportsA(APIView):
                 role_id = employee_data.role_id
                 company_id = employee_data.company_id
 
+                # Handle Role 3: Basic employee
+                if role_id == 3:
+                    bugs = Bug.objects.filter(
+                        active=True,
+                        company__active=True,
+                        project__active=True,
+                        assigned_to=employee_data  
+                    ).select_related('project', 'company').order_by('-id')
+
+                    bugs_filter = apply_common_filters(bugs, request)
+                    serializer = BugSerializer(bugs_filter, many=True)
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+
+                # Other employees (e.g., Admin/Manager)
                 if role_id != 1:
                     return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -148,8 +161,10 @@ class BugsReportsA(APIView):
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
+        # For company admins
         bugs = Bug.objects.filter(company_id=company_id, active=True).order_by('-id')
-        serializer = BugSerializer(bugs, many=True)
+        bugs_filter = apply_common_filters(bugs, request)
+        serializer = BugSerializer(bugs_filter, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):

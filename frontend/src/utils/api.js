@@ -120,7 +120,7 @@ export const fetchUserProfile = async (token) => {
 
 
 //  User project
-export const fetchProjects = async (token) => {
+export const fetchProjectsData = async (token) => {
   const res = await fetch(`${API_BASE_URL}/project-management/`, {
     method: "GET",
     headers: {
@@ -133,10 +133,13 @@ export const fetchProjects = async (token) => {
 };
 
 
-
-//  function for fetch the bugs reports 
-export const fetchBugsReports = async (token) => {
-  const res = await fetch(`${API_BASE_URL}/bugs-reportes/`, {
+export const fetchProjects = async (token, page = 1, pageSize = 2, status = "", project_id) => {
+  const url = new URL(`${API_BASE_URL}/project-management/`);
+  url.searchParams.append("page", page);
+  url.searchParams.append("page_size", pageSize);
+  if (status) url.searchParams.append("status", status);
+  if (project_id) url.searchParams.append("project_id", project_id);
+  const res = await fetch(url, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -144,8 +147,38 @@ export const fetchBugsReports = async (token) => {
     },
   });
   const data = await handleResponse(res);
-  return data
+  return data;
 };
+
+
+
+
+
+// function for fetching bugs reports
+export const fetchBugsReports = async (
+  token,
+  status = "",
+  priority = "",
+  project_id = ""
+) => {
+  const url = new URL(`${API_BASE_URL}/bugs-reportes/`);
+
+  if (status) url.searchParams.append("status", status);
+  if (priority) url.searchParams.append("priority", priority);
+  if (project_id) url.searchParams.append("project_id", project_id);
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await handleResponse(res);
+  return data;
+};
+
 
 
 
