@@ -75,46 +75,75 @@ class ProjectManagement(APIView):
 
         paginated_projects = paginator.paginate_queryset(projects, request)
         serializer = ProjectSerializer(paginated_projects, many=True)
+        print('serializer.data ==<<>>', serializer.data)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, *args, **kwargs):
-        print('data coming from frontend ==<<<>>', request.data)
+            user_details = request.user
+            company_id = None
 
-        user_details = User.objects.get(email=request.user.email)
-        company_id = None
+            # Determine company_id based on user type
+            if hasattr(user_details, 'is_employee') and user_details.is_employee:
+                try:
+                    employee_data = Employee.objects.get(company_email=user_details.email)
+                    role_id = employee_data.role_id
+                    company_id = employee_data.company_id
+                    if role_id != 1:
+                        return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                except Employee.DoesNotExist:
+                    return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # If user is an employee
-        if user_details.is_employee:
+            elif hasattr(user_details, 'is_company') and user_details.is_company:
+                company_id = user_details.id
+            else:
+                return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+
             try:
-                employee_data = Employee.objects.get(company_email=request.user.email)
-                role_id = employee_data.role_id
-                company_id = employee_data.company_id
-                if role_id != 1:
-                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-            except Employee.DoesNotExist:
-                return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
+                # Convert designAvailable to boolean
+                design_available = request.data.get('designAvailable', False)
+                if isinstance(design_available, str):
+                    design_available = design_available.lower() == 'true'
 
-        # If user is a company
-        elif user_details.is_company:
-            company_id = user_details.id
-        else:
-            return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+                project = Project.objects.create(
+                    company_id=company_id,
+                    project_name=request.data.get('project_name'),
+                    description=request.data.get('description'),
+                    start_date=request.data.get('startDate'),
+                    end_date=request.data.get('endDate'),
+                    status=request.data.get('status'),
+                    phase=request.data.get('phase', ''),
+                    company_name=request.data.get('companyName', ''),
+                    client_name=request.data.get('clientName', ''),
+                    design_available=design_available,
+                    created_by=user_details,
+                    updated_by=user_details,
+                )
 
-        try:
-            project = Project.objects.create(
-                company_id=company_id,
-                project_name=request.data.get('project_name'),
-                description=request.data.get('description'),
-                start_date=request.data.get('startDate'),  
-                end_date=request.data.get('endDate'),    
-                status=request.data.get('status')
-            )
-            serializer = ProjectSerializer(project)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+                # Handle file uploads
+                if request.FILES.get('srsFile') and request.FILES['srsFile'].name != 'null':
+                    project.srs_file = request.FILES['srsFile']
+                if request.FILES.get('wireframeFile') and request.FILES['wireframeFile'].name != 'null':
+                    project.wireframe_file = request.FILES['wireframeFile']
 
-        except Exception as e:
-            print("Error creating project:", e)
-            return Response({"detail": "Internal Server Error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                project.save()
+
+                # Handle assigned_to
+                assigned_to_raw = request.data.getlist('assignedTo') or request.data.getlist('assignedTo[]')
+                print('assigned_to_raw ==<<<>>', assigned_to_raw)
+                  # Handle assigned_to (Now using Employee model)
+                if assigned_to_raw:
+                    assigned_to_ids = [int(item) for item in assigned_to_raw if item.isdigit()]
+                    employees = Employee.objects.filter(id__in=assigned_to_ids)
+                    project.assigned_to.set(employees)
+                    serializer = ProjectSerializer(project)
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            except Exception as e:
+                print("Error creating project:", e)
+                return Response({"detail": "Internal Server Error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
         
 
 

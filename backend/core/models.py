@@ -318,26 +318,24 @@ class Attendance(models.Model):
 
 # Project models 
 class Project(models.Model):
-    STATUS_CHOICES = [
-        ("In Progress", "In Progress"),
-        ("Done", "Done"),
-        ("Blocked", "Blocked"),
-    ]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='projects')
     project_name = models.CharField(max_length=255)
-    description = models.TextField()
+    description = models.TextField(blank=True)
     start_date = models.DateField()
     end_date = models.DateField()
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="In Progress")
+    status = models.CharField(max_length=50)
+    phase = models.CharField(max_length=100, blank=True, null=True)  
+    company_name = models.CharField(max_length=255, blank=True)
+    client_name = models.CharField(max_length=255, blank=True)
+    assigned_to = models.ManyToManyField(Employee, related_name='projects')
+    design_available = models.BooleanField(default=False)
+    srs_file = models.FileField(upload_to='srs/', blank=True, null=True)
+    wireframe_file = models.FileField(upload_to='wireframes/', blank=True, null=True)
+    created_by = models.ForeignKey(User, related_name='created_projects', on_delete=models.SET_NULL, null=True)
+    updated_by = models.ForeignKey(User, related_name='updated_projects', on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="projects_created")
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="projects_updated")
-    active = models.BooleanField(default=True) 
-
-
-    def __str__(self):
-        return self.project_name
+    active = models.BooleanField(default=True)
     
 
 
