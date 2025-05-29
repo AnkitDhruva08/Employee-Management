@@ -39,6 +39,7 @@ const Dashboard = () => {
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
   const isSuperUser = localStorage.getItem("is_superuser") === "true";
+  console.log('roleId ==<<>>', roleId)
 
   const baseUrl = "http://localhost:8000";
 

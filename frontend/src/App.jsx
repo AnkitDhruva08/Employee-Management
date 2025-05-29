@@ -25,6 +25,7 @@ import EmplyeeViews from './pages/EmplyeeViews';
 import BugTracker from './pages/Bug-Tracker';
 import TaskDahboard from './pages/TaskDashboard';
 import EmployeeTasksToday from './pages/EmployeeTasksToday';
+import ProjectCreationModal from './components/modal/ProjectCreationModal';
 function App() {
   return (
     <Router>
@@ -59,6 +60,7 @@ function App() {
         <Route path="/bugs" element={<BugTracker />} />
         <Route path="/employee-task-today" element={<EmployeeTasksToday />} />
         <Route path="/task-dashboard" element={<TaskDahboard />} />
+        <Route path="/project-modal" element={<ProjectCreationModal />} />
 
       </Routes>
     </Router>
