@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
-import CkEditor from '../editor/CkEditor';
+import React, { useState, useEffect } from "react";
+import Select from "react-select";
+import CkEditor from "../editor/CkEditor";
 import FileUpload from "../File/FileUpload";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
 const ProjectCreationModal = ({
   isOpen,
@@ -12,121 +12,126 @@ const ProjectCreationModal = ({
   employees,
   isEditMode,
 }) => {
-  const [formData, setFormData] = useState({
-    project_name: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    status: 'In Progress',
-    phase: '',
-    companyName: '',
-    clientName: '',
-    assignedTo: [],
-    designAvailable: false,
-    srsFile: null,
-    wireframeFile: null,
-  });
+  // Initialize form data based on whether editing or creating
+  const [formData, setFormData] = useState(() =>
+    getInitialFormData(initialData, isEditMode)
+  );
 
-  console.log('employees ==<<<>>', employees)
+  // Store URLs of existing files for preview links
+  const [existingSrsFileUrl, setExistingSrsFileUrl] = useState("");
+  const [existingWireframeFileUrl, setExistingWireframeFileUrl] = useState("");
 
-  const [srsFileName, setSrsFileName] = useState('');
-  const [wireframeFileName, setWireframeFileName] = useState('');
+  // Store initial files to pass into FileUpload component
+  const [initialSrsFile, setInitialSrsFile] = useState(null);
+  const [initialWireframeFile, setInitialWireframeFile] = useState(null);
 
   const phaseOptions = [
-    { value: 'Planning', label: 'Planning' },
-    { value: 'Development', label: 'Development' },
-    { value: 'Testing', label: 'Testing' },
-    { value: 'Deployment', label: 'Deployment' },
+    { value: "Planning", label: "Planning" },
+    { value: "Development", label: "Development" },
+    { value: "Testing", label: "Testing" },
+    { value: "Deployment", label: "Deployment" },
   ];
 
   const statusOptions = [
-    { value: 'In Progress', label: 'In Progress' },
-    { value: 'Done', label: 'Done' },
-    { value: 'Blocked', label: 'Blocked' },
-    { value: 'Planned', label: 'Planned' },
-    { value: 'On Hold', label: 'On Hold' },
+    { value: "In Progress", label: "In Progress" },
+    { value: "Done", label: "Done" },
+    { value: "Blocked", label: "Blocked" },
+    { value: "Planned", label: "Planned" },
+    { value: "On Hold", label: "On Hold" },
   ];
 
-  const employeeOptions = employees.map(emp => ({
+  const employeeOptions = employees.map((emp) => ({
     value: emp.id,
-    label: emp.username
+    label: emp.username,
   }));
 
-  useEffect(() => {
-    if (isOpen && initialData) {
-      console.log('initialData ==<<<>>',initialData);
-      setFormData({
-        project_name: initialData.project_name || '',
-        description: initialData.description|| '',
-        startDate: initialData.start_date || '',
-        endDate: initialData.end_date || '',
-        status: initialData.status || 'In Progress',
-        phase: initialData.phase || '', 
-        companyName: initialData.company || '',
-        clientName: initialData.client_name || '',
-        assignedTo: initialData.assigned_to || [],
-        designAvailable: initialData.design_available || false,
+  function getInitialFormData(data = null, isEdit = false) {
+    if (isEdit && data) {
+      return {
+        project_name: data.project_name || "",
+        description: data.description || "",
+        startDate: data.start_date ? data.start_date.slice(0, 10) : "",
+        endDate: data.end_date ? data.end_date.slice(0, 10) : "",
+        status: data.status || "In Progress",
+        phase: data.phase || "",
+        companyName: data.company || "",
+        clientName: data.client_name || "",
+        assignedTo: Array.isArray(data.assigned_to)
+          ? data.assigned_to.map((emp) =>
+              typeof emp === "object" ? emp.id : emp
+            )
+          : [],
+        designAvailable: data.design_available || false,
         srsFile: null,
         wireframeFile: null,
-      });
-    } else if (isOpen) {
-      setFormData({
-        project_name: '',
-        description: '',
-        startDate: '',
-        endDate: '',
-        status: 'In Progress',
-        phase: '',
-        companyName: '',
-        clientName: '',
-        assignedTo: [],
-        designAvailable: false,
-        srsFile: null,
-        wireframeFile: null,
-      });
+      };
     }
-  }, [isOpen, initialData]);
+    return {
+      project_name: "",
+      description: "",
+      startDate: "",
+      endDate: "",
+      status: "In Progress",
+      phase: "",
+      companyName: "",
+      clientName: "",
+      assignedTo: [],
+      designAvailable: false,
+      srsFile: null,
+      wireframeFile: null,
+    };
+  }
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      const initial = getInitialFormData(initialData, isEditMode);
+      setFormData(initial);
+
+      // Load existing file URLs from initialData (usually strings pointing to file URLs)
+      setExistingSrsFileUrl(initialData?.srs_file || "");
+      setExistingWireframeFileUrl(initialData?.wireframe_file || "");
+
+      // Pass initial file URLs to FileUpload component (as array of URLs)
+      setInitialSrsFile(initialData?.srs_file || null);
+      setInitialWireframeFile(initialData?.wireframe_file || null);
+    }
+  }, [isOpen, isEditMode, initialData]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  const handleDescriptionChange = (content) => {
-    setFormData(prev => ({ ...prev, description: content }));
-  };
-
   const handleSelectChange = (selectedOptions, { name }) => {
-    if (name === 'assignedTo') {
-      setFormData(prev => ({
+    if (name === "assignedTo") {
+      setFormData((prev) => ({
         ...prev,
-        assignedTo: selectedOptions ? selectedOptions.map(option => option.value) : [],
+        assignedTo: selectedOptions
+          ? selectedOptions.map((option) => option.value)
+          : [],
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: selectedOptions ? selectedOptions.value : '',
+        [name]: selectedOptions ? selectedOptions.value : "",
       }));
     }
   };
 
-
   const validateForm = () => {
     const newErrors = {};
-  
-    if (!formData.project_name.trim()) newErrors.project_name = "Project name is required";
-    if (!formData.description.trim()) newErrors.description = "Description is required";
+    if (!formData.project_name.trim())
+      newErrors.project_name = "Project name is required";
+    if (!formData.description.trim())
+      newErrors.description = "Description is required";
     if (!formData.startDate) newErrors.startDate = "Start date is required";
     if (!formData.endDate) newErrors.endDate = "End date is required";
     if (!formData.phase) newErrors.phase = "Phase is required";
-    if (formData.assignedTo.length === 0) newErrors.assignedTo = "Please assign at least one employee";
-  
-    // setErrors(newErrors);
+    if (formData.assignedTo.length === 0)
+      newErrors.assignedTo = "Please assign at least one employee";
     return Object.keys(newErrors).length === 0;
   };
 
@@ -134,43 +139,41 @@ const ProjectCreationModal = ({
     e.preventDefault();
     if (!validateForm()) {
       Swal.fire({
-        icon: 'error',
-        title: 'Validation Failed',
-        text: 'Please fix the errors in the form.',
+        icon: "error",
+        title: "Validation Failed",
+        text: "Please fix the errors in the form.",
       });
       return;
     }
-  
+
     onSubmit(formData);
-  
-    if (!isEditMode) {
-      Swal.fire({
-        icon: 'success',
-        title: 'Project Created',
-        text: 'Your new project has been created successfully!',
-      });
-    } else {
-      Swal.fire({
-        icon: 'success',
-        title: 'Project Updated',
-        text: 'Project changes have been saved.',
-      });
-    }
-  
-    // onClose();
+
+    Swal.fire({
+      icon: "success",
+      title: isEditMode ? "Project Updated" : "Project Created",
+      text: isEditMode
+        ? "Project changes have been saved."
+        : "Your new project has been created successfully!",
+    });
   };
-  
+
+  if (!isOpen) return null;
+
+  console.log("existingSrsFileUrl:", existingSrsFileUrl);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl p-6 animate-fade-in">
         <h2 className="text-2xl font-bold mb-6 text-gray-900">
-          {isEditMode ? 'Edit Project' : 'Create New Project'}
+          {isEditMode ? "Edit Project" : "Create New Project"}
         </h2>
 
-        <form onSubmit={handleSubmitForm} className="space-y-6">
+        <div className="space-y-6">
+          {/* Project Name */}
           <div>
-            <label className="block font-medium mb-1">Project Name <span className='text-red-500'>*</span></label>
+            <label className="block font-medium mb-1">
+              Project Name <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="project_name"
@@ -182,21 +185,25 @@ const ProjectCreationModal = ({
             />
           </div>
 
-
+          {/* Description */}
           <div>
-            <label className="block font-medium mb-1">Description <span className='text-red-500'>*</span></label>
-           
+            <label className="block font-medium mb-1">
+              Description <span className="text-red-500">*</span>
+            </label>
             <CkEditor
-                  value={formData.description}
-                  onChange={(data) =>
-                    setFormData({ ...formData, description: data })
-                  }
-                />
+              value={formData.description}
+              onChange={(data) =>
+                setFormData((prev) => ({ ...prev, description: data }))
+              }
+            />
           </div>
 
+          {/* Dates and Selects */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block font-medium mb-1">Start Date <span className='text-red-500'>*</span></label>
+              <label className="block font-medium mb-1">
+                Start Date <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
                 name="startDate"
@@ -207,7 +214,9 @@ const ProjectCreationModal = ({
               />
             </div>
             <div>
-              <label className="block font-medium mb-1">Expected Completion Date <span className='text-red-500'>*</span></label>
+              <label className="block font-medium mb-1">
+                Expected Completion Date <span className="text-red-500">*</span>
+              </label>
               <input
                 type="date"
                 name="endDate"
@@ -218,29 +227,40 @@ const ProjectCreationModal = ({
               />
             </div>
 
-          <div>
-            <label className="block font-medium mb-1">Phase <span className='text-red-500'>*</span></label>
-            <Select
-              name="phase"
-              options={phaseOptions}
-              value={phaseOptions.find(option => option.value === formData.phase)} 
-              onChange={(selectedOption) => handleSelectChange(selectedOption, { name: 'phase' })}
-              classNamePrefix="react-select"
-              placeholder="Select Phase"
-            />
-          </div>
+            <div>
+              <label className="block font-medium mb-1">
+              phases/stages <span className="text-red-500">*</span>
+              </label>
+              <Select
+                name="phase"
+                options={phaseOptions}
+                value={phaseOptions.find(
+                  (option) => option.value === formData.phase
+                )}
+                onChange={(selectedOption) =>
+                  handleSelectChange(selectedOption, { name: "phase" })
+                }
+                classNamePrefix="react-select"
+                placeholder="Select Phase"
+              />
+            </div>
 
-          <div>
-            <label className="block font-medium mb-1">Status </label>
-            <Select
-              name="status"
-              options={statusOptions}
-              value={statusOptions.find(option => option.value === formData.status)}
-              onChange={(selectedOption) => handleSelectChange(selectedOption, { name: 'status' })}
-              classNamePrefix="react-select"
-              placeholder="Select Status"
-            />
-          </div>
+            <div>
+              <label className="block font-medium mb-1">Status</label>
+              <Select
+                name="status"
+                options={statusOptions}
+                value={statusOptions.find(
+                  (option) => option.value === formData.status
+                )}
+                onChange={(selectedOption) =>
+                  handleSelectChange(selectedOption, { name: "status" })
+                }
+                classNamePrefix="react-select"
+                placeholder="Select Status"
+              />
+            </div>
+
             <div>
               <label className="block font-medium mb-1">Company Name</label>
               <input
@@ -251,6 +271,7 @@ const ProjectCreationModal = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
+
             <div>
               <label className="block font-medium mb-1">Client Name</label>
               <input
@@ -263,101 +284,108 @@ const ProjectCreationModal = ({
             </div>
           </div>
 
+          {/* Assigned To Multi-Select */}
           <div>
-            <label className="block font-medium mb-1">Assigned To <span className='text-red-700'>*</span></label>
+            <label className="block font-medium mb-1">
+              Assigned To <span className="text-red-700">*</span>
+            </label>
             <Select
-            name="assignedTo"
-            options={employeeOptions}
-            isMulti
-            value={employeeOptions.filter(option => formData.assignedTo.includes(option.value))}
-            onChange={(selectedOptions) => handleSelectChange(selectedOptions, { name: 'assignedTo' })}
-            classNamePrefix="react-select"
-            placeholder="Select employees"
-          />
-          </div>
-
-
-         <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-         <div>
-            <label className="block font-medium mb-1">SRS Document</label>
-            <FileUpload
-              isView={false}
-              isCombine={false}
-              accept=".pdf,.doc,.docx,.txt"
-              initialFiles={formData.srsFile ? [{ file: formData.srsFile }] : []}
-              onFilesSelected={(files) => {
-                const file = files[0]?.file || null;
-                setFormData(prev => ({ ...prev, srsFile: file }));
-              }}
-              onDeletedFiles={() => {
-                setFormData(prev => ({ ...prev, srsFile: null }));
-              }}
-              onPreviewFile={(file) => console.log("Preview file:", file)}
+              name="assignedTo"
+              options={employeeOptions}
+              isMulti
+              value={employeeOptions.filter((option) =>
+                formData.assignedTo.includes(option.value)
+              )}
+              onChange={(selectedOptions) =>
+                handleSelectChange(selectedOptions, { name: "assignedTo" })
+              }
+              classNamePrefix="react-select"
+              placeholder="Select employees"
             />
-            {srsFileName && !formData.srsFile && (
-              <p className="text-xs text-gray-500 mt-1">Existing file: {srsFileName}</p>
-            )}
-            {formData.srsFile && (
-              <p className="text-xs text-gray-500 mt-1">New file selected: {formData.srsFile.name}</p>
-            )}
           </div>
 
-         <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="designAvailable"
-              checked={formData.designAvailable}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label className="ml-2 text-sm text-gray-700">Design Available ??</label>
-          
-          </div>
-        
-          {formData.designAvailable && (
+          {/* File Uploads */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* SRS Document */}
             <div>
-              <label className="block font-medium mb-1">Wireframe Document</label>
+              <label className="block font-medium mb-1">SRS Document</label>
               <FileUpload
                 isView={false}
                 isCombine={false}
-                accept=".pdf,.png,.jpg,.jpeg"
-                initialFiles={formData.wireframeFile ? [{ file: formData.wireframeFile }] : []}
+                initialFiles={existingSrsFileUrl ? [existingSrsFileUrl] : []}
                 onFilesSelected={(files) => {
-                  const file = files[0]?.file || null;
-                  setFormData(prev => ({ ...prev, wireframeFile: file }));
+                  const selected = files[0];
+                  setFormData((prev) => ({
+                    ...prev,
+                    srsFile: selected instanceof File ? selected : null,
+                    srsFileUrl: typeof selected === "string" ? selected : "",
+                  }));
+                  setInitialSrsFile(null);
+                  setExistingSrsFileUrl("");
                 }}
-                onDeletedFiles={() => {
-                  setFormData(prev => ({ ...prev, wireframeFile: null }));
-                }}
-                onPreviewFile={(file) => console.log("Previewing wireframe file:", file)}
               />
-              {wireframeFileName && !formData.wireframeFile && (
-                <p className="text-xs text-gray-500 mt-1">Existing file: {wireframeFileName}</p>
-              )}
-              {formData.wireframeFile && (
-                <p className="text-xs text-gray-500 mt-1">New file selected: {formData.wireframeFile.name}</p>
-              )}
             </div>
-          )}
-         </div>
-      
 
-          <div className="sticky bottom-0 left-0 right-0 bg-white pt-4 border-t mt-6 flex justify-end space-x-3">
+            {/* Conditionally render Wireframe Document if Design Available is checked */}
+            {formData.designAvailable && (
+              <div>
+                <label className="block font-medium mb-1">
+                  Wireframe Document
+                </label>
+                <FileUpload
+                  isView={false}
+                  isCombine={false}
+                  initialFiles={
+                    existingWireframeFileUrl ? [existingWireframeFileUrl] : []
+                  }
+                  onFilesSelected={(files) => {
+                    const selected = files[0];
+                    setFormData((prev) => ({
+                      ...prev,
+                      wireframeFile: selected instanceof File ? selected : null,
+                      wireframeFileUrl:
+                        typeof selected === "string" ? selected : "",
+                    }));
+                    setInitialWireframeFile(null);
+                    setExistingWireframeFileUrl("");
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Design Available Checkbox */}
+            <div className="flex flex-col justify-center mt-6">
+              <label className="inline-flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="designAvailable"
+                  checked={formData.designAvailable}
+                  onChange={handleChange}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <span className="text-gray-700">Design Available</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end space-x-3 mt-8">
             <button
               type="button"
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600  border-red-300 rounded-md hover:bg-red-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-gray-500"
               onClick={onClose}
+              className="px-5 py-2 rounded-lg border border-gray-300 hover:border-gray-400 transition"
             >
               Cancel
             </button>
             <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-green-500"
+              type="click"
+              onClick={handleSubmitForm}
+              className="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
             >
-              {isEditMode ? 'Update Project' : 'Create Project'}
+              {isEditMode ? "Save Changes" : "Create Project"}
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

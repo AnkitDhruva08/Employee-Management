@@ -19,6 +19,7 @@ from core.views.project_views import ProjectManagement, BugsReportsA
 from core.views.file_views import get_pdf
 from core.views.holidays_views import HolidaysViewset
 from core.views.task_views import TaskManagementViews, TaskTrackingViews
+from core.views.notification_views import NotificationListView
 
 router = DefaultRouter()
 
@@ -109,7 +110,7 @@ urlpatterns = [
 
     # Project management ProjectManagement 
     path('project-management/', ProjectManagement.as_view(), name='project-management'),
-    path('create-project/', ProjectManagement.as_view(), name='create-project'),
+    path('project-management/<int:pk>/', ProjectManagement.as_view(), name='project-management-update'),
      path('project-sidebar/', ProjectSideBarView.as_view(), name='project-sidebar'),
     # bugs reports
     path('bugs-reportes/', BugsReportsA.as_view(), name='bugs-reportes'),
@@ -122,6 +123,9 @@ urlpatterns = [
 
     # Tracking the employee day to day activities
     path('tracking-employee-task/', TaskTrackingViews.as_view(), name='tracking-employee-task/'),
+
+    # Notification List
+    path('notifications/', NotificationListView.as_view(), name='notifications'),
 
 
 ]

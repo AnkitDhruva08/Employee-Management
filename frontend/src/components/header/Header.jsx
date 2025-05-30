@@ -2,32 +2,27 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { logout } from "../../utils/api";
 import {
-  ChevronDown,
   LogOut,
   User,
   Settings,
   CreditCard,
-  FileText,
-  Users,
-  UserPlus,
-  HelpCircle,
-  MessageCircle,
+  Bell,
 } from "lucide-react";
-
-// import UploadImageModal from "../File/UploadProfileImage";
 
 const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
-  
-
+  const [notifications, setNotifications] = useState([]);
+  const [notifError, setNotifError] = useState(null);
 
   const navigate = useNavigate();
-
   const dropdownRef = useRef(null);
+  const notifRef = useRef(null);
 
+  // Fetch user details
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
@@ -51,24 +46,45 @@ const Header = ({ title }) => {
     fetchUserDetails();
   }, []);
 
-  // 🔹 Handle outside click
+  // Fetch notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("http://localhost:8000/api/notifications/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error("Failed to fetch notifications");
+        const data = await res.json();
+        setNotifications(data);
+      } catch (err) {
+        console.error("Notification fetch failed:", err.message);
+        setNotifError("Couldn't load notifications");
+      }
+    };
+
+    fetchNotifications();
+  }, []);
+
+  // Handle outside clicks to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowDropdown(false);
       }
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
     };
 
-    if (showDropdown) {
-      document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showDropdown]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
@@ -87,19 +103,23 @@ const Header = ({ title }) => {
   const role = userData?.role;
   const isCompany = userData?.is_company;
   const isSuperUser = userData?.is_superuser;
-  const displayName = isSuperUser ? "Superuser": userData.role_id === 1
+  const displayName = isSuperUser
+    ? "Superuser"
+    : userData.role_id === 1
     ? `${userData?.admin_name || "Admin"}`
     : isCompany
-      ? userData?.company
-      : userData?.employee_details?.[0]?.first_name || "User";
+    ? userData?.company
+    : userData?.employee_details?.[0]?.first_name || "User";
   const email = userData?.email || "example@example.com";
   const firstLetter = displayName.charAt(0).toUpperCase();
 
-  // Construct the profile image URL by appending the relative path to the base URL for media
-  const profileImagePath = userData?.is_company? userData?.company_logo : userData?.role_id === 1
- ? userData?.admin_profile : userData?.role_id === 2
- ? userData?.hr_profile: userData?.employee_details?.[0]?.profile_image;
-
+  const profileImagePath = userData?.is_company
+    ? userData?.company_logo
+    : userData?.role_id === 1
+    ? userData?.admin_profile
+    : userData?.role_id === 2
+    ? userData?.hr_profile
+    : userData?.employee_details?.[0]?.profile_image;
 
   const profileImageUrl = profileImagePath
     ? `http://localhost:8000/media/${profileImagePath}`
@@ -109,9 +129,47 @@ const Header = ({ title }) => {
     <div className="w-full bg-white shadow p-4 flex justify-between items-center">
       <div className="text-xl font-semibold text-gray-800">{title}</div>
 
-      <div className="relative">
+      <div className="flex items-center gap-6 cursor-pointer">
+        {/* 🔔 Notification */}
+        <div className="relative" ref={notifRef}>
+          <Bell
+            className="w-6 h-6 text-gray-600 hover:text-blue-600"
+            onClick={() => setShowNotifications(!showNotifications)}
+          />
+          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+            {notifications.length}
+          </span>
+          {showNotifications && (
+            <div className="absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl z-50 p-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Notifications
+              </h4>
+              {notifError ? (
+                <p className="text-sm text-red-500">{notifError}</p>
+              ) : notifications.length === 0 ? (
+                <p className="text-sm text-gray-500">No notifications</p>
+              ) : (
+                <ul className="divide-y divide-gray-200">
+                  {notifications.map((notif) => (
+                    <li
+                      key={notif.id}
+                      className="py-2 text-sm text-gray-600"
+                    >
+                      {notif.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="text-xs text-blue-600 mt-2 cursor-pointer hover:underline">
+                <Link to="/notifications">View all</Link>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 👤 User Dropdown */}
         <div
-          className="flex items-center gap-3 cursor-pointer"
+          className="flex items-center gap-3"
           onClick={() => setShowDropdown(!showDropdown)}
         >
           <div className="text-right hidden sm:block">
@@ -121,7 +179,6 @@ const Header = ({ title }) => {
             <p className="text-sm text-gray-500">{email}</p>
           </div>
 
-          {/* Conditional rendering of profile image or initial */}
           {profileImageUrl ? (
             <img
               src={profileImageUrl}
@@ -130,20 +187,16 @@ const Header = ({ title }) => {
             />
           ) : (
             <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
-              A
+              {firstLetter}
             </div>
           )}
         </div>
-        <div className="relative" ref={dropdownRef}>
-          <div
-            className="flex items-center gap-3 cursor-pointer"
-            onClick={() => setShowDropdown(!showDropdown)}
-          ></div>
 
+        {/* Dropdown */}
+        <div className="relative" ref={dropdownRef}>
           {showDropdown && (
             <div className="absolute right-0 mt-4 w-64 bg-white rounded-xl shadow-2xl z-50 p-4">
               <div className="flex items-center space-x-3 mb-4">
-                {/* Profile Image here as well */}
                 {profileImageUrl ? (
                   <img
                     src={profileImageUrl}
@@ -163,41 +216,12 @@ const Header = ({ title }) => {
 
               <div className="divide-y divide-gray-100 text-sm">
                 <div className="space-y-1 pb-3">
-                  <DropdownItem
-                    icon={<User />}
-                    label="View Profile"
-                    path="/profile-page"
-                  />
-                  {/* <div
-                    onClick={() => setShowImageModal(true)}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <span className="flex items-center gap-2">
-                      <User /> Update Profile
-                    </span>
-                  </div> */}
-                  <DropdownItem
-                    icon={<Settings />}
-                    label="Settings"
-                    shortcut="⌘ G"
-                    active
-                  />
+                  <DropdownItem icon={<User />} label="View Profile" path="/profile-page" />
+                  <DropdownItem icon={<Settings />} label="Settings" />
                 </div>
 
                 <div className="space-y-1 py-3">
-                  <DropdownItem
-                    icon={<CreditCard />}
-                    label="Home"
-                    path="/dashboard"
-                  />
-                  {/* <DropdownItem icon={<FileText />} label="Changelog" shortcut="⌘ E" />
-                <DropdownItem icon={<Users />} label="Team" shortcut="⌘ T" /> */}
-                </div>
-
-                <div className="space-y-1 py-3">
-                  {/* <DropdownItem icon={<UserPlus />} label="Invite Member" shortcut="⌘ F" />
-                <DropdownItem icon={<HelpCircle />} label="Support" shortcut="⌘ R" />
-                <DropdownItem icon={<MessageCircle />} label="Community" shortcut="⌘ U" /> */}
+                  <DropdownItem icon={<CreditCard />} label="Home" path="/dashboard" />
                 </div>
 
                 <div className="pt-3">
@@ -215,8 +239,6 @@ const Header = ({ title }) => {
             </div>
           )}
         </div>
-
-
       </div>
     </div>
   );
@@ -225,7 +247,7 @@ const Header = ({ title }) => {
 const DropdownItem = ({ icon, label, path }) => {
   return (
     <Link
-      to={path}
+      to={path || "#"}
       className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
     >
       <span className="flex items-center gap-2">

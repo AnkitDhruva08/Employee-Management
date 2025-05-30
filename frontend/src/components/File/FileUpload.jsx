@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import DeleteIcon from '../icons/DeleteIcon';
-import EyeIcon from '../icons/EyeIcon';
-import PreviewIcon from '../icons/PreviewIcon';
+import React, { useState, useEffect } from "react";
+import { v4 as uuidv4 } from "uuid";
+import DeleteIcon from "../icons/DeleteIcon";
+import EyeIcon from "../icons/EyeIcon";
+import PreviewIcon from "../icons/PreviewIcon";
 
 const FileUpload = ({
   isView = false,
@@ -10,51 +10,158 @@ const FileUpload = ({
   onFilesSelected,
   onDeletedFiles,
   onPreviewFile,
-  initialFiles = [], 
+  initialFiles = [],
+  accept = "*/*",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [fileUrl, setFileUrl] = useState('');
-  const [files, setFiles] = useState(() =>
-    initialFiles.map((file, index) => ({
-      id: uuidv4(),
-      name: typeof file === 'string' ? file.split('/').pop() : file.name,
-      url: typeof file === 'string' ? file : URL.createObjectURL(file),
-      file: file,
-    }))
-  );
-  
+  const [files, setFiles] = useState([]);
 
+  useEffect(() => {
+    if (!initialFiles || initialFiles.length === 0) return;
+
+    const mappedFiles = initialFiles.map((file) => {
+      if (typeof file === "string") {
+        const fullUrl = file.startsWith("http")
+          ? file
+          : `http://localhost:8000${file}`;
+        return {
+          id: uuidv4(),
+          name: file.split("/").pop(),
+          url: fullUrl,
+          file: null,
+          isRemote: true,
+        };
+      } else {
+        return {
+          id: uuidv4(),
+          name: file.name,
+          url: URL.createObjectURL(file),
+          file,
+          isRemote: false,
+        };
+      }
+    });
+
+    // Set only if files state is empty — to avoid overwriting user uploads
+    setFiles((currentFiles) =>
+      currentFiles.length === 0 ? mappedFiles : currentFiles
+    );
+
+    // Cleanup on unmount
+    return () => {
+      mappedFiles.forEach((f) => {
+        if (!f.isRemote && f.url) {
+          URL.revokeObjectURL(f.url);
+        }
+      });
+    };
+  }, [initialFiles]);
+
+  // Handle file input changes
   const handleFileUpload = (e) => {
     const fileList = Array.from(e.target.files || []);
+
+    // Revoke URLs of existing local files if you want to replace all
+    files.forEach((f) => {
+      if (!f.isRemote && f.url) {
+        URL.revokeObjectURL(f.url);
+      }
+    });
+
     const mappedFiles = fileList.map((file) => ({
-      file,
+      id: uuidv4(),
       name: file.name,
       url: URL.createObjectURL(file),
-      id: uuidv4(),
+      file,
+      isRemote: false,
     }));
+
+    // If you want to append:
+    // setFiles(prev => [...prev, ...mappedFiles]);
+
+    // If you want to replace all:
     setFiles(mappedFiles);
-    onFilesSelected?.(mappedFiles);
+
+    if (isCombine) {
+      onFilesSelected?.([...files.filter((f) => f.isRemote), ...mappedFiles]);
+    } else {
+      onFilesSelected?.(fileList);
+    }
   };
 
-  const previewFile = () => {
+  // Open modal showing list of files
+  const previewFileList = () => {
     setIsOpen(true);
-    if (isCombine) onPreviewFile?.();
   };
 
-  const previewParticularFile = (url) => {
-    setFileUrl(url);
-    setIsPreviewOpen(true);
+  // Open a new tab/window to preview the particular file's URL
+  const previewParticularFile = (fileToPreview) => {
+    if (fileToPreview && fileToPreview.url) {
+      window.open(fileToPreview.url, "_blank");
+    } else {
+      console.warn("No URL available for preview.");
+    }
     setIsOpen(false);
   };
 
+  // Delete a file by id, cleanup and update callbacks
   const handleDelete = (id) => {
+    const deletedFile = files.find((f) => f.id === id);
     const updatedFiles = files.filter((f) => f.id !== id);
+
+    if (deletedFile && !deletedFile.isRemote && deletedFile.url) {
+      URL.revokeObjectURL(deletedFile.url);
+    }
+
     setFiles(updatedFiles);
-    onDeletedFiles?.(updatedFiles);
+
+    if (onDeletedFiles) {
+      // Return just the original File objects (local files only)
+      const originalFileObjects = updatedFiles
+        .filter((f) => !f.isRemote)
+        .map((f) => f.file);
+
+      if (originalFileObjects.length === 0 && deletedFile?.isRemote) {
+        onDeletedFiles(null);
+      } else {
+        onDeletedFiles(originalFileObjects);
+      }
+    }
   };
 
-  
+  // Download file logic: works for remote and local files
+  const downloadFile = async (file) => {
+    if (file.isRemote) {
+      try {
+        const response = await fetch(file.url, { mode: "cors" });
+        if (!response.ok) throw new Error("Network response was not ok");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = file.name || "download";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Download failed:", error);
+        alert("Failed to download file.");
+      }
+    } else if (file.file) {
+      const link = document.createElement("a");
+      link.href = file.url;
+      link.download = file.name || "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      console.warn("Cannot download this file");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,12 +170,18 @@ const FileUpload = ({
           <label className="cursor-pointer flex items-center gap-2 px-4 py-2 border-2 border-red-300 rounded hover:bg-red-50 transition">
             <PreviewIcon width={24} height={24} fill="#D2232A" />
             <span className="font-semibold text-red-600">Upload</span>
-            <input type="file" className="hidden" multiple onChange={handleFileUpload} />
+            <input
+              type="file"
+              className="hidden"
+              multiple={isCombine}
+              accept={accept}
+              onChange={handleFileUpload}
+            />
           </label>
 
           {files.length > 0 && (
             <button
-              onClick={previewFile}
+              onClick={previewFileList}
               className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition"
               title="Preview Files"
             >
@@ -77,13 +190,15 @@ const FileUpload = ({
           )}
         </div>
       ) : (
-        <button
-          onClick={previewFile}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
-        >
-          <PreviewIcon width={20} height={20} fill="#fff" />
-          Preview Files
-        </button>
+        files.length > 0 && (
+          <button
+            onClick={previewFileList}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
+          >
+            <EyeIcon width={20} height={20} fill="#fff" />
+            View Files
+          </button>
+        )
       )}
 
       {/* Modal - File List */}
@@ -91,8 +206,15 @@ const FileUpload = ({
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg overflow-hidden">
             <div className="flex justify-between items-center px-4 py-2 border-b">
-              <h2 className="text-lg font-semibold">Preview Files</h2>
-              <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+              <h2 className="text-lg font-semibold">
+                {isView ? "View Files" : "Manage Files"}
+              </h2>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
             </div>
             <div className="p-4 max-h-[60vh] overflow-auto">
               <table className="min-w-full border text-sm">
@@ -111,19 +233,38 @@ const FileUpload = ({
                         <td className="p-2 border">{file.name}</td>
                         <td className="p-2 border flex gap-2">
                           {!isView && (
-                            <button onClick={() => handleDelete(file.id)} title="Delete">
-                              <DeleteIcon width={20} height={20} fill="#D2232A" />
+                            <button
+                              onClick={() => handleDelete(file.id)}
+                              title="Delete"
+                            >
+                              <DeleteIcon
+                                width={20}
+                                height={20}
+                                fill="#D2232A"
+                              />
                             </button>
                           )}
-                          <button onClick={() => previewParticularFile(file.url)} title="Preview">
+                          <button
+                            onClick={() => previewParticularFile(file)}
+                            title="Preview"
+                          >
                             <EyeIcon width={20} height={20} fill="#4B5563" />
+                          </button>
+                          <button
+                            onClick={() => downloadFile(file)}
+                            title="Download"
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            ⬇️
                           </button>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="3" className="p-4 text-center text-gray-500">No Files Found!</td>
+                      <td colSpan="3" className="p-4 text-center text-gray-500">
+                        No Files Found!
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -132,33 +273,6 @@ const FileUpload = ({
             <div className="px-4 py-2 border-t text-right">
               <button
                 onClick={() => setIsOpen(false)}
-                className="px-4 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal - File Preview */}
-      {isPreviewOpen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-5xl rounded-lg shadow-lg overflow-hidden">
-            <div className="flex justify-between items-center px-4 py-2 border-b">
-              <h2 className="text-lg font-semibold">File Preview</h2>
-              <button onClick={() => setIsPreviewOpen(false)} className="text-gray-500 hover:text-gray-700">✕</button>
-            </div>
-            <div className="p-4">
-              <iframe
-                src={fileUrl}
-                className="w-full h-[70vh] border rounded"
-                title="Preview File"
-              ></iframe>
-            </div>
-            <div className="px-4 py-2 border-t text-right">
-              <button
-                onClick={() => setIsPreviewOpen(false)}
                 className="px-4 py-1 bg-gray-200 rounded hover:bg-gray-300"
               >
                 Close

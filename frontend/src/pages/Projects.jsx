@@ -87,7 +87,6 @@ const Projects = () => {
           selectedProjectId
         );
 
-        console.log('projectsData ==<<<>>', projectsData);
 
         setQuickLinks(links.data || links);
         setDashboardData(empDashboard);
@@ -109,7 +108,6 @@ const Projects = () => {
 
   // function for handle create and update project
   const handleAddOrUpdateProject = async (formData) => {
-    // Create FormData for file uploads
     const data = new FormData();
     for (const key in formData) {
       if (formData[key] instanceof File) {
@@ -125,8 +123,8 @@ const Projects = () => {
     console.log('formData ==<<<>', formData);
 
     const url = isEditMode
-      ? `http://localhost:8000/api/update-project/${currentProjectData.id}/`
-      : `http://localhost:8000/api/create-project/`;
+      ? `http://localhost:8000/api/project-management/${currentProjectData.id}/`
+      : `http://localhost:8000/api/project-management/`;
 
     try {
       const response = await fetch(url, {

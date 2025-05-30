@@ -225,3 +225,16 @@ export const fetchTaskSideBar = async (token) => {
 };
 
 
+
+// function for fetching notifications
+export const fetchNotifications = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/notifications/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data;
+};

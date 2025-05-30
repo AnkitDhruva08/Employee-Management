@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar
+from .models import Company, Employee, Notification, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -295,3 +295,16 @@ class TaskSidebarSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskSideBar
         fields = ['name', 'path', 'color', 'icons']
+
+
+
+
+
+# notification serializers
+class NotificationSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = ['id', 'user', 'message', 'notification_type', 'url', 'created_at']
+        read_only_fields = ['id', 'created_at']

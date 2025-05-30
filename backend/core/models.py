@@ -58,6 +58,7 @@ class Employee(models.Model):
         ('female', 'Female'),
     ]
     company = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employees')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='employee_profile')
     first_name = models.CharField("First Name", max_length=100)
     middle_name = models.CharField("Middle Name (Optional)", max_length=100, blank=True, null=True)
     last_name = models.CharField("Last Name (Surname)", max_length=100)
@@ -424,3 +425,30 @@ class TaskSideBar(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+
+
+
+# model for real time notification when project a, task or bugs created notify related employee
+
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+            ("project", "Project"),
+            ("task", "Task"),
+            ("bug", "Bug"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    url = models.URLField(blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+            return f"{self.user.username}: {self.message[:40]}"
+
