@@ -9,6 +9,7 @@ from django.db.models.functions import Concat
 from django.db.models import Q, Avg, Max, F, Value, CharField
 from core.utils.pagination import CustomPagination
 from core.utils.filter_utils import apply_common_filters
+from django.db import transaction
 
 User = get_user_model()
 
