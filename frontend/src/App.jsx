@@ -26,6 +26,7 @@ import BugTracker from './pages/Bug-Tracker';
 import TaskDahboard from './pages/TaskDashboard';
 import EmployeeTasksToday from './pages/EmployeeTasksToday';
 import ProjectCreationModal from './components/modal/ProjectCreationModal';
+import Notification from './pages/Notification';
 function App() {
   return (
     <Router>
@@ -56,11 +57,14 @@ function App() {
         <Route path="/employee-views/:id" element={<EmplyeeViews />} />
         <Route path="/profile-dropdown" element={<ProfileDropdown />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/projects/:id" element={<Projects />} />
         <Route path="/events" element={<Events />} />
         <Route path="/bugs" element={<BugTracker />} />
         <Route path="/employee-task-today" element={<EmployeeTasksToday />} />
         <Route path="/task-dashboard" element={<TaskDahboard />} />
         <Route path="/project-modal" element={<ProjectCreationModal />} />
+        <Route path="/notifications" element={<Notification />} />
+        <Route path="/notification/:id" element={<Notification />} />
 
       </Routes>
     </Router>

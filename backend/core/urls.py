@@ -2,8 +2,9 @@ from django.conf import settings
 from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
+from core.utils.drop_down_utils import EmployeeDropDownView, ProjectDropDownView
 from core.views.role_views import RoleViews
-from core.views.employee_views import EmployeeViewSet, EmployeeProfileViewSet, EmployeeFormViews, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, ProfileImageUploadView
+from core.views.employee_views import CurrentEmployeeView, EmployeeViewSet, EmployeeProfileViewSet, EmployeeFormViews, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, ProfileImageUploadView
 from core.views.leave_views import LeaveRequestViewSet
 from core.views.employee_report_views import EmployeePDFReportView
 from core.views.event_views import EventViewSet
@@ -19,7 +20,7 @@ from core.views.project_views import ProjectManagement, BugsReportsA
 from core.views.file_views import get_pdf
 from core.views.holidays_views import HolidaysViewset
 from core.views.task_views import TaskManagementViews, TaskTrackingViews
-from core.views.notification_views import NotificationListView
+from core.views.notification_views import NotificationView, UnreadNotificationView
 
 router = DefaultRouter()
 
@@ -56,6 +57,9 @@ urlpatterns = [
     # Profile picture
     path('upload-profile-picture/', ProfileImageUploadView.as_view(), name='upload-profile-picture'),
 
+    # current looged inuser profile
+    path('current-user-profile/', CurrentEmployeeView.as_view(), name='current-user-profile'),
+
 
     # dashboard 
     path('dashboard/',DashboardView.as_view(), name='dashboard'),
@@ -88,6 +92,8 @@ urlpatterns = [
     path('leave-requests/', LeaveRequestViewSet.as_view(), name='leave-requests'),
     path('leave-requests/<int:pk>/', LeaveRequestViewSet.as_view(), name='leave-request-detail'),
     
+
+ 
 
 
 
@@ -124,8 +130,17 @@ urlpatterns = [
     # Tracking the employee day to day activities
     path('tracking-employee-task/', TaskTrackingViews.as_view(), name='tracking-employee-task/'),
 
-    # Notification List
-    path('notifications/', NotificationListView.as_view(), name='notifications'),
+    # Notification 
+    path('notifications/unread/', UnreadNotificationView.as_view(), name='notifications-unread'),
+    path('notifications/', NotificationView.as_view(), name='notifications'),
+    path('notifications/<int:pk>/', NotificationView.as_view(), name='notification-detail'),
+    path('notifications/<int:pk>/mark-read/', NotificationView.as_view(), name='notification-detail'),
+
+
+
+    # dropdown utils
+    path('project-dropdown/', ProjectDropDownView.as_view(), name='project-dropdown'),
+    path('employee-dropdown/', EmployeeDropDownView.as_view(), name='employee-dropdown'),
 
 
 ]

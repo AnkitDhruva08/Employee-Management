@@ -229,6 +229,85 @@ export const fetchTaskSideBar = async (token) => {
 // function for fetching notifications
 export const fetchNotifications = async (token) => {
   const res = await fetch(`${API_BASE_URL}/notifications/`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return handleResponse(res);
+};
+
+export const fetchNotificationById = async (token, id) => {
+  const res = await fetch(`${API_BASE_URL}/notifications/${id}/`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return handleResponse(res);
+};
+
+
+//  fect dashboard details 
+export const fetchDashboardDetails = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/dashboard/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
+//  fecth unread notifications
+export const fetchUnreadNotifications = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/notifications/unread/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
+// fecth projec based on id
+export const fetchProjectById = async (token, project_id) => {
+  const res = await fetch(`${API_BASE_URL}/project-management/${project_id}/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
+// project dropdown
+export const fetchProjectDropdown = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/project-dropdown/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
+
+// fetch current logged in user details
+export const fetchCurrentUserDetails = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/current-user-profile/`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",

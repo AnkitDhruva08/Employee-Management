@@ -178,8 +178,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     created_by = serializers.StringRelatedField(read_only=True)
     updated_by = serializers.StringRelatedField(read_only=True)
     company = serializers.StringRelatedField(read_only=True)
-    # assigned_to = serializers.PrimaryKeyRelatedField(many=True, queryset=User.objects.all())
-    get_assigned_to_name = serializers.SerializerMethodField()
+    assigned_to = EmployeeSerializer(many=True, read_only=True)  # ✅ Updated here
 
     class Meta:
         model = Project
@@ -191,9 +190,9 @@ class ProjectSerializer(serializers.ModelSerializer):
             'start_date',
             'end_date',
             'status',
-            'phase',    
+            'phase',
             'client_name',
-            'assigned_to',
+            'assigned_to',  
             'design_available',
             'srs_file',
             'wireframe_file',
@@ -202,11 +201,13 @@ class ProjectSerializer(serializers.ModelSerializer):
             'created_by',
             'updated_by',
         ]
-
-    def get_assigned_to_name(self, obj):
-        names = [f"{emp.first_name} {emp.last_name}" for emp in obj.assigned_to.all()]
-        return ", ".join(names)
     
+
+
+class ProjectDropdownSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = ['id', 'project_name']
 
 
 # employeee # Serializers

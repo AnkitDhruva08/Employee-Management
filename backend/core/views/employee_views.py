@@ -92,7 +92,7 @@ class EmployeeViewSet(APIView):
                 data = EmployeeSerializer(employee).data
                 return Response(data, status=200)
 
-            if is_company or role_id in [1, 2]:  # CASE 2: Company/Admin
+            if is_company or role_id in [1, 2]: 
                 employees = Employee.objects.filter(company_id=company_id, active=True) \
                     .select_related('role', 'company') \
                     .annotate(
@@ -636,6 +636,25 @@ class EmployeeFormViews(APIView):
 
         except Exception as e:
             print('[EmployeeFormViews Error]:', str(e))
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+class CurrentEmployeeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            user_email = request.user.email
+            employee = Employee.objects.filter(company_email=user_email).first()
+            if not employee:
+                return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = EmployeeSerializer(employee)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"[CurrentEmployeeView Error]: {str(e)}")
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 

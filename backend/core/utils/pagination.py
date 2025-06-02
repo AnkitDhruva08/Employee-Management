@@ -16,9 +16,10 @@ class CustomPagination(PageNumberPagination):
             page_size = self.page_size
         return min(page_size, self.max_page_size)
 
-    def get_paginated_response(self, data):
+    def get_paginated_response(self, data, total_count = None):
+        print('total_count is', total_count)
         return Response({
-            'count': self.page.paginator.count,
+            'count': total_count,
             'page': self.page.number,
             'page_size': self.get_page_size(self.request),
             'results': data

@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { logout } from "../../utils/api";
+import {
+  logout,
+  fetchUnreadNotifications,
+  fetchDashboardDetails,
+} from "../../utils/api";
 import {
   LogOut,
   User,
@@ -14,62 +18,30 @@ const Header = ({ title }) => {
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-
   const [notifications, setNotifications] = useState([]);
   const [notifError, setNotifError] = useState(null);
 
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const notifRef = useRef(null);
+  const token = localStorage.getItem("token");
 
-  // Fetch user details
   useEffect(() => {
-    const fetchUserDetails = async () => {
+    const fetchEffects = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:8000/api/dashboard/", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) throw new Error("Unauthorized");
-        const data = await res.json();
-        setUserData(data);
+        const notifyData= await fetchUnreadNotifications(token);
+        const dashData = await fetchDashboardDetails(token);
+        setUserData(dashData);
+        setNotifications(notifyData);
       } catch (err) {
+        console.error("Fetch failed:", err.message);
+        setNotifError("Couldn't load notifications");
         setError("Failed to load user info");
       }
     };
 
-    fetchUserDetails();
-  }, []);
-
-  // Fetch notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:8000/api/notifications/", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) throw new Error("Failed to fetch notifications");
-        const data = await res.json();
-        setNotifications(data);
-      } catch (err) {
-        console.error("Notification fetch failed:", err.message);
-        setNotifError("Couldn't load notifications");
-      }
-    };
-
-    fetchNotifications();
-  }, []);
+    fetchEffects();
+  }, [token]);
 
   // Handle outside clicks to close dropdowns
   useEffect(() => {
@@ -87,7 +59,6 @@ const Header = ({ title }) => {
   }, []);
 
   const handleLogout = async () => {
-    const token = localStorage.getItem("token");
     try {
       await logout(token);
       localStorage.removeItem("token");
@@ -105,13 +76,13 @@ const Header = ({ title }) => {
   const isSuperUser = userData?.is_superuser;
   const displayName = isSuperUser
     ? "Superuser"
-    : userData.role_id === 1
-    ? `${userData?.admin_name || "Admin"}`
+    : userData?.role_id === 1
+    ? userData?.admin_name || "Admin"
     : isCompany
     ? userData?.company
     : userData?.employee_details?.[0]?.first_name || "User";
   const email = userData?.email || "example@example.com";
-  const firstLetter = displayName.charAt(0).toUpperCase();
+  const firstLetter = displayName?.charAt(0)?.toUpperCase();
 
   const profileImagePath = userData?.is_company
     ? userData?.company_logo
@@ -134,11 +105,13 @@ const Header = ({ title }) => {
         <div className="relative" ref={notifRef}>
           <Bell
             className="w-6 h-6 text-gray-600 hover:text-blue-600"
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => setShowNotifications((prev) => !prev)}
           />
-          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-            {notifications.length}
-          </span>
+          {notifications.length > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-600 rounded-full">
+              {notifications.length}
+            </span>
+          )}
           {showNotifications && (
             <div className="absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl z-50 p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">
@@ -151,12 +124,11 @@ const Header = ({ title }) => {
               ) : (
                 <ul className="divide-y divide-gray-200">
                   {notifications.map((notif) => (
-                    <li
-                      key={notif.id}
-                      className="py-2 text-sm text-gray-600"
-                    >
+                  <li key={notif.id} className="py-2 text-sm text-gray-600 hover:text-blue-600">
+                    <Link to={`/notification/${notif.id}`} className="block w-full">
                       {notif.message}
-                    </li>
+                    </Link>
+                  </li>
                   ))}
                 </ul>
               )}
@@ -170,7 +142,7 @@ const Header = ({ title }) => {
         {/* 👤 User Dropdown */}
         <div
           className="flex items-center gap-3"
-          onClick={() => setShowDropdown(!showDropdown)}
+          onClick={() => setShowDropdown((prev) => !prev)}
         >
           <div className="text-right hidden sm:block">
             <h4 className="font-semibold text-gray-800">
