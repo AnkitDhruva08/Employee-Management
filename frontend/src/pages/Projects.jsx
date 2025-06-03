@@ -42,8 +42,6 @@ const Projects = () => {
   const [viewProject, setViewProject] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [projectDropdownOptions, setProjectDropdownOptions] = useState([]);
-  // Removed initialSrsFile and initialWireframeFile from here as they are for edit mode
-  // and will be managed directly in the ProjectCreationModal.
 
   // Filters and pagination state for the "all projects" view
   const [statusFilter, setStatusFilter] = useState(null);
@@ -113,7 +111,7 @@ const Projects = () => {
       if (id) {
         // If ID is present in the URL, fetch only that specific project
         const projectData = await fetchProjectById(token, id);
-        console.log('projectData ==>>', projectData) // Keep this for debugging if needed
+        console.log('projectData ==>>', projectData) 
         setProjects([projectData]);
         setTotalCount(1);
         setSelectedProjectId(projectData.id);
@@ -280,9 +278,9 @@ const Projects = () => {
           );
           // Re-fetch data after successful deletion
           if (id) {
-            navigate('/projects'); // If deleted the only project on a single view, navigate to all projects
+            navigate('/projects'); 
           } else {
-            fetchData(); // Re-fetch all data to update counts and table
+            fetchData(); 
           }
         } catch (err) {
           Swal.fire("Error", err.message, "error");
@@ -375,7 +373,7 @@ const Projects = () => {
 
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-4">
             {/* Add Project Button */}
-            {roleId === 1 && (
+            {roleId === 1 || isCompany && (
               <button
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 whitespace-nowrap"
                 onClick={openAddModal}
@@ -389,11 +387,11 @@ const Projects = () => {
               <div className="flex flex-wrap gap-4 lg:gap-6 items-center flex-1 lg:justify-end">
                 <Select
                   className="w-full sm:w-48 lg:w-60"
-                  options={projectDropdownOptions} // Use the dedicated dropdown options state
-                  onChange={(opt) => setSelectedProjectId(opt?.value || null)} // Handle clear
+                  options={projectDropdownOptions} 
+                  onChange={(opt) => setSelectedProjectId(opt?.value || null)} 
                   isClearable
                   placeholder="Filter by Project"
-                  value={selectedProjectId ? projectDropdownOptions.find(p => p.value === selectedProjectId) : null} // Correctly display selected value
+                  value={selectedProjectId ? projectDropdownOptions.find(p => p.value === selectedProjectId) : null} 
                 />
                 <Select
                   className="w-full sm:w-48 lg:w-60"
@@ -501,7 +499,7 @@ const Projects = () => {
                           >
                             <Pencil size={18} />
                           </button>
-                        {roleId === 1 && (
+                        {roleId === 1 || isCompany && (
                           <button
                             className="text-red-500 hover:text-red-700 transition"
                             onClick={() => handleDelete(project.id)}
@@ -652,9 +650,9 @@ const Projects = () => {
                       <div>
                         <p className="font-semibold text-gray-700 mb-2">SRS Document:</p>
                         <FileUpload
-                          isView={true} // Crucially set to true for view mode
+                          isView={true} 
                           initialFiles={[viewProject.srs_file]}
-                          onFilesSelected={() => {}} // No action needed for view mode
+                          onFilesSelected={() => {}} 
                         />
                       </div>
                     )}
@@ -662,9 +660,9 @@ const Projects = () => {
                       <div>
                         <p className="font-semibold text-gray-700 mb-2">Wireframe Document:</p>
                         <FileUpload
-                          isView={true} // Crucially set to true for view mode
+                          isView={true} 
                           initialFiles={[viewProject.wireframe_file]}
-                          onFilesSelected={() => {}} // No action needed for view mode
+                          onFilesSelected={() => {}} 
                         />
                       </div>
                     )}

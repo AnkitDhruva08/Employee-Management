@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from core.models import Employee, Role, Company, NomineeDetails, BankDetails, OfficeDetails, EmployeeDocument, EmergencyContact, EmployeeDashboardLink
-from core.serializers import EmployeeDocumentSerializer, EmployeeSerializer, BankDetailsSerializer,NomineeDetailsSerializer, EmergencyContactSerializer, EmployeeOfficeDetailsSerializer,EmployeeDashboardLinkSerializer
+from core.serializers import CompanySerializer, EmployeeDocumentSerializer, EmployeeSerializer, BankDetailsSerializer,NomineeDetailsSerializer, EmergencyContactSerializer, EmployeeOfficeDetailsSerializer,EmployeeDashboardLinkSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -639,22 +639,36 @@ class EmployeeFormViews(APIView):
             return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 
-
 class CurrentEmployeeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         try:
-            user_email = request.user.email
-            employee = Employee.objects.filter(company_email=user_email).first()
-            if not employee:
-                return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+            user = request.user
+            user_email = user.email
 
-            serializer = EmployeeSerializer(employee)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Check if the user is an employee
+            if user.is_employee:
+                employee = Employee.objects.filter(company_email=user_email).first()
+                if not employee:
+                    return Response({'error': 'Employee record not found'}, status=status.HTTP_404_NOT_FOUND)
+                serializer = EmployeeSerializer(employee)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            # Check if the user is a company
+            elif user.is_company:
+                company = Company.objects.filter(email=user_email).first()
+                if not company:
+                    return Response({'error': 'Company record not found'}, status=status.HTTP_404_NOT_FOUND)
+                serializer = CompanySerializer(company)  
+                return Response(serializer.data, status=status.HTTP_200_OK)
+
+            else:
+                return Response({'error': 'Unauthorized user type'}, status=status.HTTP_403_FORBIDDEN)
 
         except Exception as e:
             print(f"[CurrentEmployeeView Error]: {str(e)}")
-            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Something went wrong', 'details': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 

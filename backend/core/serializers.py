@@ -178,7 +178,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     created_by = serializers.StringRelatedField(read_only=True)
     updated_by = serializers.StringRelatedField(read_only=True)
     company = serializers.StringRelatedField(read_only=True)
-    assigned_to = EmployeeSerializer(many=True, read_only=True)  # ✅ Updated here
+    assigned_to = EmployeeSerializer(many=True, read_only=True)
 
     class Meta:
         model = Project
@@ -192,6 +192,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             'status',
             'phase',
             'client_name',
+            'company_name',
             'assigned_to',  
             'design_available',
             'srs_file',

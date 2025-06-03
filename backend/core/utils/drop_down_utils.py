@@ -25,10 +25,11 @@ class ProjectDropDownView(APIView):
             # Determine the company based on whether the user is an employee or company admin
             if user_data.is_employee:
                 employee = Employee.objects.get(company_email=user.email)
-                # Ensure we get the actual Company instance (if employee.company is not a FK)
-                company = Company.objects.get(id=employee.company_id) 
+                company = Company.objects.get(id=employee.company_id)
+            elif user_data.is_company:
+                company = Company.objects.get(id=user_data.id)
             else:
-                company = Company.objects.get(id=user_data.company_id)
+                return Response({"error": "Unauthorized user type."}, status=status.HTTP_403_FORBIDDEN)
 
             # Fetch all active projects for the company
             projects = Project.objects.filter(company_id=company.id, active=True).order_by('project_name')
@@ -37,6 +38,9 @@ class ProjectDropDownView(APIView):
 
         except (Employee.DoesNotExist, Company.DoesNotExist):
             return Response({"error": "Company or employee not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": "Unexpected error", "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         
 
 

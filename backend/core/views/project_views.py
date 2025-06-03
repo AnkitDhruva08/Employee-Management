@@ -19,7 +19,11 @@ class ProjectManagement(APIView):
     def get(self, request, pk=None):
         user = request.user
         paginator = CustomPagination()
+        is_company = False
+        is_employee = False
         user_data = User.objects.get(email=user.email)
+        is_company = user_data.is_company
+        is_employee = user_data.is_employee
 
         try:
             # Initialize variables
@@ -43,7 +47,7 @@ class ProjectManagement(APIView):
                 ).distinct().order_by('-start_date')
 
                 # Role 1: Company Admin - see all
-                elif role_id == 1:
+                elif role_id == 1 or is_company:
                     base_queryset = Project.objects.filter(
                         company_id=company_id,
                         active=True
@@ -115,11 +119,7 @@ class ProjectManagement(APIView):
             print("Error in ProjectListView GET:", e)
             return Response({"detail": "Internal Server Error", "error": str(e)}, status=500)
 
-
-
-
-
-
+# function for creating project
     def post(self, request, *args, **kwargs):
         user_details = request.user
         company_id = None
@@ -193,105 +193,24 @@ class ProjectManagement(APIView):
             print("Error creating project:", e)
             return Response({"detail": "Internal Server Error", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # def put(self, request, pk):
-    #     user = request.user
-    #     user_data = User.objects.get(email=user.email)
-    #     company_id = None
-    #     print('data comming from frontend is', request.data)
-    #     if user_data.is_employee:
-    #         try:
-    #             employee_data = Employee.objects.get(company_email=user.email)
-    #             role_id = employee_data.role_id
-    #             company_id = employee_data.company_id
-    #             if role_id != 1:
-    #                 return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-    #         except Employee.DoesNotExist:
-    #             return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
-    #     elif user_data.is_company:
-    #         company_id = user_data.id
-    #     else:
-    #         return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
-
-    #     try:
-    #         project = Project.objects.get(id=pk, company_id=company_id, active=True)
-    #     except Project.DoesNotExist:
-    #         return Response({"detail": "Project not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    #     data = request.data.copy()
-
-    #     key_map = {
-    #         'projectName': 'project_name',
-    #         'startDate': 'start_date',
-    #         'endDate': 'end_date',
-    #         'companyName': 'company_name',
-    #         'clientName': 'client_name',
-    #         'designAvailable': 'design_available',
-    #     }
-
-    #     for old_key, new_key in key_map.items():
-    #         if old_key in data:
-    #             value = data.pop(old_key)
-    #             if isinstance(value, (list, tuple)) and len(value) == 1:
-    #                 value = value[0]
-    #             data[new_key] = value
-
-    #     if 'design_available' in data:
-    #         val = data['design_available']
-    #         data['design_available'] = val.lower() == 'true' if isinstance(val, str) else bool(val)
-
-    #     for k in list(data.keys()):
-    #         if data[k] in [None, '', 'null']:
-    #             data.pop(k)
-
-    #     serializer = ProjectSerializer(project, data=data, partial=True)
-    #     if serializer.is_valid():
-    #         serializer.save()
-
-    #         if request.FILES.get('srsFile') and request.FILES['srsFile'].name != 'null':
-    #             project.srs_file = request.FILES['srsFile']
-    #         if request.FILES.get('wireframeFile') and request.FILES['wireframeFile'].name != 'null':
-    #             project.wireframe_file = request.FILES['wireframeFile']
-    #         project.save()
-
-    #         assigned_to_raw = request.data.getlist('assignedTo') or request.data.getlist('assignedTo[]')
-    #         if assigned_to_raw:
-    #             assigned_to_ids = [int(i) for i in assigned_to_raw if i.isdigit()]
-    #             employees = Employee.objects.filter(id__in=assigned_to_ids)
-    #             project.assigned_to.set(employees)
-
-    #             # 🔔 Notify updated employees
-    #             for emp in employees:
-    #                 if emp.user:
-    #                     Notification.objects.create(
-    #                         user=emp.user,
-    #                         message=f"Project '{project.project_name}' has been updated and you're assigned to it.",
-    #                         notification_type="project",
-    #                         url=f"/projects/{project.id}/"
-    #                     )
-    #                     print(f"🔄 Notification sent to {emp.user.email} (update)")
-    #         else:
-    #             project.assigned_to.clear()
-
-    #         serializer = ProjectSerializer(project)
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-    #     else:
-    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+# function to update project
     def put(self, request, pk):
         user = request.user
+        is_company = False
+        is_employee = False
+
         try:
             user_data = User.objects.get(email=user.email)
+            is_company = user_data.is_company
+            is_employee = user_data.is_employee
         except User.DoesNotExist:
             return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
         company_id = None
         role_id = None
 
-        print('data coming from frontend is', request.data)
-
         # Determine user role and company
-        if user_data.is_employee:
+        if is_employee:
             try:
                 employee_data = Employee.objects.get(company_email=user.email)
                 role_id = employee_data.role_id
@@ -300,7 +219,7 @@ class ProjectManagement(APIView):
                     return Response({"detail": "Unauthorized role for this action."}, status=status.HTTP_403_FORBIDDEN)
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found."}, status=status.HTTP_404_NOT_FOUND)
-        elif user_data.is_company:
+        elif is_company:
             company_id = user_data.id
         else:
             return Response({"detail": "Unauthorized user type."}, status=status.HTTP_403_FORBIDDEN)
@@ -313,13 +232,11 @@ class ProjectManagement(APIView):
         data_to_update = request.data.copy()
 
         # --- Role-based field filtering ---
-        if role_id == 3:  # Employee
+        if is_employee and role_id == 3:
             allowed_fields = ['description', 'endDate', 'status', 'phase']
             data_to_update = {k: v for k, v in data_to_update.items() if k in allowed_fields}
-            print(f"Employee (role_id=3) is updating. Filtered data: {data_to_update}")
-        # Admin and company users have full access
 
-        # Key mapping
+        # --- Key Mapping ---
         key_map = {
             'projectName': 'project_name',
             'startDate': 'start_date',
@@ -329,6 +246,8 @@ class ProjectManagement(APIView):
             'designAvailable': 'design_available',
         }
 
+
+        print('data comming from frontend is', data_to_update)
         for old_key, new_key in key_map.items():
             if old_key in data_to_update:
                 value = data_to_update.pop(old_key)
@@ -336,63 +255,55 @@ class ProjectManagement(APIView):
                     value = value[0]
                 data_to_update[new_key] = value
 
-        # Boolean handling for design_available
+        # --- Boolean Field Normalization ---
         if 'design_available' in data_to_update:
             val = data_to_update['design_available']
             data_to_update['design_available'] = val.lower() == 'true' if isinstance(val, str) else bool(val)
 
-        # Clean null/empty values
+        # --- Clean empty/null values ---
         for k in list(data_to_update.keys()):
             if data_to_update[k] in [None, '', 'null']:
                 data_to_update.pop(k)
 
+        # --- Save with transaction ---
         with transaction.atomic():
             serializer = ProjectSerializer(project, data=data_to_update, partial=True)
             if serializer.is_valid():
                 serializer.save()
 
-                # --- FILE HANDLING (only update if explicitly provided) ---
-
-                # SRS File
+                # --- File Handling ---
                 if 'srsFile' in request.FILES:
                     project.srs_file = request.FILES['srsFile']
-                elif request.data.get('srsFile') == 'null':
-                    project.srs_file = None
 
-                # Wireframe File
                 if 'wireframeFile' in request.FILES:
                     project.wireframe_file = request.FILES['wireframeFile']
-                elif request.data.get('wireframeFile') == 'null':
-                    project.wireframe_file = None
 
                 project.save()
 
-                # --- ASSIGNMENT HANDLING ---
-                if role_id != 3:  # Only Admin or Company can update assigned_to
-                    if 'assignedTo' in request.data or 'assignedTo[]' in request.data:
-                        assigned_to_raw = request.data.getlist('assignedTo') or request.data.getlist('assignedTo[]')
-                        if assigned_to_raw:
-                            assigned_to_ids = [int(i) for i in assigned_to_raw if i.isdigit()]
-                            employees_to_assign = Employee.objects.filter(id__in=assigned_to_ids)
-                            project.assigned_to.set(employees_to_assign)
+                # --- AssignedTo Handling ---
+                if not (is_employee and role_id == 3):
+                    assigned_to_raw = request.data.getlist('assignedTo') or request.data.getlist('assignedTo[]')
+                    if assigned_to_raw:
+                        assigned_to_ids = [int(i) for i in assigned_to_raw if i.isdigit()]
+                        employees_to_assign = Employee.objects.filter(id__in=assigned_to_ids)
+                        project.assigned_to.set(employees_to_assign)
 
-                            # Notify assigned employees
-                            for emp in employees_to_assign:
-                                if emp.user:
-                                    Notification.objects.create(
-                                        user=emp.user,
-                                        message=f"Project '{project.project_name}' has been updated and you're assigned to it.",
-                                        notification_type="project",
-                                        url=f"/projects/{project.id}/"
-                                    )
-                                    print(f"🔄 Notification sent to {emp.user.email} (update)")
-                        else:
-                            project.assigned_to.clear()
+                        for emp in employees_to_assign:
+                            if emp.user:
+                                Notification.objects.create(
+                                    user=emp.user,
+                                    message=f"Project '{project.project_name}' has been updated and you're assigned to it.",
+                                    notification_type="project",
+                                    url=f"/projects/{project.id}/"
+                                )
+                    else:
+                        project.assigned_to.clear()
 
-                serializer = ProjectSerializer(project)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                # Return full updated project
+                return Response(ProjectSerializer(project).data, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
