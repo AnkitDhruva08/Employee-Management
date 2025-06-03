@@ -231,12 +231,12 @@ class ProjectManagement(APIView):
 
         data_to_update = request.data.copy()
 
-        # --- Role-based field filtering ---
+        # Role-based field filtering for role_id 3
         if is_employee and role_id == 3:
             allowed_fields = ['description', 'endDate', 'status', 'phase']
             data_to_update = {k: v for k, v in data_to_update.items() if k in allowed_fields}
 
-        # --- Key Mapping ---
+        # Key mapping from frontend to model fields
         key_map = {
             'projectName': 'project_name',
             'startDate': 'start_date',
@@ -246,8 +246,6 @@ class ProjectManagement(APIView):
             'designAvailable': 'design_available',
         }
 
-
-        print('data comming from frontend is', data_to_update)
         for old_key, new_key in key_map.items():
             if old_key in data_to_update:
                 value = data_to_update.pop(old_key)
@@ -255,23 +253,23 @@ class ProjectManagement(APIView):
                     value = value[0]
                 data_to_update[new_key] = value
 
-        # --- Boolean Field Normalization ---
+        # Normalize boolean fields
         if 'design_available' in data_to_update:
             val = data_to_update['design_available']
             data_to_update['design_available'] = val.lower() == 'true' if isinstance(val, str) else bool(val)
 
-        # --- Clean empty/null values ---
+        # Remove empty/null values
         for k in list(data_to_update.keys()):
             if data_to_update[k] in [None, '', 'null']:
                 data_to_update.pop(k)
 
-        # --- Save with transaction ---
+        # Transaction block for safe update
         with transaction.atomic():
             serializer = ProjectSerializer(project, data=data_to_update, partial=True)
             if serializer.is_valid():
                 serializer.save()
 
-                # --- File Handling ---
+                # File handling
                 if 'srsFile' in request.FILES:
                     project.srs_file = request.FILES['srsFile']
 
@@ -280,7 +278,38 @@ class ProjectManagement(APIView):
 
                 project.save()
 
-                # --- AssignedTo Handling ---
+                # Notification to company/admin if updated by employee
+                if is_employee:
+                    try:
+                        # Notify the company user
+                        company_user = User.objects.get(id=company_id)
+                        Notification.objects.create(
+                            user=company_user, 
+                            message=f"Employee '{user.get_full_name() or user.email}' made changes to the project '{project.project_name}'.",
+                            notification_type="project",
+                            url=f"/projects/{project.id}/"
+                        )
+
+                        # Notify all company admins (role_id=1)
+                        admins = Employee.objects.filter(company_id=company_id, role_id=1)
+                        for admin in admins:
+                            if admin.company_email:
+                                try:
+                                    admin_user = User.objects.get(email=admin.company_email)
+                                    Notification.objects.create(
+                                        user=admin_user,
+                                        message=f"Employee '{user.get_full_name() or user.email}' made changes to the project '{project.project_name}'.",
+                                        notification_type="project",
+                                        url=f"/projects/{project.id}/"
+                                    )
+                                except User.DoesNotExist:
+                                    print(f"⚠️ User not found for admin with email: {admin.company_email}")
+                   
+                    except User.DoesNotExist:
+                        print("⚠️ Company user not found for notification.")
+                    except Exception as e:
+                        print(f"⚠️ Error sending notifications to admins: {e}")
+                # AssignedTo handling
                 if not (is_employee and role_id == 3):
                     assigned_to_raw = request.data.getlist('assignedTo') or request.data.getlist('assignedTo[]')
                     if assigned_to_raw:
@@ -299,10 +328,10 @@ class ProjectManagement(APIView):
                     else:
                         project.assigned_to.clear()
 
-                # Return full updated project
                 return Response(ProjectSerializer(project).data, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
@@ -316,35 +345,24 @@ class ProjectManagement(APIView):
 # For Bugs Report
 class BugsReportsA(APIView):
     permission_classes = [IsAuthenticated]
-    def get(self, request, *args, **kwargs):
+    def get(self, request, pk=None):
         user = request.user
-        user_data = User.objects.get(email=user.email)
+
+        try:
+            user_data = User.objects.get(email=user.email)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         company_id = None
+        role_id = None
+        employee_data = None
 
+        # Determine user type and access scope
         if user_data.is_employee:
             try:
                 employee_data = Employee.objects.get(company_email=user.email)
                 role_id = employee_data.role_id
                 company_id = employee_data.company_id
-
-                # Handle Role 3: Basic employee
-                if role_id == 3:
-                    bugs = Bug.objects.filter(
-                        active=True,
-                        company__active=True,
-                        project__active=True,
-                        assigned_to=employee_data  
-                    ).select_related('project', 'company').order_by('-id')
-
-                    bugs_filter = apply_common_filters(bugs, request)
-                    serializer = BugSerializer(bugs_filter, many=True)
-                    return Response(serializer.data, status=status.HTTP_200_OK)
-
-                # Other employees (e.g., Admin/Manager)
-                if role_id != 1:
-                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -353,66 +371,63 @@ class BugsReportsA(APIView):
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
-        # For company admins
-        bugs = Bug.objects.filter(company_id=company_id, active=True).order_by('-id')
-        bugs_filter = apply_common_filters(bugs, request)
-        serializer = BugSerializer(bugs_filter, many=True)
+        # ✅ IF pk is provided: Return a single bug if accessible
+        if pk is not None:
+            try:
+                bug = Bug.objects.select_related('project', 'company').get(id=pk, active=True)
+
+                if user_data.is_employee:
+                    if role_id == 3:
+                        if bug.assigned_to.filter(id=employee_data.id).exists():
+                            serializer = BugSerializer(bug)
+                            return Response(serializer.data, status=status.HTTP_200_OK)
+                        else:
+                            return Response({"detail": "Access denied to this bug"}, status=status.HTTP_403_FORBIDDEN)
+
+                    elif role_id == 1:
+                        if bug.company_id == company_id:
+                            serializer = BugSerializer(bug)
+                            return Response(serializer.data, status=status.HTTP_200_OK)
+                        else:
+                            return Response({"detail": "Bug does not belong to your company"}, status=status.HTTP_403_FORBIDDEN)
+
+                    else:
+                        return Response({"detail": "Unauthorized role"}, status=status.HTTP_403_FORBIDDEN)
+
+                elif user_data.is_company:
+                    if bug.company_id == company_id:
+                        serializer = BugSerializer(bug)
+                        return Response(serializer.data, status=status.HTTP_200_OK)
+                    else:
+                        return Response({"detail": "Bug does not belong to your company"}, status=status.HTTP_403_FORBIDDEN)
+
+            except Bug.DoesNotExist:
+                return Response({"detail": "Bug not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # ✅ ELSE: Return list of bugs
+        if user_data.is_employee and role_id == 3:
+            bugs = Bug.objects.filter(
+                active=True,
+                company__active=True,
+                project__active=True,
+                assigned_to=employee_data
+            ).select_related('project', 'company').order_by('-id')
+
+        else:
+            bugs = Bug.objects.filter(
+                active=True,
+                company_id=company_id
+            ).select_related('project', 'company').order_by('-id')
+
+        bugs_filtered = apply_common_filters(bugs, request)
+        serializer = BugSerializer(bugs_filtered, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
     def post(self, request, *args, **kwargs):
-            user = request.user
-
-            # Get user data
-            try:
-                user_data = User.objects.get(email=user.email)
-            except User.DoesNotExist:
-                return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Determine company ID
-            if user_data.is_employee:
-                try:
-                    employee_data = Employee.objects.get(company_email=user.email)
-                    if employee_data.role_id != 1:
-                        return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-                    company_id = employee_data.company_id
-                except Employee.DoesNotExist:
-                    return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
-            elif user_data.is_company:
-                company_id = user_data.id
-            else:
-                return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
-
-            # Clean and prepare the data
-            data = request.data.copy()
-
-            # 🔐 Ensure 'id' is not passed to prevent conflict
-            data.pop('id', None)
-
-            # 🛠 Transform frontend field names to match model fields
-            data['company'] = company_id
-            data['project'] = data.pop('projectId', None)
-            data.pop('id', None)
-
-            # Assigned to - convert list of objects to list of IDs
-            if 'assignedTo' in data:
-                data['assigned_to'] = [item['value'] for item in data.get('assignedTo', [])]
-            else:
-                data['assigned_to'] = []
-
-            # Serialize and save
-            serializer = BugSerializer(data=data)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
-
-
-    def put(self, request, pk):
         user = request.user
+        print('data comming from frontend', request.data)
 
-        # Get user data
         try:
             user_data = User.objects.get(email=user.email)
         except User.DoesNotExist:
@@ -432,6 +447,79 @@ class BugsReportsA(APIView):
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
+        # Clean and prepare the data
+        data = request.data.copy()
+        print('data before cleaning', data)
+        data.pop('id', None)
+        data['company'] = company_id
+        # Fix project
+        data['project'] = int(data.get('project')) if data.get('project') else None
+        # Fix assigned_to
+        assigned_to = data.getlist('assigned_to')        
+        if assigned_to:
+            assigned_to_ids = [int(i) for i in assigned_to if i]
+            data.setlist('assigned_to', assigned_to_ids)
+        else:
+            assigned_to_ids = []
+            data.setlist('assigned_to', [])
+        # Handle file upload
+        if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
+            print('bug_attachment found')
+            data['bug_attachment'] = request.FILES['bug_attachment']
+        # Serialize and save
+        serializer = BugSerializer(data=data)
+        if serializer.is_valid():
+            bug = serializer.save()
+
+            # 🔔 Notify each assigned employee
+            if assigned_to_ids:
+                employees = Employee.objects.filter(id__in=assigned_to_ids)
+                for emp in employees:
+                    print('employee', emp.user)
+                    if emp.user:
+                        print('Ankit Mishra')
+                        Notification.objects.create(
+                            user=emp.user,
+                            message=f"You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'.",
+                            notification_type="bug",
+                            url=f"/bugs-reportes/{bug.id}/"
+                        )
+                        print(f"✅ Notification sent to {emp.company_email}")
+                    else:
+                        print(f"⚠️ Skipping {emp.company_email} — No linked User object.")
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+
+
+    def put(self, request, pk):
+        user = request.user
+        print('data coming from frontend', request.data)
+
+        # Get user data
+        try:
+            user_data = User.objects.get(email=user.email)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Determine company ID and check permissions
+        company_id = None
+        if user_data.is_employee:
+            try:
+                employee_data = Employee.objects.get(company_email=user.email)
+                # Allow role_id 1 and 3
+                if employee_data.role_id not in [1, 3]:
+                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                company_id = employee_data.company_id
+            except Employee.DoesNotExist:
+                return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
+        elif user_data.is_company:
+            company_id = user_data.id
+        else:
+            return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
+
         # Fetch the bug and check company ownership
         try:
             bug = Bug.objects.get(id=pk, company_id=company_id, active=True)
@@ -441,20 +529,28 @@ class BugsReportsA(APIView):
         data = request.data.copy()
         data.pop('id', None)
         data['company'] = company_id
-        data['project'] = data.pop('projectId', None)
+         # Fix project ID (if sent as 'projectId')
+        if 'projectId' in data:
+            data['project'] = data.pop('projectId')
+         # Fix assigned_to
+        assigned_to_ids = request.data.getlist('assigned_to')
+        data.setlist('assigned_to', assigned_to_ids)
 
-        if 'assignedTo' in data:
-            data['assigned_to'] = [item['value'] for item in data.get('assignedTo', [])]
-        else:
-            data['assigned_to'] = []
+          # Handle file
+        if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
+            print('bug_attachment found')
+            data['bug_attachment'] = request.FILES['bug_attachment']
+
+        print('cleaned data', data)
+
 
         serializer = BugSerializer(bug, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
+            print('serializer errors', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
 
 
     def delete(self, request, pk):

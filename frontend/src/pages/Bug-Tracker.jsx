@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
 import CkEditor from "../components/editor/CkEditor";
+import FileUpload from "../components/File/FileUpload";
 import {
   fetchDashboardLink,
   fetchDashboard,
@@ -10,6 +11,7 @@ import {
   fetchEmployees,
   fetchBugsReports,
   fetchProjectSidebar,
+  fetchBugDetails,
 } from "../utils/api";
 import Swal from "sweetalert2";
 import Select from "react-select";
@@ -47,6 +49,7 @@ const priorityOptions = [
 ];
 
 const BugTracker = () => {
+  const { id } = useParams();
   const [bugs, setBugs] = useState([]);
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -57,9 +60,7 @@ const BugTracker = () => {
   const [modalMode, setModalMode] = useState("");
   const [selectedBug, setSelectedBug] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
-  // const [currentPage, setCurrentPage] = useState(1);
-  // const [totalCount, setTotalCount] = useState(0);
-  // const pageSize = 5;
+  const [newComment, setNewComment] = useState("");
 
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
@@ -73,6 +74,8 @@ const BugTracker = () => {
     priority: "",
     assignedTo: [],
     description: "",
+    bugAttachment: null,
+    comments: [],
   });
 
   const navigate = useNavigate();
@@ -91,16 +94,22 @@ const BugTracker = () => {
         setProjects(projects.results);
 
         const employeesData = await fetchEmployees(token);
-        setEmployees(Array.isArray(employeesData) ? employeesData : [employeesData]);
-
-        const bugsData = await fetchBugsReports(
-          token,
-          statusFilter?.value || "",
-          priorityFilter?.value || "",
-          selectedProjectId || ""
+        setEmployees(
+          Array.isArray(employeesData) ? employeesData : [employeesData]
         );
-        setBugs(bugsData);
-        console.log('bugs data ==<<<>>', bugsData);
+
+        if (id) {
+          const bugDetails = await fetchBugDetails(token, id);
+          setBugs([bugDetails]);
+        } else {
+          const bugsData = await fetchBugsReports(
+            token,
+            statusFilter?.value || "",
+            priorityFilter?.value || "",
+            selectedProjectId || ""
+          );
+          setBugs(bugsData);
+        }
       } catch (err) {
         console.error("Error:", err);
         navigate("/login");
@@ -110,7 +119,32 @@ const BugTracker = () => {
     fetchData();
   }, [token, statusFilter, priorityFilter, selectedProjectId]);
 
+  const handleFileChange = (files) => {
+    console.log("Selected files:", files);
+    console.log("First file:", files[0]);
+    setFormData({
+      ...formData,
+      bugAttachment: files.length > 0 ? files[0] : null,
+    });
+  };
 
+  // Function to add comments to the bug
+  const addComment = (newComment) => {
+    setFormData((prev) => ({
+      ...prev,
+      comments: [...prev.comments, newComment],
+    }));
+  };
+
+  const handleAddComment = () => {
+    if (newComment.trim() !== "") {
+      setFormData((prev) => ({
+        ...prev,
+        comments: [...prev.comments, newComment.trim()],
+      }));
+      setNewComment(""); // clear input
+    }
+  };
 
   // Function for adding new bugs
   const handleAddBug = async (e) => {
@@ -128,19 +162,35 @@ const BugTracker = () => {
       return;
     }
 
+    const data = new FormData();
+    data.append("title", formData.title);
+    data.append("project", formData.projectId);
+    data.append("status", formData.status);
+    data.append("priority", formData.priority);
+    data.append("description", formData.description);
+
+    // Handle assigned users (as a list)
+    formData.assignedTo.forEach((assignee) => {
+      data.append("assigned_to", assignee.value);
+    });
+
+    // Attach file if it exists
+    if (formData.bugAttachment instanceof File) {
+      data.append("bug_attachment", formData.bugAttachment);
+    }
+
     try {
       const response = await fetch("http://localhost:8000/api/bugs-reportes/", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: data,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        Swal.fire("Error", errorData.message || "Failed to add bug", "error");
+        Swal.fire("Error", errorData.detail || "Failed to add bug", "error");
         return;
       }
 
@@ -184,16 +234,38 @@ const BugTracker = () => {
       return;
     }
 
+    // Prepare FormData for multipart request
+    const data = new FormData();
+    data.append("title", formData.title);
+    data.append("project", formData.projectId);
+    data.append("status", formData.status);
+    data.append("priority", formData.priority);
+    data.append("description", formData.description);
+
+    // Handle assigned_to
+    if (formData.assignedTo && Array.isArray(formData.assignedTo)) {
+      formData.assignedTo.forEach((item) => {
+        if (item?.value) {
+          data.append("assigned_to", item.value); // Append each as repeated key
+        }
+      });
+    }
+
+    // Handle file upload
+    if (formData.bugAttachment instanceof File) {
+      data.append("bug_attachment", formData.bugAttachment);
+    }
+
     try {
       const response = await fetch(
         `http://localhost:8000/api/bugs-reportes/${selectedBug.id}/`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            // ❌ Do NOT set 'Content-Type': let the browser handle it when using FormData
           },
-          body: JSON.stringify(formData),
+          body: data,
         }
       );
 
@@ -207,16 +279,13 @@ const BugTracker = () => {
         return;
       }
 
+      const updatedData = await response.json();
+
       const updatedBug = {
         ...selectedBug,
-        title: formData.title,
-        status: formData.status,
-        priority: formData.priority,
-        description: formData.description,
-        assigned_to: formData.assignedTo.map((a) => a.value),
+        ...updatedData, // use fresh data from server
         project_name:
           projects.find((p) => p.id === formData.projectId)?.project_name || "",
-        project: formData.projectId,
       };
 
       setBugs((prev) =>
@@ -414,7 +483,7 @@ const BugTracker = () => {
   const openModal = (mode, bug) => {
     setModalMode(mode);
     setSelectedBug(bug);
-    console.log('bug ==<<>', bug)
+    console.log("bug ==<<>", bug);
     if ((mode === "edit" || mode === "view") && bug) {
       setFormData({
         title: bug.title,
@@ -422,20 +491,24 @@ const BugTracker = () => {
         status: bug.status,
         priority: bug.priority,
         description: bug.description,
+        bugAttachment: bug.bug_attachment || null,
         assignedTo: bug.assigned_to
           ? bug.assigned_to
               .map((id) => {
-                console.log('employees ==<<<>', employees);
-                const emp = (Array.isArray(employees) ? employees : [employees]).find(
-                  (e) => e.id === id
-                );
+                console.log("employees ==<<<>", employees);
+                const emp = (
+                  Array.isArray(employees) ? employees : [employees]
+                ).find((e) => e.id === id);
                 if (roleId === 3) {
-                  return emp ? { label: emp.first_name + ' ' + emp.last_name, value: emp.id } : null;
+                  return emp
+                    ? {
+                        label: emp.first_name + " " + emp.last_name,
+                        value: emp.id,
+                      }
+                    : null;
                 } else {
                   return emp ? { label: emp.username, value: emp.id } : null;
                 }
-                
-                
               })
               .filter(Boolean)
           : [],
@@ -446,7 +519,7 @@ const BugTracker = () => {
 
     setShowModal(true);
   };
-  
+
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
@@ -606,37 +679,6 @@ const BugTracker = () => {
               </table>
             </div>
           </div>
-
-          {/* Pagination controls */}
-          {/* <div className="flex justify-between items-center mt-4 px-6 py-2 bg-gray-100 rounded-b">
-            <div className="text-sm text-gray-600">
-              Page {currentPage} of {Math.ceil(totalCount / pageSize) || 1}
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => {
-                  if (currentPage > 1) {
-                    setCurrentPage(currentPage - 1);
-                  }
-                }}
-                disabled={currentPage === 1}
-                className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => {
-                  if (currentPage < Math.ceil(totalCount / pageSize)) {
-                    setCurrentPage(currentPage + 1);
-                  }
-                }}
-                disabled={currentPage === Math.ceil(totalCount / pageSize)}
-                className="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div> */}
         </main>
       </div>
 
@@ -660,15 +702,7 @@ const BugTracker = () => {
                 : "View Bug"}
             </h2>
 
-            <form
-              onSubmit={
-                modalMode === "add"
-                  ? handleAddBug
-                  : modalMode === "edit"
-                  ? handleUpdateBug
-                  : (e) => e.preventDefault()
-              }
-            >
+            <div className="mb-4">
               <div className="mb-4">
                 <Input
                   label="Title"
@@ -765,17 +799,33 @@ const BugTracker = () => {
                 />
               </div>
 
+              <div className="mb-6">
+                <label className="block mb-1 font-semibold text-gray-700">
+                  Attachment
+                </label>
+                <FileUpload
+                  isView={false}
+                  isCombine={false}
+                  initialFiles={
+                    formData.bugAttachment ? [formData.bugAttachment] : []
+                  }
+                  onFilesSelected={handleFileChange}
+                />
+              </div>
+
               {modalMode !== "view" && (
                 <div className="flex justify-end">
                   <button
-                    type="submit"
+                    onClick={
+                      modalMode === "add" ? handleAddBug : handleUpdateBug
+                    }
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
                     {modalMode === "add" ? "Add Bug" : "Update Bug"}
                   </button>
                 </div>
               )}
-            </form>
+            </div>
           </div>
         </div>
       )}

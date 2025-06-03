@@ -179,6 +179,19 @@ export const fetchBugsReports = async (
   return data;
 };
 
+// function for fetching bug details by id
+export const fetchBugDetails = async (token, bugId) => {
+  const res = await fetch(`${API_BASE_URL}/bugs-reportes/${bugId}/`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
 
 
 

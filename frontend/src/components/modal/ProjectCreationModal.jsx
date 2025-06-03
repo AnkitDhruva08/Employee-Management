@@ -84,44 +84,43 @@ const ProjectCreationModal = ({
     };
   }
 
-
-  // useeffect 
+  // useeffect
   useEffect(() => {
     if (isOpen) {
       const initial = getInitialFormData(initialData, isEditMode);
       setFormData(initial);
-  
+
       if (isEditMode && initialData) {
         setOriginalDescription(initialData.description || "");
       } else {
         setOriginalDescription("");
       }
-  
+
       setExistingSrsFileUrl(initialData?.srs_file || "");
       setExistingWireframeFileUrl(initialData?.wireframe_file || "");
     }
-  
+
     const fetchLoggedInUserDetails = async () => {
       try {
-        const userDetails = await fetchCurrentUserDetails(token);  
+        const userDetails = await fetchCurrentUserDetails(token);
         if (isCompany && userDetails?.company_name) {
           setLoggedInEmployeeName(userDetails.company_name);
         } else if (userDetails?.first_name && userDetails?.last_name) {
-          setLoggedInEmployeeName(`${userDetails.first_name} ${userDetails.last_name}`);
+          setLoggedInEmployeeName(
+            `${userDetails.first_name} ${userDetails.last_name}`
+          );
         } else {
           setLoggedInEmployeeName("User");
         }
-  
       } catch (error) {
         console.error("Failed to fetch logged-in employee details:", error);
       }
     };
-  
+
     if (token) {
       fetchLoggedInUserDetails();
     }
   }, [isOpen, isEditMode, initialData, token, isCompany]);
-  
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -158,7 +157,10 @@ const ProjectCreationModal = ({
           title: "Cannot Edit Previous Content",
           text: "As an employee, you can only add new updates to the description. Previous content cannot be removed or altered.",
         });
-        return setFormData((prev) => ({ ...prev, description: originalDescription }));
+        return setFormData((prev) => ({
+          ...prev,
+          description: originalDescription,
+        }));
       }
     }
     setFormData((prev) => ({ ...prev, description: newDescription }));
@@ -167,24 +169,32 @@ const ProjectCreationModal = ({
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.description.trim() || formData.description.trim() === "<p></p>") {
+    if (
+      !formData.description.trim() ||
+      formData.description.trim() === "<p></p>"
+    ) {
       newErrors.description = "Description cannot be empty.";
     }
 
     if (!isEditMode || isManagerOrAdmin) {
-      if (!formData.project_name.trim()) newErrors.project_name = "Project name is required.";
+      if (!formData.project_name.trim())
+        newErrors.project_name = "Project name is required.";
       if (!formData.startDate) newErrors.startDate = "Start date is required.";
-      if (formData.assignedTo.length === 0) newErrors.assignedTo = "Please assign at least one employee.";
+      if (formData.assignedTo.length === 0)
+        newErrors.assignedTo = "Please assign at least one employee.";
     }
 
-    if (!formData.endDate) newErrors.endDate = "Expected Completion Date is required.";
+    if (!formData.endDate)
+      newErrors.endDate = "Expected Completion Date is required.";
     if (!formData.phase) newErrors.phase = "Phase is required.";
 
     if (Object.keys(newErrors).length > 0) {
       Swal.fire({
         icon: "error",
         title: "Validation Failed",
-        html: Object.values(newErrors).map(error => `<div>${error}</div>`).join(''),
+        html: Object.values(newErrors)
+          .map((error) => `<div>${error}</div>`)
+          .join(""),
       });
       return false;
     }
@@ -202,21 +212,35 @@ const ProjectCreationModal = ({
 
     if (isEmployee && isEditMode) {
       const now = new Date();
-      const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-      const formattedDate = now.toLocaleDateString('en-US', options);
+      const options = {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      };
+      const formattedDate = now.toLocaleDateString("en-US", options);
 
       const updateHeader = `<p><strong>${loggedInEmployeeName} updated on ${formattedDate}:</strong></p>`;
 
       let newlyAddedContent = "";
       if (formData.description.length > originalDescription.length) {
-        newlyAddedContent = formData.description.substring(originalDescription.length);
+        newlyAddedContent = formData.description.substring(
+          originalDescription.length
+        );
       }
 
-      const hasNewContent = newlyAddedContent.trim() !== "" && newlyAddedContent.trim() !== "<p></p>";
+      const hasNewContent =
+        newlyAddedContent.trim() !== "" &&
+        newlyAddedContent.trim() !== "<p></p>";
 
       if (hasNewContent) {
         finalDescription = `${originalDescription}${updateHeader}${newlyAddedContent}`;
-      } else if (originalDescription.trim() === "" && formData.description.trim() !== "" && formData.description.trim() !== "<p></p>") {
+      } else if (
+        originalDescription.trim() === "" &&
+        formData.description.trim() !== "" &&
+        formData.description.trim() !== "<p></p>"
+      ) {
         finalDescription = `${updateHeader}${formData.description}`;
       } else {
         finalDescription = originalDescription;
@@ -270,7 +294,8 @@ const ProjectCreationModal = ({
             />
             {isEmployee && isEditMode && (
               <p className="text-sm text-gray-500 mt-1">
-                As an employee, you do not have permission to add or modify the description
+                As an employee, you do not have permission to add or modify the
+                description
               </p>
             )}
           </div>
@@ -380,7 +405,7 @@ const ProjectCreationModal = ({
               }
               classNamePrefix="react-select"
               placeholder="Select employees"
-              disabled={isEditMode}
+              disabled={roleId === 3}
             />
           </div>
 
@@ -391,15 +416,20 @@ const ProjectCreationModal = ({
                 isView={isEmployee ? true : false}
                 isCombine={false}
                 initialFiles={existingSrsFileUrl ? [existingSrsFileUrl] : []}
-                onFilesSelected={isManagerOrAdmin ? (files) => {
-                  const selected = files[0];
-                  setFormData((prev) => ({
-                    ...prev,
-                    srsFile: selected instanceof File ? selected : null,
-                    srsFileUrl: typeof selected === "string" ? selected : "",
-                  }));
-                  setExistingSrsFileUrl("");
-                } : undefined}
+                onFilesSelected={
+                  isManagerOrAdmin
+                    ? (files) => {
+                        const selected = files[0];
+                        setFormData((prev) => ({
+                          ...prev,
+                          srsFile: selected instanceof File ? selected : null,
+                          srsFileUrl:
+                            typeof selected === "string" ? selected : "",
+                        }));
+                        setExistingSrsFileUrl("");
+                      }
+                    : undefined
+                }
                 disabled={isEmployee}
               />
             </div>
@@ -415,16 +445,21 @@ const ProjectCreationModal = ({
                   initialFiles={
                     existingWireframeFileUrl ? [existingWireframeFileUrl] : []
                   }
-                  onFilesSelected={isManagerOrAdmin ? (files) => {
-                    const selected = files[0];
-                    setFormData((prev) => ({
-                      ...prev,
-                      wireframeFile: selected instanceof File ? selected : null,
-                      wireframeFileUrl:
-                        typeof selected === "string" ? selected : "",
-                    }));
-                    setExistingWireframeFileUrl("");
-                  } : undefined}
+                  onFilesSelected={
+                    isManagerOrAdmin
+                      ? (files) => {
+                          const selected = files[0];
+                          setFormData((prev) => ({
+                            ...prev,
+                            wireframeFile:
+                              selected instanceof File ? selected : null,
+                            wireframeFileUrl:
+                              typeof selected === "string" ? selected : "",
+                          }));
+                          setExistingWireframeFileUrl("");
+                        }
+                      : undefined
+                  }
                   disabled={isEmployee}
                 />
               </div>

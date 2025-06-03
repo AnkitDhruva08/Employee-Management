@@ -241,7 +241,12 @@ class BugSerializer(serializers.ModelSerializer):
             'assigned_to',
             'assigned_to_name',
             'description',
-            'active'
+            'bug_attachment',
+            'active',
+            'created_at',
+            'updated_at',
+            'created_by',
+            'updated_by',
         ]
 
     def get_assigned_to_name(self, obj):

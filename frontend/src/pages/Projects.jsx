@@ -373,7 +373,7 @@ const Projects = () => {
 
           <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-4">
             {/* Add Project Button */}
-            {roleId === 1 || isCompany && (
+            {(roleId === 1 || isCompany) && (
               <button
                 className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 whitespace-nowrap"
                 onClick={openAddModal}

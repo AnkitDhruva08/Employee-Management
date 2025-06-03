@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { fetchNotifications, fetchNotificationById, fetchDashboardLink, fetchDashboard } from "../utils/api";
+import {
+  fetchNotifications,
+  fetchNotificationById,
+  fetchDashboardLink,
+  fetchDashboard,
+} from "../utils/api";
 import { Bell, Loader2 } from "lucide-react";
 import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
@@ -53,6 +58,7 @@ const Notification = () => {
       try {
         if (id) {
           const detail = await fetchNotificationById(token, id);
+          console.log("Notification Detail:", detail);
           setNotificationDetail(detail);
 
           await fetch(
@@ -114,8 +120,22 @@ const Notification = () => {
           {id ? (
             <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
               <p className="text-lg text-gray-800 mb-2">
-                {notificationDetail?.message}
+                {notificationDetail?.message?.includes("project") ? (
+                  <>
+                    {notificationDetail.message.split("'")[0]}
+                    <Link
+                      to={notificationDetail.url || "#"}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {notificationDetail.message.split("'")[1]}
+                    </Link>
+                    {notificationDetail.message.split("'")[2]}
+                  </>
+                ) : (
+                  notificationDetail?.message
+                )}
               </p>
+
               <p className="text-sm text-gray-500">
                 {new Date(notificationDetail?.timestamp).toLocaleString()}
               </p>
@@ -128,30 +148,36 @@ const Notification = () => {
             </div>
           ) : (
             <ul className="space-y-4">
-            {notifications.map((notif) => (
-              <li
-                key={notif.id}
-                className={`transition hover:scale-[1.01] duration-150 border rounded-lg p-4 ${
-                  notif.is_read ? "bg-gray-50 border-gray-200" : "bg-blue-50 border-blue-200"
-                }`}
-              >
-                <Link to={notif.url || `/notifications/${notif.id}`} className="block">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-gray-900 font-medium">{notif.message}</span>
-                    {!notif.is_read && (
-                      <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">
-                        New
+              {notifications.map((notif) => (
+                <li
+                  key={notif.id}
+                  className={`transition hover:scale-[1.01] duration-150 border rounded-lg p-4 ${
+                    notif.is_read
+                      ? "bg-gray-50 border-gray-200"
+                      : "bg-blue-50 border-blue-200"
+                  }`}
+                >
+                  <Link
+                    to={notif.url || `/notifications/${notif.id}`}
+                    className="block"
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-gray-900 font-medium">
+                        {notif.message}
                       </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {new Date(notif.timestamp).toLocaleString()}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          
+                      {!notif.is_read && (
+                        <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(notif.timestamp).toLocaleString()}
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </main>
