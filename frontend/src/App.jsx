@@ -59,7 +59,7 @@ function App() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<Projects />} />
         <Route path="/events" element={<Events />} />
-        <Route path="/bugs" element={<BugTracker />} />
+        <Route path="/bugs-reportes" element={<BugTracker />} />
         <Route path="/bugs-reportes/:id" element={<BugTracker />} />
         <Route path="/employee-task-today" element={<EmployeeTasksToday />} />
         <Route path="/task-dashboard" element={<TaskDahboard />} />

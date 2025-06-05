@@ -1,157 +1,126 @@
-import { useState, useEffect } from "react";
+import React, { useState } from 'react';
 import FileUpload from "../File/FileUpload";
-import { fetchUserProfile } from "../../utils/api";
-import { FaTrash, FaEye } from "react-icons/fa";
-import { FiEye } from "react-icons/fi";
 
-export default function UploadImageModal({ isOpen, onClose }) {
-  const [selectedFile, setSelectedFile] = useState(null);
+export default function UploadImageModal({ isOpen, onClose, onUploadSuccess, uploadFor }) {
   const [uploading, setUploading] = useState(false);
-  const [existingImage, setExistingImage] = useState(null);
-  const token = localStorage.getItem("token");
-  const [showActions, setShowActions] = useState(false);
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const profileData = await fetchUserProfile(token);
-        if (profileData.employee?.profile_image) {
-          const imageUrl = `http://localhost:8000${profileData.employee.profile_image}`;
-          setExistingImage({
-            name: "profile_image.jpeg",
-            url: imageUrl,
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile image", err);
-      }
-    };
+  const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [formDataState, setFormDataState] = useState({
+    profileImage: null
+  });
 
-    if (isOpen) fetchProfile();
-  }, [isOpen, token]);
+  const handleFileChange = (files) => {
+    setFormDataState({
+      profileImage: files.length > 0 ? files[0] : null,
+    });
+    setError(null);
+  };
 
   const handleUpload = async () => {
-    if (!selectedFile?.file) return;
+    if (!formDataState.profileImage || !(formDataState.profileImage instanceof File)) {
+      setError("Please select a valid image file to upload.");
+      return;
+    }
 
-    const formData = new FormData();
-    formData.append("profile_image", selectedFile.file);
+    setUploading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    const apiFormData = new FormData();
+    // apiFormData.append('image', formDataState.profileImage.file);
+    apiFormData.append('image', formDataState.profileImage);
+
+    const token = localStorage.getItem('token');
+    console.log('Token:', token);
+
+    let uploadUrl = '';
+
+    if (uploadFor === 'employee') {
+      uploadUrl = 'http://localhost:8000/api/upload-profile-picture/';
+    } else if (uploadFor === 'company') {
+      uploadUrl = 'http://localhost:8000/api/upload-company-logo/';
+    } else {
+      setError("Invalid upload target.");
+      setUploading(false);
+      return;
+    }
 
     try {
-      setUploading(true);
-      const res = await fetch("http://localhost:8000/api/upload-profile-picture/", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: apiFormData,
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        alert("Upload failed: " + (data.error || "Unknown error"));
+      const responseData = await response.json();
+      console.log('Response Data:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.detail || responseData.message || 'Upload failed.');
       }
+
+      console.log('Upload success:', responseData);
+      setSuccessMessage(`${uploadFor === 'employee' ? 'Profile picture' : 'Company logo'} uploaded successfully!`);
+
+      setFormDataState({ profileImage: null });
+
+      setTimeout(() => {
+        onUploadSuccess();
+      }, 1500);
     } catch (err) {
-      console.error(err);
+      console.error('Upload error:', err);
+      setError(err.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleViewFile = (url) => {
-    if (url) window.open(url, "_blank");
-    else alert("No file available to view.");
-  };
-
-  const handleDelete = () => {
-    setSelectedFile(null);
-    setExistingImage(null);
-  };
-
-  const filesToShow = selectedFile
-    ? [{ name: selectedFile.file.name, url: selectedFile.url }]
-    : existingImage
-    ? [existingImage]
-    : [];
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-lg relative">
-        <button
-          onClick={onClose}
-          className="absolute top-2 right-3 text-gray-600 hover:text-black text-xl"
-        >
-          &times;
-        </button>
-        <h2 className="text-lg font-semibold mb-4">Preview Files</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-semibold mb-4">
+          {uploadFor === "employee"
+            ? "Upload Profile Picture"
+            : "Upload Company Logo"}
+        </h2>
 
-        {filesToShow.length > 0 && (
-         <table className="w-full mb-4 text-sm border border-gray-200">
-         <thead className="bg-gray-100">
-           <tr>
-             <th className="p-2 border">Sr.No</th>
-             <th className="p-2 border">Filename</th>
-             <th className="p-2 border">Action</th>
-           </tr>
-         </thead>
-         <tbody>
-           {filesToShow.map((file, index) => (
-             <tr key={index}>
-               <td className="p-2 border text-center">{index + 1}</td>
-               <td className="p-2 border">{file.name}</td>
-               <td className="p-2 border text-center">
-                 <div className="relative inline-block">
-                   <button
-                     onClick={() => setShowActions((prev) => !prev)}
-                     className="text-gray-700 hover:text-black"
-                     title="Toggle Actions"
-                   >
-                     <FiEye />
-                   </button>
-                   {showActions && (
-                     <div className="absolute top-full mt-1 left-1/2 transform -translate-x-1/2 bg-white border rounded shadow p-2 flex gap-3 z-10">
-                       <button
-                         onClick={() => handleViewFile(file.url)}
-                         className="text-blue-600 hover:text-blue-800"
-                         title="View File"
-                       >
-                         <FaEye />
-                       </button>
-                       <button
-                         onClick={handleDelete}
-                         className="text-red-600 hover:text-red-800"
-                         title="Delete File"
-                       >
-                         <FaTrash />
-                       </button>
-                     </div>
-                   )}
-                 </div>
-               </td>
-             </tr>
-           ))}
-         </tbody>
-       </table>
+        <div className="mb-2 rounded-lg">
+          <FileUpload
+            isView={false}
+            isCombine={false}
+            initialFiles={formDataState.profileImage ? [formDataState.profileImage] : []}
+            onFilesSelected={handleFileChange}
+          />
+        </div>
+
+        {formDataState.profileImage && (
+          <p className="text-sm text-gray-600 mb-2 mt-2">
+            Selected: {formDataState.profileImage.name || formDataState.profileImage.file?.name}
+          </p>
         )}
 
-        <FileUpload
-          isView={false}
-          isCombine={false}
-          onFilesSelected={(files) => {
-            const file = files[0];
-            setSelectedFile(file);
-            setExistingImage(null);
-          }}
-          onDeletedFiles={handleDelete}
-        />
+        {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
+        {successMessage && <p className="text-sm text-green-600 mb-2">{successMessage}</p>}
 
-        <button
-          onClick={handleUpload}
-          disabled={uploading || !selectedFile}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-        >
-          {uploading ? "Uploading..." : "Upload"}
-        </button>
+        <div className="flex justify-end space-x-2 mt-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleUpload}
+           
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : "Upload"}
+          </button>
+        </div>
       </div>
     </div>
   );

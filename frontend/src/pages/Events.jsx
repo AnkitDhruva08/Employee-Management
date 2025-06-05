@@ -78,7 +78,6 @@ const Events = () => {
         ? "Admin Dashboard"
         : "Dashboard";
     
-      useEffect(() => {
         const fetchLinks = async () => {
           try {
             if (!isSuperUser) {
@@ -89,14 +88,19 @@ const Events = () => {
             setDashboardData(empDashboard);
           } catch (err) {
             console.error("Error fetching dashboard:", err);
-            navigate("/login");
+            localStorage.removeItem("token");
+            sessionStorage.clear();
           }
         };
     
+  
+    
+      useEffect(() => { 
+        if(!token) return;
         fetchLinks();
         setEvents(sampleEvents);
       }, []);
-    
+
       if (error) {
         return (
           <div className="text-red-600 text-center mt-10 text-xl animate-pulse">

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from "../components/header/Header";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Pencil, Trash2, Eye } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
-import { fetchDashboardLink, fetchDashboard } from "../utils/api";
+import { fetchDashboardLink, fetchDashboard, fetchRoles } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
 import Swal from 'sweetalert2';
 
@@ -22,32 +22,19 @@ const Role = () => {
 
   const rolePerPage = 5;
   const HeaderTitle = "Roles";
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company") === "true";
+  const isSuperUser = localStorage.getItem("is_superuser") === "true";
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (/^[a-zA-Z\s]*$/.test(value)) {
+    if (/^[a-zA-Z0-9\s]*$/.test(value)) {
       setFormData({ ...formData, [name]: value });
       setError(null);
     } else {
-      setError("Only alphabet characters (A-Z, a-z) are allowed.");
-    }
-  };
-
-  const fetchRoles = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("http://localhost:8000/api/roles/", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (Array.isArray(data)) setRoles(data);
-      else throw new Error("Unexpected response format");
-    } catch (err) {
-      console.error("Error loading roles:", err);
-    } finally {
-      setLoading(false);
+      setError("Only alphabet characters (A-Z, a-z, 0-9) are allowed.");
     }
   };
 
@@ -55,6 +42,8 @@ const Role = () => {
     try {
       const links = await fetchDashboardLink(token);
       const dashboard = await fetchDashboard(token);
+      const userRoles = await fetchRoles(token);
+      setRoles(userRoles);
       setQuickLinks(links);
       setDashboardData(dashboard);
     } catch (err) {
@@ -63,7 +52,6 @@ const Role = () => {
   };
 
   useEffect(() => {
-    fetchRoles();
     fetchDashboardInfo();
   }, []);
 
@@ -76,6 +64,11 @@ const Role = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+
+    if (!isSuperUser) {
+      setError("You do not have permission to perform this action.");
+      return;
+    }
 
     if (!formData.role_name.trim()) {
       setError("Role name is required.");
@@ -104,7 +97,7 @@ const Role = () => {
         setShowModal(false);
         setIsEditMode(false);
         setEditingRoleId(null);
-        fetchRoles();
+        fetchDashboardInfo();
       } else {
         setError(data.error || "Something went wrong");
       }
@@ -122,6 +115,11 @@ const Role = () => {
   };
 
   const deleteRole = async (id) => {
+    if (!isSuperUser) {
+      Swal.fire("Permission Denied", "You are not authorized to delete roles.", "error");
+      return;
+    }
+
     const result = await Swal.fire({
       title: "Are you sure?",
       text: "This will delete the role permanently.",
@@ -140,7 +138,7 @@ const Role = () => {
         });
 
         if (res.ok) {
-          fetchRoles();
+          fetchDashboardInfo();
           Swal.fire("Deleted!", "The role has been deleted.", "success");
         } else {
           throw new Error("Failed to delete");
@@ -168,17 +166,20 @@ const Role = () => {
 
         <div className="mx-[10px] bg-[#2b4d76] text-white px-6 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 rounded-t mt-6 mb-0">
           <h2 className="text-xl font-semibold">Manage <span className="font-bold">Roles</span></h2>
-          <button
-            onClick={() => {
-              setShowModal(true);
-              setIsEditMode(false);
-              setFormData({ role_name: '' });
-              setError(null);
-            }}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
-          >
-            <FontAwesomeIcon icon={faUserPlus} /> Add New Role
-          </button>
+
+          {isSuperUser && (
+            <button
+              onClick={() => {
+                setShowModal(true);
+                setIsEditMode(false);
+                setFormData({ role_name: '' });
+                setError(null);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
+            >
+              <FontAwesomeIcon icon={faUserPlus} /> Add New Role
+            </button>
+          )}
         </div>
 
         {showModal && (
@@ -235,14 +236,18 @@ const Role = () => {
                     <td className="p-3 border">{(currentPage - 1) * rolePerPage + index + 1}</td>
                     <td className="p-3 border">{role.role_name}</td>
                     <td className="p-3 border">
-                      <div className="flex space-x-3">
-                        <button onClick={() => handleEditClick(role)} className="text-yellow-500 hover:text-yellow-600">
-                          <Pencil size={18} />
-                        </button>
-                        <button onClick={() => deleteRole(role.id)} className="text-red-600 hover:text-red-700">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
+                      {isSuperUser ? (
+                        <div className="flex space-x-3">
+                          <button onClick={() => handleEditClick(role)} className="text-yellow-500 hover:text-yellow-600">
+                            <Pencil size={18} />
+                          </button>
+                          <button onClick={() => deleteRole(role.id)} className="text-red-600 hover:text-red-700">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">Restricted</span>
+                      )}
                     </td>
                   </tr>
                 ))}

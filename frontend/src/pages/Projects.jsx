@@ -95,6 +95,7 @@ const Projects = () => {
       const empDashboard = await fetchDashboard(token);
       const employeesData = await fetchEmployees(token);
       const projectDropdownResponse = await fetchProjectDropdown(token);
+      console.log('projectDropdownResponse ==>>', projectDropdownResponse)
 
       setQuickLinks(links.data || links);
       setDashboardData(empDashboard);
@@ -153,12 +154,13 @@ const Projects = () => {
     } catch (err) {
       console.error("Error fetching data:", err);
       Swal.fire("Error", "Failed to fetch data. Please log in again.", "error");
-      localStorage.clear();
-      navigate('/login');
+      localStorage.removeItem("token");
+      sessionStorage.clear();
     }
   }, [token, navigate, currentPage, pageSize, statusFilter, selectedProjectId, id]);
 
   useEffect(() => {
+    if (!token) return;
     if (token) {
       fetchData();
     }
@@ -258,7 +260,7 @@ const Projects = () => {
       if (result.isConfirmed) {
         try {
           const response = await fetch(
-            `http://localhost:8000/api/delete-project/${projectId}/`,
+            `http://localhost:8000/api/project-management/${projectId}/`,
             {
               method: "DELETE",
               headers: {

@@ -56,6 +56,7 @@ urlpatterns = [
 
     # Profile picture
     path('upload-profile-picture/', ProfileImageUploadView.as_view(), name='upload-profile-picture'),
+    path('upload-company-logo/', ProfileImageUploadView.as_view(), name='upload-profile-picture'),
 
     # current looged inuser profile
     path('current-user-profile/', CurrentEmployeeView.as_view(), name='current-user-profile'),

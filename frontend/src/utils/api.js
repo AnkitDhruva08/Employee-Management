@@ -2,31 +2,44 @@
 
 const API_BASE_URL = "http://localhost:8000/api";
 
-// 🔁 Central response handler with redirect on 401
+
 const handleResponse = async (res) => {
   if (res.status === 401) {
-    localStorage.clear();
+    localStorage.removeItem("authToken");
     window.location.href = "/login";
     return;
   }
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || "Something went wrong");
+    let errorMessage = "Something went wrong";
+    try {
+      const errorData = await res.json();
+      errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+    } catch {
+      errorMessage = await res.text();
+    }
+    throw new Error(errorMessage);
   }
 
-  return await res.json();
-}
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    return await res.json();
+  } else {
+    return null;
+  }
+};
+
+const getAuthHeaders = (token) => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+});
 
 
 // 🔐 Role-Based Dashboard API
 export const fetchDashboard = async (token) => {
   const res = await fetch(`${API_BASE_URL}/dashboard/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   return await handleResponse(res);
 };
@@ -35,10 +48,7 @@ export const fetchDashboard = async (token) => {
 export const fetchDashboardLink = async (token) => {
   const res = await fetch(`${API_BASE_URL}/dashboard-link/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
 
   return await handleResponse(res);
@@ -48,10 +58,7 @@ export const fetchDashboardLink = async (token) => {
 export const fetchHolidays = async (token) => {
   const res = await fetch(`${API_BASE_URL}/holidays/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   return await handleResponse(res);
 };
@@ -60,10 +67,7 @@ export const fetchHolidays = async (token) => {
 export const logout = async (token) => {
   const res = await fetch(`${API_BASE_URL}/logout/`, {
     method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
 
   const data = await handleResponse(res);
@@ -75,10 +79,7 @@ export const logout = async (token) => {
 export const fetchEmployees = async (token) => {
   const res = await fetch(`${API_BASE_URL}/employees/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -89,10 +90,7 @@ export const fetchEmployees = async (token) => {
 export const fetchEmployeeDetails = async (token, id) => {
   const res = await fetch(`${API_BASE_URL}/employee/${id}/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -107,10 +105,7 @@ export const fetchEmployeeDetails = async (token, id) => {
 export const fetchUserProfile = async (token) => {
   const res = await fetch(`${API_BASE_URL}/employee-profile/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -123,10 +118,7 @@ export const fetchUserProfile = async (token) => {
 export const fetchProjectsData = async (token) => {
   const res = await fetch(`${API_BASE_URL}/project-management/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -141,10 +133,7 @@ export const fetchProjects = async (token, page = 1, pageSize = 2, status = "", 
   if (project_id) url.searchParams.append("project_id", project_id);
   const res = await fetch(url, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;
@@ -169,10 +158,7 @@ export const fetchBugsReports = async (
 
   const res = await fetch(url.toString(), {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
 
   const data = await handleResponse(res);
@@ -183,10 +169,7 @@ export const fetchBugsReports = async (
 export const fetchBugDetails = async (token, bugId) => {
   const res = await fetch(`${API_BASE_URL}/bugs-reportes/${bugId}/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;
@@ -200,10 +183,7 @@ export const fetchBugDetails = async (token, bugId) => {
 export const fecthTasks = async (token) => {
   const res = await fetch(`${API_BASE_URL}/task-management/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -214,10 +194,7 @@ export const fecthTasks = async (token) => {
 export const fetchProjectSidebar = async (token) => {
   const res = await fetch(`${API_BASE_URL}/project-sidebar/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -228,10 +205,7 @@ export const fetchProjectSidebar = async (token) => {
 export const fetchTaskSideBar = async (token) => {
   const res = await fetch(`${API_BASE_URL}/task-sidebar/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data
@@ -242,20 +216,14 @@ export const fetchTaskSideBar = async (token) => {
 // function for fetching notifications
 export const fetchNotifications = async (token) => {
   const res = await fetch(`${API_BASE_URL}/notifications/`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   return handleResponse(res);
 };
 
 export const fetchNotificationById = async (token, id) => {
   const res = await fetch(`${API_BASE_URL}/notifications/${id}/`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   return handleResponse(res);
 };
@@ -265,10 +233,7 @@ export const fetchNotificationById = async (token, id) => {
 export const fetchDashboardDetails = async (token) => {
   const res = await fetch(`${API_BASE_URL}/dashboard/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;
@@ -279,10 +244,7 @@ export const fetchDashboardDetails = async (token) => {
 export const fetchUnreadNotifications = async (token) => {
   const res = await fetch(`${API_BASE_URL}/notifications/unread/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;
@@ -293,10 +255,7 @@ export const fetchUnreadNotifications = async (token) => {
 export const fetchProjectById = async (token, project_id) => {
   const res = await fetch(`${API_BASE_URL}/project-management/${project_id}/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;
@@ -307,10 +266,7 @@ export const fetchProjectById = async (token, project_id) => {
 export const fetchProjectDropdown = async (token) => {
   const res = await fetch(`${API_BASE_URL}/project-dropdown/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;
@@ -322,10 +278,30 @@ export const fetchProjectDropdown = async (token) => {
 export const fetchCurrentUserDetails = async (token) => {
   const res = await fetch(`${API_BASE_URL}/current-user-profile/`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: getAuthHeaders(token),
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
+// fetch user role 
+export const fetchRoles = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/roles/`, {
+    method: "GET",
+    headers: getAuthHeaders(token),
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
+// load notification
+
+export const loadNotifications = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/roles/`, {
+    method: "GET",
+    headers: getAuthHeaders(token),
   });
   const data = await handleResponse(res);
   return data;

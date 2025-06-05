@@ -37,54 +37,64 @@ const Notification = () => {
     ? "Admin Notification Dashboard"
     : "Notification Dashboard";
 
-  useEffect(() => {
-    const fetchLinks = async () => {
-      try {
-        if (!isSuperUser) {
-          const links = await fetchDashboardLink(token);
-          setQuickLinks(links.data || links);
+    useEffect(() => {
+      const fetchLinks = async () => {
+        try {
+          if (!isSuperUser) {
+            const links = await fetchDashboardLink(token);
+            setQuickLinks(links.data || links);
+          }
+          const empDashboard = await fetchDashboard(token);
+          setDashboardData(empDashboard);
+        } catch (err) {
+          console.error("Error fetching dashboard:", err);
+          localStorage.removeItem("token");
+          sessionStorage.clear();
+          navigate("/login");
         }
-        const empDashboard = await fetchDashboard(token);
-        setDashboardData(empDashboard);
-      } catch (err) {
-        console.error("Error fetching dashboard:", err);
-        navigate("/login");
-      }
-    };
-
-    const loadNotifications = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        if (id) {
-          const detail = await fetchNotificationById(token, id);
-          console.log("Notification Detail:", detail);
-          setNotificationDetail(detail);
-
-          await fetch(
-            `http://localhost:8000/api/notifications/${id}/mark-read/`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          );
-        } else {
-          const data = await fetchNotifications(token);
-          setNotifications(data);
+      };
+    
+      const loadNotifications = async () => {
+        setLoading(true);
+        setError(null);
+    
+        try {
+          if (id) {
+            const detail = await fetchNotificationById(token, id);
+            setNotificationDetail(detail);
+    
+            await fetch(
+              `http://localhost:8000/api/notifications/${id}/mark-read/`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+    
+            setNotifications((prev) =>
+              prev.map((n) =>
+                n.id === parseInt(id) ? { ...n, is_read: true } : n
+              )
+            );
+          } else {
+            const data = await fetchNotifications(token);
+            setNotifications(data);
+          }
+        } catch (err) {
+          console.error("Error loading notifications:", err);
+          setError("Failed to load notifications.");
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        setError("Failed to load notifications.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadNotifications();
-    fetchLinks();
-  }, [id, token, isSuperUser, navigate]);
+      };
+    
+      loadNotifications();
+      fetchLinks();
+    }, [id, token, isSuperUser, navigate]);
+    
 
   if (loading) {
     return (
@@ -119,13 +129,13 @@ const Notification = () => {
 
           {id ? (
             <div className="bg-white rounded-xl shadow p-6 border border-gray-200">
-              <p className="text-lg text-gray-800 mb-2">
-                {notificationDetail?.message?.includes("project") ? (
+              <p className="text-lg text-gray-800 mb-2 leading-relaxed">
+                {notificationDetail?.message?.includes("'") ? (
                   <>
                     {notificationDetail.message.split("'")[0]}
                     <Link
                       to={notificationDetail.url || "#"}
-                      className="text-blue-600 hover:underline"
+                      className="text-blue-600 font-medium hover:underline"
                     >
                       {notificationDetail.message.split("'")[1]}
                     </Link>
@@ -136,33 +146,67 @@ const Notification = () => {
                 )}
               </p>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 mt-2">
                 {new Date(notificationDetail?.timestamp).toLocaleString()}
               </p>
+
               <Link
                 to="/notifications"
-                className="mt-4 inline-block text-blue-600 hover:underline text-sm"
+                className="mt-6 inline-block text-blue-600 hover:underline text-sm"
               >
                 ← Back to all notifications
               </Link>
             </div>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
+              {notifications.length === 0 && (
+                <p className="text-gray-600">No notifications yet.</p>
+              )}
               {notifications.map((notif) => (
                 <li
                   key={notif.id}
-                  className={`transition hover:scale-[1.01] duration-150 border rounded-lg p-4 ${
+                  className={`transition duration-150 border rounded-lg p-4 ${
                     notif.is_read
-                      ? "bg-gray-50 border-gray-200"
-                      : "bg-blue-50 border-blue-200"
-                  }`}
+                      ? "bg-white border-gray-200"
+                      : "bg-blue-50 border-blue-200 shadow-sm"
+                  } hover:scale-[1.01] hover:shadow-md cursor-pointer`}
                 >
-                  <Link
-                    to={notif.url || `/notifications/${notif.id}`}
-                    className="block"
+                  <button
+                    onClick={async () => {
+                      try {
+                        await fetch(
+                          `http://localhost:8000/api/notifications/${notif.id}/mark-read/`,
+                          {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                              "Content-Type": "application/json",
+                            },
+                          }
+                        );
+
+                        setNotifications((prev) =>
+                          prev.map((n) =>
+                            n.id === notif.id ? { ...n, is_read: true } : n
+                          )
+                        );
+
+                        navigate(notif.url || `/notifications/${notif.id}`);
+                      } catch (error) {
+                        console.error(
+                          "Failed to mark as read and navigate",
+                          error
+                        );
+                      }
+                    }}
+                    className="block w-full text-left"
                   >
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-gray-900 font-medium">
+                      <span
+                        className={`font-medium text-sm ${
+                          notif.is_read ? "text-gray-800" : "text-blue-700"
+                        }`}
+                      >
                         {notif.message}
                       </span>
                       {!notif.is_read && (
@@ -174,7 +218,7 @@ const Notification = () => {
                     <div className="text-xs text-gray-500">
                       {new Date(notif.timestamp).toLocaleString()}
                     </div>
-                  </Link>
+                  </button>
                 </li>
               ))}
             </ul>

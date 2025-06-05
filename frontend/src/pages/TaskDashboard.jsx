@@ -72,17 +72,18 @@ const TaskDahboard = () => {
       setDashboardData(dashboard);
       setProjects(proj.results);
       setTask(taskData);
-      console.log('taskData ===<<<>>', taskData)
       setEmployees(emps);
       setQuickLinks(links.data || links);
   
     } catch (err) {
       console.error("Error:", err);
-      navigate("/login");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
     }
   };
   
   useEffect(() => {
+    if (!token) return;
     fetchData();
   }, []);
 

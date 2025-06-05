@@ -7,6 +7,7 @@ from django.utils.timezone import now
 class User(AbstractUser):
     is_company = models.BooleanField(default=False)
     is_employee = models.BooleanField(default=False)
+    username = models.CharField(max_length=150, unique=False) 
 
     def __str__(self):
         return self.username
@@ -14,16 +15,25 @@ class User(AbstractUser):
 
 
 def company_logo(instance, filename):
-    return f"profile_images/company_{instance.id}/{filename}"
+    # You can customize upload path here
+    return f'company_logos/{instance.company_name}/{filename}'
+
 
 class Company(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="company")
     company_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     team_size = models.CharField(max_length=20)
-    address = models.TextField()
+
+    # Split address fields instead of TextField for better form matching
+    street_address = models.CharField(max_length=255, blank=True, null=True, default='')
+    city = models.CharField(max_length=100, blank=True, null=True, default='')
+    state_province = models.CharField(max_length=100, blank=True, null=True, default='Unknown')
+    zip_code = models.CharField(max_length=10, blank=True, null=True, default='')
+    country = models.CharField(max_length=100, blank=True, null=True, default='Unknown')
+
     contact_number = models.CharField(max_length=30, blank=True, null=True)
-    active = models.BooleanField(default=True)  
+    active = models.BooleanField(default=True)
     profile_image = models.ImageField(upload_to=company_logo, null=True, blank=True)
 
     # Audit fields
@@ -35,10 +45,10 @@ class Company(models.Model):
     def __str__(self):
         return self.company_name
 
-
 class Role(models.Model):
-    role_name = models.CharField(max_length=100)  # e.g., HR, Admin, Engineer
-    active = models.BooleanField(default=True)  # New field
+    # company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    role_name = models.CharField(max_length=100)  
+    active = models.BooleanField(default=True)  
 
     # Audit fields
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="role_created_by")
@@ -57,7 +67,7 @@ class Employee(models.Model):
         ('male', 'Male'),
         ('female', 'Female'),
     ]
-    company = models.ForeignKey(User, on_delete=models.CASCADE, related_name='employees')
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='employees')
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='employee_profile')
     first_name = models.CharField("First Name", max_length=100)
     middle_name = models.CharField("Middle Name (Optional)", max_length=100, blank=True, null=True)
@@ -180,7 +190,7 @@ class EmployeeDocument(models.Model):
 
 
 class Event(models.Model):
-    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
     title = models.CharField(max_length=255)
     date = models.DateField()
     description = models.TextField(blank=True)
@@ -197,7 +207,7 @@ class Event(models.Model):
 
 
 class Holiday(models.Model):
-    company = models.ForeignKey("Company", on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='holiday')
     name = models.CharField(max_length=255)
     date = models.DateField()
     day_name = models.CharField(max_length=50)
@@ -214,6 +224,7 @@ class Holiday(models.Model):
 
 
 class LeaveRequest(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
     leave_type = models.CharField(choices=[('CL', 'Casual Leave'), ('PL', 'Personal Leave')], max_length=2)
     from_date = models.DateField()
     to_date = models.DateField(null=True, blank=True)
@@ -298,6 +309,7 @@ class HrDashboardLink(models.Model):
 # Attendance model
 class Attendance(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
     date = models.DateField(default=now)
     login_time = models.DateTimeField(null=True, blank=True)
     logout_time = models.DateTimeField(null=True, blank=True)
@@ -359,6 +371,7 @@ class Bug(models.Model):
     title = models.CharField(max_length=255)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="bugs")
     description = models.TextField()
+    resolution_comments = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Open")
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="Medium")
     bug_attachment = models.FileField(upload_to='bugs-attachement/', blank=True, null=True)

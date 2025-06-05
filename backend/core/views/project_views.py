@@ -24,6 +24,7 @@ class ProjectManagement(APIView):
         user_data = User.objects.get(email=user.email)
         is_company = user_data.is_company
         is_employee = user_data.is_employee
+        print('is_company:', is_company, 'is_employee:', is_employee)
 
         try:
             # Initialize variables
@@ -48,6 +49,7 @@ class ProjectManagement(APIView):
 
                 # Role 1: Company Admin - see all
                 elif role_id == 1 or is_company:
+                    print('is company id ==<<>>', company_id)
                     base_queryset = Project.objects.filter(
                         company_id=company_id,
                         active=True
@@ -57,7 +59,8 @@ class ProjectManagement(APIView):
 
             # COMPANY ADMIN FLOW
             elif user_data.is_company:
-                company_id = user_data.id
+                company = Company.objects.get(email=user_data.email)
+                company_id = company.id
                 base_queryset = Project.objects.filter(
                     company_id=company_id,
                     active=True
@@ -71,6 +74,7 @@ class ProjectManagement(APIView):
 
             # If pk is provided → return specific project if visible to user
             if pk:
+                print('pk provided:', pk)
                 project = filtered_queryset.filter(id=pk).first()
                 if not project:
                     return Response({"detail": "Project not found or unauthorized"}, status=404)
@@ -135,7 +139,10 @@ class ProjectManagement(APIView):
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
         elif hasattr(user_details, 'is_company') and user_details.is_company:
-            company_id = user_details.id
+            print('user_details.email:', user_details.email)
+            company_data = Company.objects.get(email=user_details.email)
+            company_id = company_data.id
+            print('company_id:', company_id)
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -208,7 +215,6 @@ class ProjectManagement(APIView):
 
         company_id = None
         role_id = None
-
         # Determine user role and company
         if is_employee:
             try:
@@ -220,7 +226,8 @@ class ProjectManagement(APIView):
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found."}, status=status.HTTP_404_NOT_FOUND)
         elif is_company:
-            company_id = user_data.id
+            company = Company.objects.get(email=user_data.email)
+            company_id = company.id
         else:
             return Response({"detail": "Unauthorized user type."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -233,7 +240,7 @@ class ProjectManagement(APIView):
 
         # Role-based field filtering for role_id 3
         if is_employee and role_id == 3:
-            allowed_fields = ['description', 'endDate', 'status', 'phase']
+            allowed_fields = ['description', 'resolution_comments', 'endDate', 'status', 'phase']
             data_to_update = {k: v for k, v in data_to_update.items() if k in allowed_fields}
 
         # Key mapping from frontend to model fields
@@ -332,6 +339,56 @@ class ProjectManagement(APIView):
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def delete(self, request, pk):
+        user = request.user
+        is_company = False
+        is_employee = False
+        print('user email:', user.email)
+        print('pk to delete:', pk)
+
+        try:
+            user_data = User.objects.get(email=user.email)
+            is_company = user_data.is_company
+            is_employee = user_data.is_employee
+        except User.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        company_id = None
+        role_id = None
+
+        # Identify company and role
+        if is_company:
+            try:
+                company = Company.objects.get(email=user_data.email)
+                company_id = company.id
+            except Company.DoesNotExist:
+                return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+        elif is_employee:
+            try:
+                employee = Employee.objects.get(company_email=user.email)
+                company_id = employee.company_id
+                role_id = employee.role_id
+            except Employee.DoesNotExist:
+                return Response({"detail": "Employee not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            return Response({"detail": "Unauthorized user type."}, status=status.HTTP_403_FORBIDDEN)
+
+        # Check permissions
+        if not (is_company or (is_employee and role_id == 1)):
+            return Response({"detail": "You do not have permission to delete this project."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            project = Project.objects.get(id=pk, company_id=company_id, active=True)
+        except Project.DoesNotExist:
+            return Response({"detail": "Project not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Perform soft delete
+        project.active = False
+        project.save()
+
+        return Response({"detail": "Project deleted successfully."}, status=status.HTTP_200_OK)
+
+            
 
 
 
@@ -547,6 +604,40 @@ class BugsReportsA(APIView):
         serializer = BugSerializer(bug, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            if user_data.is_employee:
+                try:
+                    # Notify the company user
+                    company_user = User.objects.get(id=company_id)
+                    Notification.objects.create(
+                        user=company_user,
+                        # You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'
+                        message=(
+                            f"✅ Employee '{user.get_full_name() or user.email}' resolved the bug: "
+                            f"'{bug.title}' in project '{bug.project.project_name}'."
+                        ),
+                        notification_type="bug",
+                        url=f"/bugs/{bug.id}/"
+                    )
+
+                    # Notify all admins in the company
+                    admins = Employee.objects.filter(company_id=company_id, role_id=1)
+                    for admin in admins:
+                        if admin.company_email:
+                            try:
+                                admin_user = User.objects.get(email=admin.company_email)
+                                Notification.objects.create(
+                                    user=admin_user,
+                                   message=(
+                                    f"✅ Employee '{user.get_full_name() or user.email}' resolved the bug: "
+                                    f"'{bug.title}' in project '{bug.project.project_name}'."
+                                    ),
+                                    notification_type="bug",
+                                    url=f"/bugs-reportes/{bug.id}/"
+                                )
+                            except User.DoesNotExist:
+                                print(f"⚠️ Admin user not found for email: {admin.company_email}")
+                except Exception as e:
+                    print(f"❌ Notification error: {e}")
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             print('serializer errors', serializer.errors)

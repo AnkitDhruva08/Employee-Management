@@ -19,47 +19,74 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        print('user email:', request.user.email)
         user = request.user
         email = user.email
 
         if user.is_superuser:
-            return self._superuser_dashboard(user)
+            print('is superuser', user.is_superuser)
+            return self._superuser_dashboard(user.email)
 
         if user.is_company:
+            print('is companay ==<<>>', user.is_company)
             return self._company_dashboard(user, email)
 
         return self._employee_dashboard(user, email)
 
-    def _superuser_dashboard(self, user):
+    def _superuser_dashboard(self, super_user_email):
         try:
-            companies_with_teams = User.objects.filter(
-                is_company=True
-            ).exclude(id=user.id).annotate(
-                team_size=Count('employees', filter=Q(employees__active=True))
+            companies_with_teams = User.objects.filter(is_company=True).annotate(
+                team_size=Count('company__employees', filter=Q(company__employees__active=True))
             )
 
             companies_data = []
             for company in companies_with_teams:
-                contact_number = getattr(company.company, 'contact_number', None)
-                profile_image = getattr(company.company, 'profile_image', None)
-                companies_data.append({
-                    "company_id": company.id,
-                    "company_name": company.get_full_name() or company.username,
-                    "company_email": company.email,
-                    "team_size": company.team_size,
-                    "contact_number": contact_number,
-                    "company_logo": profile_image.url if profile_image else None,
-                })
+                try:
+                    company_obj = getattr(company, 'company', None)
+                    if not company_obj:
+                        print(f" No related Company object found for user: {company.email}")
+                        continue
+
+                    profile_image = getattr(company_obj, 'profile_image', None)
+                    contact_number = getattr(company_obj, 'contact_number', None)
+
+                    # Collect address fields
+                    address_data = {
+                        "street_address": company_obj.street_address,
+                        "city": company_obj.city,
+                        "state_province": company_obj.state_province,
+                        "zip_code": company_obj.zip_code,
+                        "country": company_obj.country,
+                    }
+
+                    company_size = company_obj.team_size
+
+                    companies_data.append({
+                        "company_id": company.id,
+                        "company_name": company.get_full_name() or company.username,
+                        "company_email": company.email,
+                        "team_size": company.team_size,
+                        "company_size": company_size,
+                        "contact_number": contact_number,
+                        "company_logo": profile_image.url if profile_image else None,
+                        "address": address_data,
+                    })
+
+                except Exception as inner_e:
+                    print(f" Error processing company {company.email}: {inner_e}")
 
             return Response({
                 "is_superuser": True,
-                "email": user.email,
+                "email": super_user_email,
                 "role": "is_superuser",
                 "companies": companies_data
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
     def _company_dashboard(self, user, email):
         try:
@@ -138,6 +165,7 @@ class DashboardLinkViewSet(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
         try:
+            print('request.user:', request.user.email)
             user_data = User.objects.get(email=request.user.email)
             email = request.user.email
             is_company = False

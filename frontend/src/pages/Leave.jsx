@@ -82,22 +82,26 @@ const LeaveRequest = () => {
   };
   
 
+  const fetchLinks = async (token) => {
+    try {
+      const links = await fetchDashboardLink(token); 
+      const dashboardData = await fetchDashboard(token);
+      fetchLeaveRequests();
+      setQuickLinks(links);
+      setDashboardData(dashboardData);
+    } catch (err) {
+      setError("Failed to load dashboard");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
+    }
+  }
+
   // calling useEffect to fetch nominee details and dashboard data
   useEffect(() => {
-    const fetchLinks = async () => {
-      try {
-        const links = await fetchDashboardLink(token); 
-        const dashboardData = await fetchDashboard(token);
-        fetchLeaveRequests();
-        setQuickLinks(links);
-        setDashboardData(dashboardData);
-      } catch (err) {
-        setError("Failed to load dashboard");
-      }
-    };
+    if(!token) return;
 
     fetchLinks();
-  }, [token]);
+  }, []);
 
   const handleOpen = () => setOpen(!open);
   // Update from/to dates based on duration selection

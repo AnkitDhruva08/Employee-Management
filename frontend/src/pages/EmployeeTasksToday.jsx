@@ -84,7 +84,8 @@ const EmployeeTasksToday = () => {
   
     } catch (err) {
       console.error("Error:", err);
-      navigate("/login");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
     }
   };
 
@@ -112,6 +113,7 @@ const EmployeeTasksToday = () => {
   
 
   useEffect(() => {
+    if(!token) return;
     fetchData();
     fetchEmployeeTaskDetails();
   }, []);

@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
-from core.models import Company, Holiday
+from core.models import Company, Employee, Holiday
 from core.serializers import HolidaysSerializer
 from django.contrib.auth import get_user_model 
 
@@ -14,7 +14,24 @@ class HolidaysViewset(APIView):
 
     # Retrive all holidays
     def get(self, request, *args, **kwargs):
-        holidays = Holiday.objects.filter(active=True).order_by("date")
+        email = request.user.email
+        is_company = Company.objects.filter(email=email).exists()
+        role_id = None
+        emp_id = None
+        company_id = None
+        if not is_company:
+            try:
+                employee = Employee.objects.get(company_email=email)
+                role_id = employee.role_id
+                emp_id = employee.id
+                company_id = employee.company_id
+            except Employee.DoesNotExist:
+                return Response({'error': 'Employee not found'}, status=404)
+                
+        if(is_company):
+            company_data = Company.objects.get(email = request.user.email)
+            company_id = company_data.id
+        holidays = Holiday.objects.filter(active=True, company_id=company_id).order_by("date")
         serializer = HolidaysSerializer(holidays, many=True)
         return Response({"count": len(holidays), "results": serializer.data})
 

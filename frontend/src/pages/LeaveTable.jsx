@@ -26,7 +26,8 @@ const LeaveTable = () => {
       setDashboardData(dashboardData);
     } catch (err) {
       console.error("Failed to load quick links");
-      Navigate("/login");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
     }
   };
 
@@ -40,6 +41,7 @@ const LeaveTable = () => {
   };
 
   useEffect(() => {
+    if(!token) return;
     fetchLeaveRequests();
     fetchLinks();
   }, []);

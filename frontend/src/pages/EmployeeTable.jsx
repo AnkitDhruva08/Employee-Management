@@ -26,10 +26,7 @@ const EmployeeTable = () => {
   const employeesPerPage = 5;
   const roleId = parseInt(localStorage.getItem("role_id"));
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchDashboardInfo();
-  }, []);
+
 
   const fetchDashboardInfo = async () => {
     try {
@@ -39,6 +36,8 @@ const EmployeeTable = () => {
       setDashboardData(dashboard);
     } catch (err) {
       console.error("Failed to load dashboard data");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
     }
   };
 
@@ -220,6 +219,13 @@ const EmployeeTable = () => {
     // Save the PDF
     doc.save("employee_report.pdf");
   }
+
+
+  useEffect(() => {
+    if(!token) return;
+    fetchEmployees();
+    fetchDashboardInfo();
+  }, []);
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}

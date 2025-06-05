@@ -27,6 +27,8 @@ const HoliDays = () => {
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
+  console.log('isCompany ===<<<>>>', isCompany)
+  
   let HeaderTitle = "Holiday Calendar";
 
   //    For Fetching the Dashboard
@@ -41,10 +43,13 @@ const HoliDays = () => {
     } catch (err) {
       console.error("Error fetching quick links:", err);
       setError("Failed to load quick links");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
     }
   };
 
   useEffect(() => {
+    if (!token) return;
     fetchLinks();
   }, []);
 
@@ -75,7 +80,7 @@ const HoliDays = () => {
       setNewHoliday((prev) => ({
         ...prev,
         date: value,
-        day_name: dayName, // ⬅️ Auto-set the day
+        day_name: dayName, 
       }));
     } else {
       setNewHoliday((prev) => ({ ...prev, [name]: value }));
@@ -174,15 +179,15 @@ const HoliDays = () => {
         <div className="p-6 overflow-y-auto flex-1">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-            {isCompany || roleId === 1 && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-              >
-                Add New Holiday
-              </button>
-            )}
-                          <button
+            {(isCompany || roleId === 1) && (
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+            >
+              Add New Holiday
+            </button>
+          )}
+            <button
                 onClick={generatePDF}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
               >

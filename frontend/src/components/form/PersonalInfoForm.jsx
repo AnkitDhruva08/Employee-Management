@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 import Header from "../header/Header";
 
@@ -7,6 +7,7 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
 
   const { id } = useParams();
   console.log('id ==<<<>>', id)
+  const Navigate = useNavigate();
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -155,6 +156,7 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
             job_role: "",
           });
         }
+
       }
     } catch (err) {
       setError("Server error");

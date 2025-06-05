@@ -12,12 +12,12 @@ const Login = () => {
   const [error, setError] = useState(null);
 
   // ✅ Redirect if already logged in
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      navigate("/dashboard");
-    }
-  }, [navigate]);
+  // useEffect(() => {
+  //   const token = localStorage.getItem("token");
+  //   if (token) {
+  //     navigate("/dashboard");
+  //   }
+  // }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,13 +39,21 @@ const Login = () => {
 
       const data = await response.json();
 
-      if (data.status === 200) {
+      if (data.status === 200 && data.tokens && data.tokens.access) {
         localStorage.setItem("token", data.tokens.access);
         localStorage.setItem("role_id", data.role_id);
-        localStorage.setItem("is_company", data.is_company);
-        localStorage.setItem("is_superuser", data.is_superuser);
+      
+        localStorage.removeItem("is_superuser");
+        localStorage.removeItem("is_company");
+      
+        if (data.is_superuser === true) {
+          localStorage.setItem("is_superuser", "true");
+        } else if (data.is_company === true) {
+          localStorage.setItem("is_company", "true");
+        }
+      
         navigate("/dashboard");
-      } else {
+      }else {
         setError("Invalid credentials. Please check your email or password.");
       }
     } catch (err) {

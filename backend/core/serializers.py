@@ -11,12 +11,31 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'first_name', 'last_name']
 
 
+# class CompanySerializer(serializers.ModelSerializer):
+#     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+
+#     class Meta:
+#         model = Company
+#         fields = ['id', 'company_name', 'email', 'team_size', 'address', 'contact_number', 'user']
+
 class CompanySerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
 
     class Meta:
         model = Company
-        fields = ['id', 'company_name', 'email', 'team_size', 'address', 'contact_number', 'user']
+        fields = [
+            'id',
+            'company_name',
+            'email',
+            'team_size',
+            'street_address',
+            'city',
+            'state_province',
+            'zip_code',
+            'country',
+            'contact_number',
+            'user'
+        ]
 
 
 # class EmployeeSerializer(serializers.ModelSerializer):
@@ -241,6 +260,7 @@ class BugSerializer(serializers.ModelSerializer):
             'assigned_to',
             'assigned_to_name',
             'description',
+            'resolution_comments',
             'bug_attachment',
             'active',
             'created_at',

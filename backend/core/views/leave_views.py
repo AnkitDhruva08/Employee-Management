@@ -23,15 +23,24 @@ class LeaveRequestViewSet(APIView):
             is_company = Company.objects.filter(email=email).exists()
             role_id = None
             emp_id = None
+            company_id = None
             if not is_company:
                 try:
                     employee = Employee.objects.get(company_email=email)
                     role_id = employee.role_id
                     emp_id = employee.id
+                    company_id = employee.company_id
                 except Employee.DoesNotExist:
                     return Response({'error': 'Employee not found'}, status=404)
+                
+            if(is_company):
+                company_data = Company.objects.get(email = request.user.email)
+                print('company_data ===<<<>>', company_data)
+                company_id = company_data.id
+                print('company_id ==<<<>>', company_id)
 
-            data = get_leave_requests(is_company, role_id, emp_id)
+
+            data = get_leave_requests(is_company, role_id, emp_id, company_id)
             if data.get('success') is False:
                 return Response({
                     "is_complete": data.get('is_complete', False),

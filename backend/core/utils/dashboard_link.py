@@ -22,6 +22,7 @@ def get_common_dashboard_data(company_id):
     return total_employees, total_leave_requests, list(upcoming_events)
 
 def dashboard_links(role_id, is_company, email, is_superuser):
+    print('role_id:', role_id, 'is_company:', is_company, 'email:', email, 'is_superuser:', is_superuser)
     try:
 
         data = {}
@@ -31,7 +32,8 @@ def dashboard_links(role_id, is_company, email, is_superuser):
             dashboard_links = CompanyDashboardLink.objects.filter(active=True).order_by("id")
             serializer = CompanyDashboardLinkSerializer(dashboard_links, many=True)
 
-            companies = User.objects.filter(role__name='Company')
+            companies = User.objects.filter(is_company=True)
+            print('companies===<<<>>>>>', companies)
             company_data = [
                 {
                     "company_id": company.id,

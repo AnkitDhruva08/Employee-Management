@@ -113,7 +113,7 @@ REST_FRAMEWORK = {
   
 
 
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60), 
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1), 
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),  
     
     # throttling configuration (Rate Limiting)

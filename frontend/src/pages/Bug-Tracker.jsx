@@ -60,7 +60,6 @@ const BugTracker = () => {
   const [modalMode, setModalMode] = useState("");
   const [selectedBug, setSelectedBug] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
-  const [newComment, setNewComment] = useState("");
 
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
@@ -74,51 +73,56 @@ const BugTracker = () => {
     priority: "",
     assignedTo: [],
     description: "",
+    resolutionComments: "", 
     bugAttachment: null,
-    comments: [],
   });
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const dashboardLinks = await fetchProjectSidebar(token);
-        setQuickLinks(dashboardLinks);
-
-        const dashboard = await fetchDashboard(token);
-        setDashboardData(dashboard);
-
-        const projects = await fetchProjectsData(token);
-        setProjects(projects.results);
-
-        const employeesData = await fetchEmployees(token);
-        setEmployees(
-          Array.isArray(employeesData) ? employeesData : [employeesData]
+  const fetchData = async () => {
+    try {
+      const dashboardLinks = await fetchProjectSidebar(token);
+      setQuickLinks(dashboardLinks);
+  
+      const dashboard = await fetchDashboard(token);
+      setDashboardData(dashboard);
+  
+      const projects = await fetchProjectsData(token);
+      setProjects(projects.results);
+  
+      const employeesData = await fetchEmployees(token);
+      setEmployees(
+        Array.isArray(employeesData) ? employeesData : [employeesData]
+      );
+  
+      if (id) {
+        const bugDetails = await fetchBugDetails(token, id);
+        setBugs([bugDetails]);
+      } else {
+        const bugsData = await fetchBugsReports(
+          token,
+          statusFilter?.value || "",
+          priorityFilter?.value || "",
+          selectedProjectId || ""
         );
-
-        if (id) {
-          const bugDetails = await fetchBugDetails(token, id);
-          setBugs([bugDetails]);
-        } else {
-          const bugsData = await fetchBugsReports(
-            token,
-            statusFilter?.value || "",
-            priorityFilter?.value || "",
-            selectedProjectId || ""
-          );
-          setBugs(bugsData);
-        }
-      } catch (err) {
-        console.error("Error:", err);
-        navigate("/login");
+        setBugs(bugsData);
       }
-    };
-
+    } catch (err) {
+      console.error("Error:", err);
+      localStorage.removeItem("token");
+      sessionStorage.clear();
+      navigate("/login");
+    }
+  };
+  
+  
+  useEffect(() => {
+    if (!token) return;
     fetchData();
-  }, [token, statusFilter, priorityFilter, selectedProjectId]);
+  }, [token, statusFilter, priorityFilter, selectedProjectId, id]);
 
+  
   const handleFileChange = (files) => {
     console.log("Selected files:", files);
     console.log("First file:", files[0]);
@@ -126,24 +130,6 @@ const BugTracker = () => {
       ...formData,
       bugAttachment: files.length > 0 ? files[0] : null,
     });
-  };
-
-  // Function to add comments to the bug
-  const addComment = (newComment) => {
-    setFormData((prev) => ({
-      ...prev,
-      comments: [...prev.comments, newComment],
-    }));
-  };
-
-  const handleAddComment = () => {
-    if (newComment.trim() !== "") {
-      setFormData((prev) => ({
-        ...prev,
-        comments: [...prev.comments, newComment.trim()],
-      }));
-      setNewComment(""); // clear input
-    }
   };
 
   // Function for adding new bugs
@@ -168,6 +154,8 @@ const BugTracker = () => {
     data.append("status", formData.status);
     data.append("priority", formData.priority);
     data.append("description", formData.description);
+    // Add resolution comments
+    data.append("resolution_comments", formData.resolutionComments);
 
     // Handle assigned users (as a list)
     formData.assignedTo.forEach((assignee) => {
@@ -202,6 +190,7 @@ const BugTracker = () => {
         status: formData.status,
         priority: formData.priority,
         description: formData.description,
+        resolution_comments: formData.resolutionComments, // Include comments in new bug
         assigned_to_name: formData.assignedTo.map((a) => a.label).join(", "),
         created: new Date().toISOString().split("T")[0],
         project_name:
@@ -241,6 +230,7 @@ const BugTracker = () => {
     data.append("status", formData.status);
     data.append("priority", formData.priority);
     data.append("description", formData.description);
+    data.append("resolution_comments", formData.resolutionComments); // Add resolution comments
 
     // Handle assigned_to
     if (formData.assignedTo && Array.isArray(formData.assignedTo)) {
@@ -308,6 +298,7 @@ const BugTracker = () => {
       priority: "",
       assignedTo: [],
       description: "",
+      resolutionComments: "", // Reset resolution comments
     });
     setShowModal(false);
     setSelectedBug(null);
@@ -361,13 +352,15 @@ const BugTracker = () => {
     const workbook = XLSX.utils.book_new();
 
     const headers = [
-      { key: "id" },
-      { key: "created" },
-      { key: "Description" },
-      { key: "steps_to_reproduce" },
-      { key: "status" },
-      { key: "priority" },
-      { key: "company" },
+      { key: "id", label: "ID" },
+      { key: "title", label: "Title" },
+      { key: "status", label: "Status" },
+      { key: "priority", label: "Priority" },
+      { key: "assigned_to_name", label: "Assigned To" },
+      { key: "project_name", label: "Project" },
+      { key: "created", label: "Created Date" },
+      { key: "description", label: "Description" },
+      { key: "resolution_comments", label: "Resolution Comments" }, // Added for export
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A2" });
@@ -396,16 +389,14 @@ const BugTracker = () => {
       };
     });
 
-    const keyToCol = Object.fromEntries(headers.map((h, i) => [h.key, i]));
-
-    const statusColors = {
-      Done: "FF92D050",
-      "In Progress": "FFFFFF00",
-      Open: "FFFF0000",
-      Blocked: "FF0000FF",
-      "Not a Defect": "FFD9D9D9",
-      Closed: "FFFFC000",
-      "Re-Open": "FFFF99CC",
+    const statusColorsExport = {
+      Done: "FF92D050", // Green
+      "In Progress": "FFFFFF00", // Yellow
+      Open: "FFFF0000", // Red
+      Blocked: "FF0000FF", // Blue
+      "Not a Defect": "FFD9D9D9", // Light Grey
+      Closed: "FFFFC000", // Orange
+      "Re-Open": "FFFF99CC", // Pink
     };
 
     // Apply styles to cells
@@ -416,7 +407,10 @@ const BugTracker = () => {
         const value = data[i][header.key];
         const cellAddress = XLSX.utils.encode_cell({ c: colIdx, r: rowNumber });
 
-        if (!worksheet[cellAddress]) return;
+        // Ensure the cell exists before trying to style it
+        if (!worksheet[cellAddress]) {
+            worksheet[cellAddress] = { t: 's', v: value || '' }; // Create cell if it doesn't exist
+        }
 
         // Set default cell style
         worksheet[cellAddress].s = {
@@ -437,7 +431,7 @@ const BugTracker = () => {
 
         // Style status column with background color
         if (header.key === "status") {
-          const fillColor = statusColors[value] || "FFFFFFFF";
+          const fillColor = statusColorsExport[value] || "FFFFFFFF";
           worksheet[cellAddress].s.fill = {
             patternType: "solid",
             fgColor: { rgb: fillColor },
@@ -448,8 +442,8 @@ const BugTracker = () => {
     }
 
     // Auto column width
-    worksheet["!cols"] = headers.map(({ key }) => {
-      let maxLength = key.length;
+    worksheet["!cols"] = headers.map(({ key, label }) => {
+      let maxLength = label.length; // Start with header length
       for (const row of data) {
         const val = row[key];
         if (val) {
@@ -459,6 +453,7 @@ const BugTracker = () => {
       }
       return { wch: maxLength + 3 };
     });
+
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Defect Tracker");
 
@@ -491,6 +486,7 @@ const BugTracker = () => {
         status: bug.status,
         priority: bug.priority,
         description: bug.description,
+        resolutionComments: bug.resolution_comments || "", // Populate comments
         bugAttachment: bug.bug_attachment || null,
         assignedTo: bug.assigned_to
           ? bug.assigned_to
@@ -682,40 +678,44 @@ const BugTracker = () => {
         </main>
       </div>
 
-      {/* Modal */}
+      {/* Modal for Add/Edit/View Bug */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 relative">
-            <button
-              className="absolute top-3 right-3 text-gray-600 hover:text-gray-900"
-              onClick={() => resetForm()}
-              aria-label="Close modal"
-            >
-              ✕
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="relative w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-xl overflow-hidden">
+            {/* Scrollable content wrapper */}
+            <div className="max-h-[90vh] overflow-y-auto p-6 space-y-6">
+              {/* Close button */}
+              <button
+                className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-xl"
+                onClick={resetForm}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
 
-            <h2 className="text-xl font-semibold mb-4">
-              {modalMode === "add"
-                ? "Add Bug"
-                : modalMode === "edit"
-                ? "Edit Bug"
-                : "View Bug"}
-            </h2>
+              {/* Modal Title */}
+              <h2 className="text-2xl font-bold text-gray-800">
+                {modalMode === "add"
+                  ? "Add Bug"
+                  : modalMode === "edit"
+                  ? "Edit Bug"
+                  : "View Bug"}
+              </h2>
 
-            <div className="mb-4">
-              <div className="mb-4">
-                <Input
-                  label="Title"
-                  name="title"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                />
-              </div>
+              {/* Title */}
+              <Input
+                label="Title"
+                name="title"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+                readOnly={modalMode === "view"}
+              />
 
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Project *</label>
+              {/* Project */}
+              <div>
+                <label className="block font-medium mb-1">Project *</label>
                 <Select
                   options={projects.map((p) => ({
                     value: p.id,
@@ -734,8 +734,9 @@ const BugTracker = () => {
                 />
               </div>
 
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Status *</label>
+              {/* Status */}
+              <div>
+                <label className="block font-medium mb-1">Status *</label>
                 <Select
                   options={statusOptions}
                   value={
@@ -748,12 +749,12 @@ const BugTracker = () => {
                   }
                   isDisabled={modalMode === "view"}
                   placeholder="Select Status"
-                  required
                 />
               </div>
 
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Priority *</label>
+              {/* Priority */}
+              <div>
+                <label className="block font-medium mb-1">Priority *</label>
                 <Select
                   options={priorityOptions}
                   value={
@@ -766,12 +767,12 @@ const BugTracker = () => {
                   }
                   isDisabled={modalMode === "view"}
                   placeholder="Select Priority"
-                  required
                 />
               </div>
 
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Assigned To</label>
+              {/* Assigned To */}
+              <div>
+                <label className="block font-medium mb-1">Assigned To</label>
                 <Select
                   options={
                     Array.isArray(employees)
@@ -790,21 +791,38 @@ const BugTracker = () => {
                   placeholder="Select Employees"
                 />
               </div>
-              <div className="mb-4">
+
+              {/* Description */}
+              <div>
+                <label className="block font-medium mb-1">Description</label>
                 <CkEditor
                   value={formData.description}
                   onChange={(data) =>
                     setFormData({ ...formData, description: data })
                   }
+                  readOnly={modalMode === "view"}
                 />
               </div>
 
-              <div className="mb-6">
-                <label className="block mb-1 font-semibold text-gray-700">
-                  Attachment
+              {/* Resolution Comments */}
+              <div>
+                <label className="block font-medium mb-1">
+                  Resolution Comments
                 </label>
+                <CkEditor
+                  value={formData.resolutionComments}
+                  onChange={(data) =>
+                    setFormData({ ...formData, resolutionComments: data })
+                  }
+                  readOnly={modalMode === "view"}
+                />
+              </div>
+
+              {/* Attachment */}
+              <div>
+                <label className="block font-medium mb-1">Attachment</label>
                 <FileUpload
-                  isView={false}
+                  isView={modalMode === "view"}
                   isCombine={false}
                   initialFiles={
                     formData.bugAttachment ? [formData.bugAttachment] : []
@@ -813,18 +831,24 @@ const BugTracker = () => {
                 />
               </div>
 
-              {modalMode !== "view" && (
-                <div className="flex justify-end">
-                  <button
-                    onClick={
-                      modalMode === "add" ? handleAddBug : handleUpdateBug
-                    }
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    {modalMode === "add" ? "Add Bug" : "Update Bug"}
-                  </button>
-                </div>
-              )}
+              {/* Submit Button */}
+            {modalMode !== "view" && (
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      onClick={resetForm}
+                      className="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      onClick={modalMode === "add" ? handleAddBug : handleUpdateBug}
+                      className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
+                    >
+                      {modalMode === "add" ? "Add Bug" : "Update Bug"}
+                    </button>
+                  </div>
+                )}
             </div>
           </div>
         </div>

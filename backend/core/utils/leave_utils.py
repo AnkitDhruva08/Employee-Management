@@ -5,7 +5,8 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from core.utils.utils import is_profile_complete
 
-def get_leave_requests(is_company, role_id, emp_id):
+def get_leave_requests(is_company, role_id, emp_id, company_id):
+    print('company_id in side function  ==<<<>>>', company_id)
     # Base query with annotated username
     base_query = LeaveRequest.objects.select_related('employee').annotate(
         username=Concat(
@@ -27,9 +28,9 @@ def get_leave_requests(is_company, role_id, emp_id):
 
     # Filter based on role
     if is_company:
-        leave_requests = base_query.filter(hr_reviewed=True)
+        leave_requests = base_query.filter(hr_reviewed=True, company_id=company_id)
     elif role_id:
-        leave_requests = base_query.filter(hr_reviewed=True)
+        leave_requests = base_query.filter(hr_reviewed=True, company_id=company_id)
     elif role_id == 2:  # HR
         leave_requests = base_query
     elif role_id == 3:  # Employee
@@ -42,7 +43,7 @@ def get_leave_requests(is_company, role_id, emp_id):
                     "missing_sections": result['missing_sections'],
                     "data": None
                 }
-        leave_requests = base_query.filter(employee_id=emp_id)
+        leave_requests = base_query.filter(employee_id=emp_id, company_id=company_id)
     else:
         leave_requests = LeaveRequest.objects.none() 
 

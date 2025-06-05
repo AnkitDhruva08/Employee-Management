@@ -20,28 +20,35 @@ class ProjectDropDownView(APIView):
     def get(self, request):
         user = request.user
         user_data = User.objects.get(email=user.email)
+        print('emial:', user_data)
+        print('ankit mishra for dropdwon')
 
         try:
-            # Determine the company based on whether the user is an employee or company admin
             if user_data.is_employee:
-                employee = Employee.objects.get(company_email=user.email)
+                try:
+                    employee = Employee.objects.get(company_email=user.email)
+                except Employee.DoesNotExist:
+                    # Employee record not found - return empty projects list instead of error
+                    return Response({"projects": []}, status=status.HTTP_200_OK)
+
                 company = Company.objects.get(id=employee.company_id)
+
             elif user_data.is_company:
-                company = Company.objects.get(id=user_data.id)
+                print('is company', user_data.email)
+                company = Company.objects.get(email=user_data.email)
+                print('company:', company)
             else:
                 return Response({"error": "Unauthorized user type."}, status=status.HTTP_403_FORBIDDEN)
 
-            # Fetch all active projects for the company
+            # Fetch active projects - will be empty queryset if none
             projects = Project.objects.filter(company_id=company.id, active=True).order_by('project_name')
             serializer = ProjectDropdownSerializer(projects, many=True)
             return Response({"projects": serializer.data}, status=status.HTTP_200_OK)
 
-        except (Employee.DoesNotExist, Company.DoesNotExist):
-            return Response({"error": "Company or employee not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Company.DoesNotExist:
+            return Response({"error": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": "Unexpected error", "detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        
 
 
 
