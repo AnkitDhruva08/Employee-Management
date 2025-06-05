@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,6 +18,15 @@ const Login = () => {
   //     navigate("/dashboard");
   //   }
   // }, [navigate]);
+
+  // if (token) {
+  //   navigate("/dashboard", { replace: true });
+  //   return null; 
+  // }
+
+  // if (token) {
+  //   return <Navigate to="/dashboard" replace />;
+  // }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
