@@ -75,14 +75,18 @@ const Header = ({ title }) => {
   const isCompany = userData?.is_company;
   const isSuperUser = userData?.is_superuser;
   const displayName = isSuperUser
-    ? "Superuser"
-    : userData?.role_id === 1
-    ? userData?.admin_name || "Admin"
-    : isCompany
-    ? userData?.company
-    : userData?.employee_details?.[0]?.first_name || "User";
-  const email = userData?.email || "example@example.com";
-  const firstLetter = displayName?.charAt(0)?.toUpperCase();
+  ? "Superuser"
+  : userData?.role_id === 1
+  ? userData?.admin_name || "Admin"
+  : userData?.role_id === 2
+  ? userData?.hr_name || "HR"
+  : isCompany
+  ? userData?.company
+  : userData?.employee_details?.[0]?.first_name || "User";
+
+const email = userData?.email || "example@example.com";
+const firstLetter = displayName?.charAt(0)?.toUpperCase();
+
 
   const profileImagePath = userData?.is_company
     ? userData?.company_logo

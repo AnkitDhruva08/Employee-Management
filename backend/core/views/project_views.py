@@ -424,7 +424,8 @@ class BugsReportsA(APIView):
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
         elif user_data.is_company:
-            company_id = user_data.id
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -483,8 +484,6 @@ class BugsReportsA(APIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        print('data comming from frontend', request.data)
-
         try:
             user_data = User.objects.get(email=user.email)
         except User.DoesNotExist:
@@ -500,54 +499,60 @@ class BugsReportsA(APIView):
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
         elif user_data.is_company:
-            company_id = user_data.id
+            
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
         # Clean and prepare the data
         data = request.data.copy()
-        print('data before cleaning', data)
         data.pop('id', None)
         data['company'] = company_id
+
         # Fix project
         data['project'] = int(data.get('project')) if data.get('project') else None
+
         # Fix assigned_to
-        assigned_to = data.getlist('assigned_to')        
-        if assigned_to:
-            assigned_to_ids = [int(i) for i in assigned_to if i]
-            data.setlist('assigned_to', assigned_to_ids)
+        assigned_to = request.data.getlist('assigned_to') or request.data.get('assigned_to')
+        if isinstance(assigned_to, str):
+            assigned_to_ids = [int(assigned_to)]
+        elif isinstance(assigned_to, list):
+            assigned_to_ids = list(map(int, assigned_to))
         else:
             assigned_to_ids = []
-            data.setlist('assigned_to', [])
+
+        data.setlist('assigned_to', [str(i) for i in assigned_to_ids])  
         # Handle file upload
         if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
             print('bug_attachment found')
             data['bug_attachment'] = request.FILES['bug_attachment']
+
         # Serialize and save
+        data['active'] = True
         serializer = BugSerializer(data=data)
         if serializer.is_valid():
             bug = serializer.save()
 
-            # 🔔 Notify each assigned employee
-            if assigned_to_ids:
-                employees = Employee.objects.filter(id__in=assigned_to_ids)
-                for emp in employees:
-                    print('employee', emp.user)
-                    if emp.user:
-                        print('Ankit Mishra')
-                        Notification.objects.create(
-                            user=emp.user,
-                            message=f"You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'.",
-                            notification_type="bug",
-                            url=f"/bugs-reportes/{bug.id}/"
-                        )
-                        print(f"✅ Notification sent to {emp.company_email}")
-                    else:
-                        print(f"⚠️ Skipping {emp.company_email} — No linked User object.")
+            # 🔔 Notify assigned employees
+            employees = Employee.objects.filter(id__in=assigned_to_ids)
+            for emp in employees:
+                if emp.user:
+                    Notification.objects.create(
+                        user=emp.user,
+                        message=f"You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'.",
+                        notification_type="bug",
+                        url=f"/bugs-reportes/{bug.id}/"
+                    )
+                    print(f"✅ Notification sent to {emp.company_email}")
+                else:
+                    print(f"⚠️ Skipping {emp.company_email} — No linked User object.")
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
+            print('Validation Errors:', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
             
 
 
@@ -573,7 +578,8 @@ class BugsReportsA(APIView):
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
         elif user_data.is_company:
-            company_id = user_data.id
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 

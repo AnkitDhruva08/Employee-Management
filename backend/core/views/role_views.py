@@ -7,6 +7,7 @@ from rest_framework import status
 #  Role Views
 
 class RoleViews(APIView):
+    
 
     # retrive roles for dropdownlist and add new roles
     def get(self, request):

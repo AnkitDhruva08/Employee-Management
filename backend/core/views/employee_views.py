@@ -98,12 +98,42 @@ class EmployeeViewSet(APIView):
     def post(self, request):
         try:
             data = request.data.copy()
-            data['active'] = True
-            user_email = request.user.email
-            company = get_company_by_email(user_email)
-            if not company:
-                return Response({'error': 'Invalid company or user'}, status=400)
+            print('data coming from frontend ==<<>>', data)
 
+            # Flags
+            is_company = False
+            is_employee = False 
+
+            # Get current user
+            user_data = User.objects.get(email=request.user.email)
+            is_company = user_data.is_company
+            is_employee = user_data.is_employee
+
+            # Required fields check
+            required_fields = [
+                'first_name', 'last_name', 'company_email', 'personal_email',
+                'contact_number', 'date_of_birth', 'gender'
+            ]
+            missing_fields = [f for f in required_fields if not data.get(f)]
+            if missing_fields:
+                return Response({'error': f'Missing required fields: {", ".join(missing_fields)}'}, status=400)
+
+            # Determine company
+            user_email = request.user.email
+            company = None
+            company_id = None
+
+            if is_company:
+                company = get_company_by_email(user_email)
+                company_id = company.id
+            elif is_employee:
+                emp_data = get_employee_by_email(user_email)
+                company = emp_data.company   # ✅ Ensure company is defined
+                company_id = company.id
+            else:
+                return Response({'error': 'Unauthorized to create employees.'}, status=403)
+
+            # Role validation
             role_input = data.get('job_role') or data.get('designation') or data.get('role')
             if not role_input:
                 return Response({'error': 'Role is required.'}, status=400)
@@ -113,9 +143,16 @@ class EmployeeViewSet(APIView):
             except Role.DoesNotExist:
                 return Response({'error': f'Role "{role_input}" does not exist.'}, status=400)
 
+            # Optional: Team size limit
+            if hasattr(role, 'team_size') and isinstance(role.team_size, int):
+                current_count = Employee.objects.filter(role_id=role.id, company_id=company_id).count()
+                if current_count >= role.team_size:
+                    return Response({'error': f'Team size limit ({role.team_size}) reached for this role.'}, status=400)
+
             email = data.get('company_email')
             default_password = "Pass@123"
 
+            # Check if user already exists
             user = get_user_by_email(email)
             if not user:
                 user = User.objects.create_user(
@@ -127,9 +164,11 @@ class EmployeeViewSet(APIView):
                     is_employee=True
                 )
 
+            # Prevent duplicate employee
             if Employee.objects.filter(company_email=email).exists():
                 return Response({'error': 'Employee with this email already exists.'}, status=400)
 
+            # Create employee
             employee = Employee.objects.create(
                 first_name=data.get('first_name'),
                 middle_name=data.get('middle_name'),
@@ -140,9 +179,10 @@ class EmployeeViewSet(APIView):
                 date_of_birth=data.get('date_of_birth'),
                 gender=data.get('gender'),
                 role_id=role.id,
-                company_id=company.id
+                company_id=company.id,
             )
 
+            # Send onboarding email
             subject = f"Welcome to {company.company_name} Employee Management System"
             message = (
                 f"Hi {employee.first_name} {employee.last_name},\n\n"
@@ -152,7 +192,6 @@ class EmployeeViewSet(APIView):
                 f"Please change your password after logging in.\n\n"
                 f"- {company.company_name} HR Team"
             )
-
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
 
             return Response({'success': 'Employee created and email sent.'}, status=201)
@@ -226,6 +265,7 @@ class EmployeeBankDetailsView(APIView):
 
     def post(self, request):
         try:
+            print('data comm')
             employee = Employee.objects.get(company_email=request.user.email)
             data = request.data.copy()
             data['active'] = True
@@ -244,10 +284,11 @@ class EmployeeBankDetailsView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request, *args, **kwargs):
-        pk = kwargs.get('pk', None)
+    def put(self, request, pk=None):
         try:
-            bank_details = BankDetails.objects.get(employee_id=pk)
+            print('data coming from frontend ==<<<<>>', request.data)
+            print('FILES coming from frontend ==<<<<>>', request.FILES)
+            bank_details = BankDetails.objects.get(pk=pk)  # <-- fix here
         except BankDetails.DoesNotExist:
             return Response({'error': 'Bank details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -255,7 +296,7 @@ class EmployeeBankDetailsView(APIView):
         if 'active' in data:
             data['active'] = True
         data.pop('id', None)
-        data.pop('employee', None) 
+        data.pop('employee', None)
 
         serializer = BankDetailsSerializer(bank_details, data=data, partial=True)
         if serializer.is_valid():
@@ -356,28 +397,40 @@ class EmployeeDocumentUploadView(APIView):
 # post a new document of an employee
     def post(self, request):
         try:
-            employee = Employee.objects.get(company_email=request.user.email)            
+            # Get employee linked to logged-in user email
+            employee = Employee.objects.get(company_email=request.user.email)
+
+            # Make mutable copy of data and add extra fields
             data = request.data.copy()
             data['active'] = True
-
             data['employee'] = employee.id
 
-            serializer = EmployeeDocumentSerializer(data=data)
+            print('data coming from frontend ==<<>>', data)
+            print('files coming from frontend ==<<<>', request.FILES)
+
+            # Merge request.data and request.FILES properly for serializer
+            combined_data = data.copy()
+            combined_data.update(request.FILES)
+
+            serializer = EmployeeDocumentSerializer(data=combined_data, context={'request': request})
+
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Employee document uploaded successfully.'}, status=status.HTTP_201_CREATED)
             else:
+                print('Serializer errors:', serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Employee.DoesNotExist:
             return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-    
+
 # update an existing document of an employee
     def put(self, request, pk):
         try:
+            print('data coming from frontend ==<<<<>>', request.data)
+            print('FILES coming from frontend ==<<<<>>', request.FILES)
             employee_document = EmployeeDocument.objects.get(employee_id=pk)
             data = request.data.copy()
             # Handle optional 'active' field safely
@@ -467,6 +520,7 @@ class EmployeeOfficeDetailsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, pk=None,*args, **kwargs):
         try:
+            
             if(pk):
                 employee = Employee.objects.get(id=pk)
                 office_details = OfficeDetails.objects.filter(employee=employee)
@@ -483,43 +537,82 @@ class EmployeeOfficeDetailsView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-    def post(self, request):
+
+
+    def post(self, request, pk=None):
         try:
-            employee = Employee.objects.get(company_email=request.user.email)
-            data = request.data.copy()
-            data['active'] = True
+            # Get employee either by pk or logged-in user email
+            if pk:
+                employee = Employee.objects.get(id=pk)
+            else:
+                employee = Employee.objects.get(company_email=request.user.email)
 
-            data['employee'] = employee.id 
+            # Check if office details exist for this employee
+            try:
+                office_details = OfficeDetails.objects.get(employee=employee)
+                # Update existing office details
+                serializer = EmployeeOfficeDetailsSerializer(
+                    office_details,
+                    data=request.data,
+                    partial=True
+                )
+            except OfficeDetails.DoesNotExist:
+                # Create new office details linked to employee
+                data = request.data.copy()
+                data['employee'] = employee.id
+                serializer = EmployeeOfficeDetailsSerializer(data=data)
 
-            serializer = EmployeeOfficeDetailsSerializer(data=data)
             if serializer.is_valid():
-                serializer.save()
-                return Response({'success': 'Employee office details created successfully.'}, status=status.HTTP_201_CREATED)
-
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                serializer.save(active=True)
+                return Response(
+                    {'success': 'Employee office details saved successfully.'},
+                    status=status.HTTP_200_OK
+                )
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Employee.DoesNotExist:
             return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    # def post(self, request):
+    #     try:
+    #         employee = Employee.objects.get(company_email=request.user.email)
+    #         data = request.data.copy()
+    #         data['active'] = True
+
+    #         data['employee'] = employee.id 
+
+    #         serializer = EmployeeOfficeDetailsSerializer(data=data)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #             return Response({'success': 'Employee office details created successfully.'}, status=status.HTTP_201_CREATED)
+
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    #     except Employee.DoesNotExist:
+    #         return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)
+    #     except Exception as e:
+    #         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-    def put(self, request, pk):
-        try:
-            employee_office_details = OfficeDetails.objects.get(employee_id=pk)
-        except OfficeDetails.DoesNotExist:
-            return Response({'error': 'Employee office details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
+    # def put(self, request, pk):
+    #     try:
+    #         employee_office_details = OfficeDetails.objects.get(employee_id=pk)
+    #     except OfficeDetails.DoesNotExist:
+    #         return Response({'error': 'Employee office details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
 
-        data = request.data.copy()
-        data['active'] = True
-        data.pop('id', None)
-        data.pop('employee', None)
+    #     data = request.data.copy()
+    #     data['active'] = True
+    #     data.pop('id', None)
+    #     data.pop('employee', None)
 
-        serializer = EmployeeOfficeDetailsSerializer(employee_office_details, data=data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+    #     serializer = EmployeeOfficeDetailsSerializer(employee_office_details, data=data, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 # Profile Image Upload View
@@ -647,17 +740,12 @@ class EmployeeProfileViewSet(APIView):
     def get(self, request):
         try:
             # Fetch employee details
-            print('Requesting user email:', request.user.email)
             is_company = False
             is_employee = False
             is_superuser = False
             user_data = User.objects.filter(email=request.user.email).first()
             is_company = user_data.is_company
             is_employee = user_data.is_employee
-            is_superuser = user_data.is_superuser
-            print('Is user a company:', is_company)
-            print('Is user a superuser:', is_superuser)
-            print('Is user an employee:', is_employee)  
             if(is_company):
                 company = Company.objects.get(email=request.user.email)
                 print('Company details:', company)
@@ -665,6 +753,7 @@ class EmployeeProfileViewSet(APIView):
           
             employee = Employee.objects.get(company_email=request.user.email)
             role_name = Role.objects.get(id=employee.role_id).role_name
+            print('role_name ==<<<>>', role_name)
 
             # Fetch related data
             emergency_contacts = EmergencyContact.objects.filter(employee=employee)

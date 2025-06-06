@@ -58,35 +58,51 @@ class LeaveRequestViewSet(APIView):
     def post(self, request, *args, **kwargs):
         try:
             data = request.data.copy()
+            print('data ==<<<>>', data)
             user = request.user
-            employee = Employee.objects.get(first_name=user)
+
+            employee = Employee.objects.get(company_email=request.user.email)
             data['employee'] = employee.id 
+            data['company_id'] = employee.company_id
+            data['active'] = True
+
+            role_id = employee.role_id
+
+            # Set hr_reviewed and active if role is HR
+            if role_id == 2:  # HR
+                data['hr_reviewed'] = True
+                data['status'] == 'HR Approved'
+                
 
             # Handle 'Single day' case
             if data.get('duration') == 'Single day':
                 data['to_date'] = data.get('from_date')
 
-            # If to_date is empty, remove it
+            # Remove empty to_date
             if not data.get('to_date'):
                 data.pop('to_date', None)
 
-            # Now serialize the data
+            print('data after ==<<<<>>', data)
+
+            # Serialize and save
             serializer = LeaveRequestSerializer(data=data)
+            print('serializer ==<<<>>>', serializer)
+
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Leave request created successfully.'}, status=status.HTTP_201_CREATED)
             else:
-
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
+
 
     def put(self, request, pk, *args, **kwargs):
         try:
             leave_request = LeaveRequest.objects.get(pk=pk)
-            data = request.data.copy()  # Make a mutable copy
+            data = request.data.copy()  
+            print('data comiing from frontend ==<<<>>', data)
             # Automatically set hr_reviewed = True if status is HR Approved
             if data.get('status') == 'HR Approved':
                 data['hr_reviewed'] = True 

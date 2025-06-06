@@ -8,7 +8,7 @@ import {
 import Header from "../header/Header";
 import Sidebar from "../sidebar/Sidebar";
 import UploadImageModal from "../File/UploadProfileImage";
-import { MapPin, Building, Globe, Hash, Flag } from "lucide-react";
+import { MapPin, Building, Globe, Hash, Flag, Edit, Camera, Phone, Mail } from "lucide-react"; // Added more icons
 
 export default function UserProfilePage() {
   const [userProfile, setUserProfile] = useState(null);
@@ -17,7 +17,7 @@ export default function UserProfilePage() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
-
+  const [roleName, setRoleName] = useState('');
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
@@ -42,6 +42,7 @@ export default function UserProfilePage() {
         const profileData = await fetchUserProfile(token);
         console.log("profileData ==<<>>", profileData);
         setUserProfile(profileData.data || profileData);
+        setRoleName(profileData.role_name);
         setLoading(false);
       } catch (err) {
         setError("Failed to fetch profile. Please try again or log in.");
@@ -63,7 +64,8 @@ export default function UserProfilePage() {
 
   if (userProfile) {
     if (isCompany) {
-      const rawPath = userProfile.profile_image || userProfile.logo;
+      const rawPath = userProfile.profile_image ;
+      console.log('rawPath ==<<<>>', rawPath)
       if (rawPath) {
         displayImageUrl = rawPath.startsWith("http")
           ? rawPath
@@ -98,12 +100,17 @@ export default function UserProfilePage() {
     }
   }
 
+  // Handle double-click on profile image/placeholder
+  const handleProfileImageClick = () => {
+    setShowImageModal(true);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500"></div>
-        <p className="ml-4 text-xl font-semibold text-gray-700">
-          Loading profile data...
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100">
+        <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-indigo-600"></div>
+        <p className="ml-5 text-2xl font-semibold text-gray-800">
+          Loading your profile, just a moment...
         </p>
       </div>
     );
@@ -112,12 +119,12 @@ export default function UserProfilePage() {
   if (error || !userProfile) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-red-50">
-        <div className="text-center p-8 bg-white border border-red-400 text-red-700 rounded-lg shadow-lg">
-          <p className="text-2xl font-bold mb-4">Oops! Something went wrong.</p>
-          <p className="text-lg">{error}</p>
+        <div className="text-center p-10 bg-white border border-red-400 text-red-700 rounded-xl shadow-2xl animate-fade-in">
+          <p className="text-3xl font-bold mb-4">Oops! Something went wrong.</p>
+          <p className="text-xl mb-6">{error}</p>
           <button
             onClick={() => navigate("/login")}
-            className="mt-6 px-6 py-3 bg-red-600 text-white font-semibold rounded-full hover:bg-red-700 transition-colors duration-300"
+            className="mt-6 px-8 py-4 bg-red-600 text-white font-semibold rounded-full hover:bg-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             Go to Login
           </button>
@@ -142,7 +149,7 @@ export default function UserProfilePage() {
 
         <div className="flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 bg-gradient-to-br from-gray-50 to-indigo-50">
           <div className="max-w-6xl mx-auto">
-            <div className="bg-white shadow-2xl rounded-3xl p-8 mb-8 transform transition-all duration-500 hover:scale-[1.005] border border-gray-100">
+            <div className="bg-white shadow-2xl rounded-3xl p-8 mb-8 transform transition-all duration-500 hover:scale-[1.005] border border-gray-100 animate-fade-in-up">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 pb-6 border-b border-gray-200">
                 <div>
                   <h1 className="text-4xl font-extrabold text-gray-900 leading-tight">
@@ -153,13 +160,13 @@ export default function UserProfilePage() {
                   </p>
                   {contactNumber && (
                     <p className="text-md text-gray-700 mt-2 flex items-center">
-                      <span className="mr-2 text-indigo-500">📞</span>{" "}
+                      <Phone size={18} className="mr-2 text-indigo-500" />{" "}
                       {contactNumber}
                     </p>
                   )}
                   {primaryEmail && (
                     <p className="text-md text-gray-700 flex items-center">
-                      <span className="mr-2 text-indigo-500">✉️</span>{" "}
+                      <Mail size={18} className="mr-2 text-indigo-500" />{" "}
                       {primaryEmail}
                     </p>
                   )}
@@ -171,45 +178,46 @@ export default function UserProfilePage() {
                       to={`/employee-form/${employee?.id}`}
                       className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white px-6 py-3 rounded-full text-base font-medium shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl"
                     >
-                      <span className="mr-1">✏️</span> Update Profile
+                      <Edit size={20} /> Update Profile
                     </Link>
                   )}
-                  <button
-                    onClick={() => setShowImageModal(true)}
-                    className="flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white px-6 py-3 rounded-full text-base font-medium shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-xl"
-                  >
-                    <span className="mr-1">{isCompany ? "🖼️" : "📸"}</span>{" "}
-                    {isCompany
-                      ? "Update Company Logo"
-                      : "Update Profile Picture"}
-                  </button>
+                  {/* Removed the dedicated "Update Profile Picture" button as it's handled by image click */}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                 <div className="space-y-8">
                   <div className="flex justify-center lg:justify-start">
-                    {displayImageUrl ? (
-                      <img
-                        src={displayImageUrl}
-                        alt={isCompany ? "Company Logo" : "Profile"}
-                        className={`w-52 h-52 ${
-                          isCompany ? "rounded-xl" : "rounded-full"
-                        } object-cover border-4 border-white shadow-xl transition-transform duration-300 transform hover:scale-105`}
-                      />
-                    ) : (
-                      <div
-                        className={`w-48 h-48 bg-indigo-600 text-white ${
-                          isCompany ? "rounded-xl" : "rounded-full"
-                        } flex items-center justify-center text-6xl font-bold shadow-xl transition-transform duration-300 transform hover:scale-105`}
-                      >
-                        {firstLetter}
+                    <div
+                      onClick={handleProfileImageClick} // Use onClick for simplicity; dblclick can be finicky
+                      className={`relative group cursor-pointer ${
+                        isCompany ? "rounded-xl" : "rounded-full"
+                      } overflow-hidden w-52 h-52 border-4 border-white shadow-xl transition-transform duration-300 transform hover:scale-105`}
+                    >
+                      {displayImageUrl ? (
+                        <img
+                          src={displayImageUrl}
+                          alt={isCompany ? "Company Logo" : "Profile"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`w-full h-full bg-indigo-600 text-white flex items-center justify-center text-6xl font-bold`}
+                        >
+                          {firstLetter}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Camera size={48} className="text-white" />
+                        <span className="ml-3 text-white text-lg font-semibold">
+                          {isCompany ? "Update Logo" : "Update Picture"}
+                        </span>
                       </div>
-                    )}
+                    </div>
                   </div>
 
                   {!isCompany && roleId && (
-                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300">
+                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300 animate-fade-in-up delay-100">
                       <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                         <span className="text-red-500 mr-3">📞</span> Emergency
                         Contacts
@@ -219,9 +227,9 @@ export default function UserProfilePage() {
                           emergency_contacts.map((c, i) => (
                             <div
                               key={i}
-                              className="pb-3 last:pb-0 border-b last:border-b-0"
+                              className="pb-3 last:pb-0 border-b last:border-b-0 border-gray-100"
                             >
-                              <p className="font-semibold">
+                              <p className="font-semibold text-gray-900">
                                 {c.emergency_name}
                               </p>
                               <p className="text-gray-600">
@@ -242,7 +250,7 @@ export default function UserProfilePage() {
                   )}
 
                   {!isCompany && roleId && (
-                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300">
+                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300 animate-fade-in-up delay-200">
                       <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                         <span className="text-green-500 mr-3">🏢</span> Work
                         Details
@@ -252,11 +260,11 @@ export default function UserProfilePage() {
                           office_details.map((office, i) => (
                             <div
                               key={i}
-                              className="pb-3 last:pb-0 border-b last:border-b-0"
+                              className="pb-3 last:pb-0 border-b last:border-b-0 border-gray-100"
                             >
                               <p>
                                 <strong>Role:</strong>{" "}
-                                {office.job_role || "N/A"}
+                                {roleName || "N/A"}
                               </p>
                               <p>
                                 <strong>Reporting To:</strong>{" "}
@@ -288,7 +296,7 @@ export default function UserProfilePage() {
                   )}
 
                   {isCompany && (
-                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300">
+                    <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300 animate-fade-in-up delay-300">
                       <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                         <span className="text-blue-500 mr-3">📊</span> Company
                         Specifics
@@ -298,58 +306,60 @@ export default function UserProfilePage() {
                           <strong>Team Size:</strong>{" "}
                           {userProfile?.team_size || "N/A"}
                         </p>
-                        <div>
-                          <h3 className="text-2xl font-bold text-gray-800 mb-4 border-b border-gray-300 pb-2">
+                        <div className="pt-4 border-t border-gray-100">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-3">
                             Company Address
-                          </h3>
-                          <div className="flex items-center">
-                            <MapPin className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
-                            <strong className="text-gray-900 mr-1">
-                              Street Address:
-                            </strong>
-                            <span className="break-words">
-                              {userProfile?.street_address || "N/A"}
-                            </span>
-                          </div>
+                          </h4>
+                          <div className="space-y-2">
+                            <p className="flex items-center">
+                              <MapPin className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
+                              <strong className="text-gray-900 mr-1">
+                                Street:
+                              </strong>
+                              <span className="break-words">
+                                {userProfile?.street_address || "N/A"}
+                              </span>
+                            </p>
 
-                          <div className="flex items-center">
-                            <Building className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
-                            <strong className="text-gray-900 mr-1">
-                              City:
-                            </strong>
-                            <span className="break-words">
-                              {userProfile?.city || "N/A"}
-                            </span>
-                          </div>
+                            <p className="flex items-center">
+                              <Building className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
+                              <strong className="text-gray-900 mr-1">
+                                City:
+                              </strong>
+                              <span className="break-words">
+                                {userProfile?.city || "N/A"}
+                              </span>
+                            </p>
 
-                          <div className="flex items-center">
-                            <Globe className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
-                            <strong className="text-gray-900 mr-1">
-                              State/Province:
-                            </strong>
-                            <span className="break-words">
-                              {userProfile?.state_province || "N/A"}
-                            </span>
-                          </div>
+                            <p className="flex items-center">
+                              <Globe className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
+                              <strong className="text-gray-900 mr-1">
+                                State/Province:
+                              </strong>
+                              <span className="break-words">
+                                {userProfile?.state_province || "N/A"}
+                              </span>
+                            </p>
 
-                          <div className="flex items-center">
-                            <Hash className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
-                            <strong className="text-gray-900 mr-1">
-                              Zip Code:
-                            </strong>
-                            <span className="break-words">
-                              {userProfile?.zip_code || "N/A"}
-                            </span>
-                          </div>
+                            <p className="flex items-center">
+                              <Hash className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
+                              <strong className="text-gray-900 mr-1">
+                                Zip Code:
+                              </strong>
+                              <span className="break-words">
+                                {userProfile?.zip_code || "N/A"}
+                              </span>
+                            </p>
 
-                          <div className="flex items-center">
-                            <Flag className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
-                            <strong className="text-gray-900 mr-1">
-                              Country:
-                            </strong>
-                            <span className="break-words">
-                              {userProfile?.country || "N/A"}
-                            </span>
+                            <p className="flex items-center">
+                              <Flag className="h-5 w-5 text-gray-600 mr-2 flex-shrink-0" />
+                              <strong className="text-gray-900 mr-1">
+                                Country:
+                              </strong>
+                              <span className="break-words">
+                                {userProfile?.country || "N/A"}
+                              </span>
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -358,7 +368,7 @@ export default function UserProfilePage() {
                 </div>
 
                 <div className="lg:col-span-2 space-y-8">
-                  <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300">
+                  <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-300 animate-fade-in-up delay-400">
                     <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
                       <span className="text-orange-500 mr-3">ℹ️</span> About
                     </h2>
@@ -457,18 +467,6 @@ export default function UserProfilePage() {
                         </div>
                       </div>
                     )}
-{/* 
-                    {isCompany && (
-                      <div className="bg-gray-50 p-4 rounded-xl shadow-sm border border-gray-200 mb-4">
-                        <h4 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-300 pb-2">
-                          Company Description
-                        </h4>
-                        <p className="text-base text-gray-700">
-                          {userProfile?.description ||
-                            "No company description available."}
-                        </p>
-                      </div>
-                    )} */}
                   </div>
 
                   <div className="flex flex-wrap gap-4 pt-6 border-t border-gray-200">

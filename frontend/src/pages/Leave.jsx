@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { format } from "date-fns";
-import { addDays } from "date-fns";
+import { format, addDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { DateRange } from "react-date-range";
 import "react-date-range/dist/styles.css";
@@ -15,11 +14,11 @@ const LeaveRequest = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [open, setOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showRangePicker, setShowRangePicker] = useState(false);
-  const [showSingleDate, setShowSingleDate] = useState(true);
-  const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 });
+  const [showRangePicker, setShowRangePicker] = useState(false); 
+  const [showSingleDate, setShowSingleDate] = useState(true); 
+  const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 }); 
   const [quickLinks, setQuickLinks] = useState([]);
-  const [existingData, setExistingData] = useState(null);
+  const [existingData, setExistingData] = useState(null); 
   const [isUpdating, setIsUpdating] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const navigate = useNavigate();
@@ -31,6 +30,8 @@ const LeaveRequest = () => {
   const token = localStorage.getItem("token");
   const HeaderTitle = "Employee Leave Details";
   const employeesPerPage = 5;
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  console.log('roleId ==<<<>>', roleId)
 
   const [newLeave, setNewLeave] = useState({
     duration: "Single Day",
@@ -49,15 +50,33 @@ const LeaveRequest = () => {
     },
   ]);
 
+  const handleAuthenticationError = (errMessage) => {
+    Swal.fire({
+      icon: "error",
+      title: "Session Expired",
+      text: errMessage || "Your session has expired. Please log in again.",
+      confirmButtonText: "Login",
+    }).then(() => {
+      localStorage.removeItem("token");
+      sessionStorage.clear();
+      navigate('/login');
+    });
+  };
 
   const fetchLeaveRequests = async () => {
     try {
       const res = await fetch("http://localhost:8000/api/leave-requests/", {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (res.status === 401) {
+        handleAuthenticationError("Failed to authenticate. Please log in again.");
+        return;
+      }
+
       const data = await res.json();
-  
-      // If user is blocked due to incomplete profile
+      console.log('data ==<<<>>', data)
+
       if (data.is_complete === false) {
         Swal.fire({
           icon: "warning",
@@ -66,11 +85,10 @@ const LeaveRequest = () => {
           footer: `Missing: ${data.missing_sections || "Required Sections"}`
         });
         navigate('/dashboard');
-        return; 
+        return;
       }
-  
-      const list = data.data || [];
-      setLeaveRequests(list);
+
+      setLeaveRequests(data.data || []);
     } catch (error) {
       console.error("Failed to fetch leave requests:", error);
       Swal.fire({
@@ -78,47 +96,51 @@ const LeaveRequest = () => {
         title: "Error",
         text: "Something went wrong while loading leave requests.",
       });
+    } finally {
+      setLoading(false);
     }
   };
-  
 
-  const fetchLinks = async (token) => {
+  const fetchInitialData = async () => {
     try {
-      const links = await fetchDashboardLink(token); 
-      const dashboardData = await fetchDashboard(token);
-      fetchLeaveRequests();
+      const links = await fetchDashboardLink(token);
+      const dashboardInfo = await fetchDashboard(token);
       setQuickLinks(links);
-      setDashboardData(dashboardData);
+      setDashboardData(dashboardInfo);
+     const leaveData = await fetchLeaveRequests();
+     console.log('leaveData ===<<<<>>', leaveData)
     } catch (err) {
-      setError("Failed to load dashboard");
-      localStorage.removeItem("token");
-      sessionStorage.clear();
+      console.error("Failed to load initial data:", err);
+      if (err.message.includes("Unauthorized")) {
+        handleAuthenticationError();
+      } else {
+        setError("Failed to load dashboard or leave requests.");
+      }
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
-  // calling useEffect to fetch nominee details and dashboard data
   useEffect(() => {
-    if(!token) return;
-
-    fetchLinks();
-  }, []);
+    if (!token) {
+      handleAuthenticationError("No authentication token found.");
+      return;
+    }
+    fetchInitialData();
+  }, [token]);
 
   const handleOpen = () => setOpen(!open);
-  // Update from/to dates based on duration selection
+
   useEffect(() => {
     const { startDate, endDate } = dateRange[0];
 
-    if (newLeave.duration === "Multiple Days") {
-      setShowRangePicker(true);
-      setShowSingleDate(false);
+    if (newLeave.duration === "Multiple days") {
       setNewLeave((prev) => ({
         ...prev,
         from_date: format(startDate, "yyyy-MM-dd"),
         to_date: format(endDate, "yyyy-MM-dd"),
       }));
     } else {
-      setShowRangePicker(false);
-      setShowSingleDate(true);
       setNewLeave((prev) => ({
         ...prev,
         to_date: "",
@@ -139,7 +161,7 @@ const LeaveRequest = () => {
   const filteredLeaveRequests = leaveRequests.filter((leave) => {
     const name =
       leave.username ||
-      `${leave.employee?.first_name} ${leave.employee?.last_name}`;
+      `${leave.employee?.first_name || ''} ${leave.employee?.last_name || ''}`;
     return (
       name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       leave.leave_type?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -157,6 +179,7 @@ const LeaveRequest = () => {
     e.preventDefault();
     setSuccess(null);
     setError(null);
+    setLoading(true);
 
     const formData = new FormData();
     Object.entries(newLeave).forEach(([key, val]) => {
@@ -169,6 +192,11 @@ const LeaveRequest = () => {
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
+
+      if (res.status === 401) {
+        handleAuthenticationError("Failed to authenticate. Please log in again.");
+        return;
+      }
 
       if (res.ok) {
         const newData = await res.json();
@@ -183,24 +211,25 @@ const LeaveRequest = () => {
           reason: "",
           attachment: null,
         });
+        fetchLeaveRequests(); 
       } else {
-        setError("Failed to apply leave.");
+        const errorData = await res.json();
+        setError(errorData.message || "Failed to apply leave.");
       }
-    } catch {
+    } catch (err) {
       setError("Failed to connect to server.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const getStatusText = (leave) => {
-
-  
     const statusMap = {
       "Admin Approved": "Approved",
       "HR Approved": "HR Approved",
       "Admin Rejected": "Rejected",
       "HR Rejected": "Rejected",
     };
-  
     return statusMap[leave.status] || "Pending";
   };
 
@@ -223,7 +252,6 @@ const LeaveRequest = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
@@ -231,7 +259,6 @@ const LeaveRequest = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <Header title={HeaderTitle} />
 
@@ -247,6 +274,7 @@ const LeaveRequest = () => {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
+                setCurrentPage(1);
               }}
               className="w-full sm:w-64 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
             />
@@ -259,15 +287,13 @@ const LeaveRequest = () => {
           </div>
         </div>
 
-        {/* Modal for applying leave */}
         {open && (
           <div className="fixed inset-0 flex items-center justify-center bg-gray-600 bg-opacity-50 z-50">
             <div className="bg-white rounded-lg p-8 max-w-lg w-full shadow-lg">
               <h2 className="text-2xl font-semibold text-center mb-6">
                 Apply for Leave
               </h2>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Leave Type */}
+              <div className="space-y-6">
                 <div>
                   <label
                     htmlFor="leave_type"
@@ -288,7 +314,6 @@ const LeaveRequest = () => {
                   </select>
                 </div>
 
-                {/* Duration */}
                 <div>
                   <label
                     htmlFor="duration"
@@ -309,7 +334,6 @@ const LeaveRequest = () => {
                   </select>
                 </div>
 
-                {/* Dates */}
                 <div className="flex flex-col md:flex-row gap-4">
                   <div className="flex-1">
                     <label className="block text-gray-700 mb-1">
@@ -340,7 +364,6 @@ const LeaveRequest = () => {
                   )}
                 </div>
 
-                {/* Reason */}
                 <div>
                   <label htmlFor="reason" className="block text-gray-700 mb-1">
                     Reason
@@ -355,7 +378,6 @@ const LeaveRequest = () => {
                   />
                 </div>
 
-                {/* Attachment */}
                 <div>
                   <label
                     htmlFor="attachment"
@@ -371,7 +393,6 @@ const LeaveRequest = () => {
                   />
                 </div>
 
-                {/* Buttons */}
                 <div className="flex justify-between">
                   <button
                     type="button"
@@ -382,59 +403,93 @@ const LeaveRequest = () => {
                   </button>
                   <button
                     type="submit"
+                    onClick={handleSubmit}
                     className="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
                   >
                     Submit
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Leave Requests Table */}
         <div className="p-6">
           <h2 className="text-2xl font-semibold mb-4">Leave Status</h2>
-          <table className="min-w-full table-auto border border-gray-300">
-            <thead className="bg-blue-50">
-              <tr>
-                <th className="px-4 py-2 border">Leave Type</th>
-                <th className="px-4 py-2 border">From Date</th>
-                <th className="px-4 py-2 border">To Date</th>
-                <th className="px-4 py-2 border">Duration</th>
-                <th className="px-4 py-2 border">Reason</th>
-                <th className="px-4 py-2 border">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentLeaveRequests.map((leave, index) => (
-                <tr key={index} className="odd:bg-gray-50 even:bg-white">
-                  <td className="px-4 py-2 border">{leave.leave_type}</td>
-                  <td className="px-4 py-2 border">{leave.from_date}</td>
-                  <td className="px-4 py-2 border">{leave.to_date || "-"}</td>
-                  <td className="px-4 py-2 border">{leave.duration}</td>
-                  <td className="px-4 py-2 border">{leave.reason}</td>
-                  <td
-                    className={`px-4 py-2 border text-center font-medium ${getStatusColor(
-                      getStatusText(leave)
-                    )}`}
-                  >
-                    {getStatusText(leave)}
-                  </td>
+          {loading ? (
+            <div className="text-center text-gray-500">Loading leave requests...</div>
+          ) : (
+            <table className="min-w-full table-auto border border-gray-300">
+              <thead className="bg-blue-50">
+                <tr>
+                  <th className="px-4 py-2 border">Leave Type</th>
+                  <th className="px-4 py-2 border">From Date</th>
+                  <th className="px-4 py-2 border">To Date</th>
+                  <th className="px-4 py-2 border">Duration</th>
+                  <th className="px-4 py-2 border">Reason</th>
+                  <th className="px-4 py-2 border">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+  {currentLeaveRequests.length > 0 ? (
+    currentLeaveRequests
+      .filter((leave) => roleId !== 2 || leave.employee__role_id === 2)
+      .map((leave, index) => (
+        <tr key={index} className="odd:bg-gray-50 even:bg-white">
+          <td className="px-4 py-2 border">{leave.leave_type}</td>
+          <td className="px-4 py-2 border">{leave.from_date}</td>
+          <td className="px-4 py-2 border">{leave.to_date || "-"}</td>
+          <td className="px-4 py-2 border">{leave.duration}</td>
+          <td className="px-4 py-2 border">{leave.reason}</td>
+          <td
+            className={`px-4 py-2 border text-center font-medium ${getStatusColor(
+              getStatusText(leave)
+            )}`}
+          >
+            {getStatusText(leave)}
+          </td>
+        </tr>
+      ))
+  ) : (
+    <tr>
+      <td colSpan="6" className="text-center py-4">No leave requests found.</td>
+    </tr>
+  )}
+</tbody>
+
+            </table>
+          )}
         </div>
 
-        {/* Success/Error messages */}
+        {filteredLeaveRequests.length > employeesPerPage && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 mx-1 rounded-md bg-blue-500 text-white disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="px-4 py-2 mx-1">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 mx-1 rounded-md bg-blue-500 text-white disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
         {success && (
-          <div className="fixed bottom-5 left-5 bg-green-500 text-white p-4 rounded-md">
+          <div className="fixed bottom-5 left-5 bg-green-500 text-white p-4 rounded-md shadow-lg">
             {success}
           </div>
         )}
         {error && (
-          <div className="fixed bottom-5 left-5 bg-red-500 text-white p-4 rounded-md">
+          <div className="fixed bottom-5 left-5 bg-red-500 text-white p-4 rounded-md shadow-lg">
             {error}
           </div>
         )}

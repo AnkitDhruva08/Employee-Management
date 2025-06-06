@@ -15,9 +15,8 @@ const LeaveTable = () => {
   const HeaderTitle = "Employee Leave Requests";
   const token = localStorage.getItem("token");
   const roleId = localStorage.getItem("role_id");
-
   const isCompany = localStorage.getItem("is_company") === "true";
-  // Fetch dashboard links and data
+
   const fetchLinks = async () => {
     try {
       const links = await fetchDashboardLink(token);
@@ -36,42 +35,43 @@ const LeaveTable = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
-    const list = data.results || data.data || [];
-    setLeaveRequests(list);
+    const leaveList = Array.isArray(data?.data) ? data.data : [];
+    console.log("Filtered leave list:", leaveList);
+    setLeaveRequests(leaveList);
   };
 
   useEffect(() => {
-    if(!token) return;
+    if (!token) return;
     fetchLeaveRequests();
     fetchLinks();
   }, []);
 
   const filteredLeaveRequests = leaveRequests
-  .filter((leave) => {
-    const name =
-      leave.username ||
-      `${leave.employee?.first_name} ${leave.employee?.last_name}`;
-    return (
-      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      leave.leave_type?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  })
-  .filter((leave) => {
-    // If isCompany is true, show only Admin Approved leaves
-    if (isCompany) {
-      return leave.status === "Admin Approved";
-    }
-    return true; // Otherwise show all
-  });
+    .filter((leave) => {
+      const name =
+        leave.username ||
+        `${leave.employee?.first_name} ${leave.employee?.last_name}`;
+      return (
+        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        leave.leave_type?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    })
+    .filter((leave) => {
+      if (isCompany) {
+        return leave.status === "Admin Approved";
+      }
+      return true;
+    });
 
   const currentLeaveRequests = filteredLeaveRequests.slice(
     (currentPage - 1) * employeesPerPage,
     currentPage * employeesPerPage
   );
 
-  const totalPages = Math.ceil(filteredLeaveRequests.length / employeesPerPage);
+  const totalPages = Math.ceil(
+    filteredLeaveRequests.length / employeesPerPage
+  );
 
-  //  function for Approved or reject Leave
   const handleApproveLeave = async (leaveId, type) => {
     const data = {
       status: type,
@@ -115,7 +115,6 @@ const LeaveTable = () => {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         {dashboardData ? (
           <h2 className="text-xl font-semibold text-white">
@@ -129,7 +128,6 @@ const LeaveTable = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-y-auto">
         <Header title={HeaderTitle} />
 
@@ -152,7 +150,6 @@ const LeaveTable = () => {
           </div>
         </div>
 
-        {/* Leave Requests Table */}
         <div className="overflow-x-auto p-4">
           <table className="min-w-full text-sm border-t shadow-md rounded overflow-hidden">
             <thead className="bg-gray-100 text-gray-700">
@@ -168,6 +165,7 @@ const LeaveTable = () => {
             </thead>
             <tbody>
               {currentLeaveRequests.map((leave) => (
+                
                 <tr
                   key={leave.id}
                   className="border hover:bg-blue-50 even:bg-gray-50 transition duration-200 ease-in-out"
@@ -188,26 +186,29 @@ const LeaveTable = () => {
                     {renderStatusBadge(leave.status)}
                   </td>
                   <td className="p-3 border">
-                      {isCompany ? (
-                        <span className="text-sm text-gray-400">No Actions</span>
-                      ) : roleId === "1" || roleId === "2" ? (
-                        leave.status === "Admin Approved" && roleId === "2" ? (
-                          <span className="text-sm text-gray-400">No Actions</span>
-                        ) : (
-                          <button
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                            onClick={() => {
-                              setSelectedLeave(leave);
-                              setModalOpen(true);
-                            }}
-                          >
-                            Take Action
-                          </button>
-                        )
+                    {isCompany ? (
+                      <span className="text-sm text-gray-400">No Actions</span>
+                    ) : roleId === "1" || roleId === "2" ? (
+                      leave.status === "Admin Approved" &&
+                      roleId === "2" ? (
+                        <span className="text-sm text-gray-400">
+                          No Actions
+                        </span>
                       ) : (
-                        <span className="text-sm text-gray-400">No Actions</span>
-                      )}
-                    </td>
+                        <button
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setModalOpen(true);
+                          }}
+                        >
+                          Take Action
+                        </button>
+                      )
+                    ) : (
+                      <span className="text-sm text-gray-400">No Actions</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -241,7 +242,9 @@ const LeaveTable = () => {
               </button>
             ))}
             <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              onClick={() =>
+                setCurrentPage((p) => Math.min(p + 1, totalPages))
+              }
               className="px-3 py-1 rounded bg-white border hover:bg-gray-100"
             >
               Next
@@ -268,7 +271,10 @@ const LeaveTable = () => {
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() =>
-                    handleApproveLeave(selectedLeave.id, "Admin Approved")
+                    handleApproveLeave(
+                      selectedLeave.id,
+                      roleId === "2" ? "HR Approved" : "Admin Approved"
+                    )
                   }
                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
                 >
@@ -276,7 +282,10 @@ const LeaveTable = () => {
                 </button>
                 <button
                   onClick={() =>
-                    handleApproveLeave(selectedLeave.id, "HR Rejected")
+                    handleApproveLeave(
+                      selectedLeave.id,
+                      roleId === "2" ? "HR Rejected" : "Admin Rejected"
+                    )
                   }
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
                 >

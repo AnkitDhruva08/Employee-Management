@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 import Header from "../header/Header";
+import {fetchRoles} from '../../utils/api'
 
 export default function PersonalInfoForm({ onNext, onPrev }) {
 
@@ -10,7 +11,7 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
   const Navigate = useNavigate();
   const [formData, setFormData] = useState({
     first_name: "",
-    middle_name: "",
+    // middle_name: "",
     last_name: "",
     contact_number: "",
     company_email: "",
@@ -34,9 +35,16 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
   const role_id = localStorage.getItem("role_id");
   const headerTitle = "Employee Personal Details";
 
+  const token = localStorage.getItem("token");
+
+  const fetchLinks = async() => {
+    const roleData = await fetchRoles(token);
+    console.log('roleData ==<<<>>', roleData);
+    setRoles(roleData);
+  }
 
   const fetchEmployee = async () => {
-    const token = localStorage.getItem("token");
+    
     if (!token) {
       setError("Unauthorized. Please login again.");
       return;
@@ -92,20 +100,10 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
   
   
 
-  const fetchRoles = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/roles/");
-      if (!res.ok) throw new Error("Failed to fetch roles");
-      const data = await res.json();
-      setRoles(data);
-    } catch (err) {
-      console.error("Error loading roles:", err);
-    }
-  };
 
   useEffect(() => {
     
-    fetchRoles();
+    fetchLinks();
     fetchEmployee();
   }, []);
 
@@ -146,7 +144,7 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
         if (!id) {
           setFormData({
             first_name: "",
-            middle_name: "",
+            // middle_name: "",
             last_name: "",
             contact_number: "",
             company_email: "",
@@ -186,7 +184,7 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
               <SectionTitle title="Personal Information" />
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-4">
                 <Input label="First Name" name="first_name" value={formData.first_name} onChange={handleChange} />
-                <Input label="Middle Name" name="middle_name" value={formData.middle_name} onChange={handleChange} />
+                {/* <Input label="Middle Name" name="middle_name" value={formData.middle_name} onChange={handleChange} /> */}
                 <Input label="Last Name" name="last_name" value={formData.last_name} onChange={handleChange} />
                 <Input label="Contact Number" name="contact_number" value={formData.contact_number} onChange={handleChange} />
                 <Input label="Company Email" name="company_email" value={formData.company_email} onChange={handleChange} disabled={isRestricted} />

@@ -10,7 +10,6 @@ const BankDetails = () => {
   const { id } = useParams();
   const token = localStorage.getItem("token");
 
-
   const [bankData, setBankData] = useState({
     account_holder_name: '',
     bank_name: '',
@@ -27,7 +26,6 @@ const BankDetails = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
-
 
   useEffect(() => {
     const fetchBankDetails = async () => {
@@ -65,7 +63,7 @@ const BankDetails = () => {
     };
 
     fetchBankDetails();
-  }, [id]);
+  }, [id, token]);
 
   useEffect(() => {
     const fetchLinks = async () => {
@@ -87,10 +85,18 @@ const BankDetails = () => {
     setBankData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Moved outside JSX - to be passed to FileUpload
+  const onFilesSelected = (files) => {
+    console.log("Files selected:", files);
+    setBankData((prev) => ({ ...prev, bank_details_pdf: files[0]?.file || null }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    console.log("Submitting bank details:", bankData);
 
     const formData = new FormData();
     Object.entries(bankData).forEach(([key, value]) => {
@@ -136,26 +142,18 @@ const BankDetails = () => {
     return <div className="text-red-600 text-center mt-10 text-xl animate-pulse">{error}</div>;
   }
 
-
-
-
   const handlePreviewFile = () => {
     if (bankData.bank_details_pdf) {
- 
       const fileUrl = `http://localhost:8000/apip${bankData.bank_details_pdf}`;
       window.open(fileUrl, "_blank");
     } else {
       alert("No file available for preview.");
     }
   };
-  
-  
-  
+
   return (
-
-
-      <div className="flex min-h-screen bg-gray-100">
-          {/* Sidebar */}
+    <div className="flex min-h-screen bg-gray-100">
+      {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
@@ -163,9 +161,9 @@ const BankDetails = () => {
         </div>
       </div>
 
-       {/* Main Content */}
-       <div className="flex-1 flex flex-col">
-       <Header title="Bank Details" />
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <Header title="Bank Details" />
         <div className="max-w-3xl mx-auto bg-white p-8 shadow-lg rounded-lg mt-6">
           <h2 className="text-2xl font-semibold text-center mb-6 text-blue-700">
             {isUpdating ? "Update Your Bank Details" : "Add Your Bank Details"}
@@ -221,9 +219,7 @@ const BankDetails = () => {
                 isView={false}
                 isCombine={false}
                 initialFiles={bankData.bank_details_pdf ? [bankData.bank_details_pdf] : []}
-                onFilesSelected={(files) =>
-                  setBankData((prev) => ({ ...prev, bank_details_pdf: files[0]?.file || null }))
-                }
+                onFilesSelected={onFilesSelected}
                 onDeletedFiles={() =>
                   setBankData((prev) => ({ ...prev, bank_details_pdf: null }))
                 }
@@ -245,9 +241,8 @@ const BankDetails = () => {
             {error && <p className="text-red-600 text-center mt-4">{error}</p>}
           </div>
         </div>
-       </div>
-        
       </div>
+    </div>
   );
 };
 

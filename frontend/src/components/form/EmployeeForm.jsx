@@ -16,7 +16,7 @@ const steps = [
   "Emergency Contact",
   "Nominee Details",
   "Bank Details",
-  "Office Details",
+  // "Office Details",
   "Documents",
 ];
 
@@ -43,8 +43,8 @@ export default function EmployeeForm() {
       case 1: return <EmergencyContactForm {...stepProps} />;
       case 2: return <NomineeDetailsForm {...stepProps} />;
       case 3: return <BankDetailsForm {...stepProps} />;
-      case 4: return <OfficeDetailsForm {...stepProps} />;
-      case 5: return <DocumentsUploadForm {...stepProps} />;
+      // case 4: return <OfficeDetailsForm {...stepProps} />;
+      case 4: return <DocumentsUploadForm {...stepProps} />;
       default: return null;
     }
   };

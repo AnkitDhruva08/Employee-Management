@@ -151,10 +151,8 @@ class OfficeDetails(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='office_details')
     date_of_joining = models.DateField()
     probation_end = models.DateField()
-    job_role = models.CharField(max_length=100)
     reporting_to = models.CharField(max_length=100)
-    date_of_leaving = models.DateField(null=True, blank=True)
-    active = models.BooleanField(default=True)  # New field
+    active = models.BooleanField(default=True)  
 
     # Audit fields
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="office_created_by")

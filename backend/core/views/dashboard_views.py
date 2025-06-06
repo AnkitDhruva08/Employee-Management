@@ -133,6 +133,13 @@ class DashboardView(APIView):
             total_employees = Employee.objects.filter(company_id=company_id).count()
             total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
             upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
+            print('hr <<<<<<<<<<<>>>>>>>>>>>', role_id)
+            
+            hr_details = Employee.objects.get(company_email=email, active=True)
+            hr_name = f"{hr_details.first_name} {hr_details.last_name}"
+            
+
+
 
             employee_details = Employee.objects.filter(active=True).select_related('role').values(
                 'id', 'first_name', 'middle_name', 'last_name', 'contact_number',
@@ -143,6 +150,7 @@ class DashboardView(APIView):
             return Response({
                 **common_data,
                 "employee_details": employee_details,
+                'hr_name' : hr_name,
                 "total_employees": total_employees,
                 "total_leave_requests": total_leave_requests,
                 "upcoming_events": upcoming_events,

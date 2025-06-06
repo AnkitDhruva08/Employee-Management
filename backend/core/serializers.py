@@ -34,7 +34,8 @@ class CompanySerializer(serializers.ModelSerializer):
             'zip_code',
             'country',
             'contact_number',
-            'user'
+            'user',
+            'profile_image'
         ]
 
 
@@ -116,10 +117,32 @@ class NomineeDetailsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# class EmployeeDocumentSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = EmployeeDocument
+#         fields = '__all__'
+
+
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
+    insurance_number = serializers.CharField(required=False, allow_blank=True)
+    epf_member = serializers.CharField(required=False, allow_blank=True)
+    uan = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = EmployeeDocument
         fields = '__all__'
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+
+        # Validate mandatory aadhar and pan files only on create
+        if self.instance is None:
+            if not request.FILES.get('aadhar'):
+                raise serializers.ValidationError({'aadhar': 'Aadhar document is required.'})
+            if not request.FILES.get('pan'):
+                raise serializers.ValidationError({'pan': 'PAN document is required.'})
+
+        return attrs
 
 
 

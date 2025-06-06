@@ -185,7 +185,7 @@ const FileUpload = ({
               className="p-2 rounded bg-gray-100 hover:bg-gray-200 transition"
               title="Preview Files"
             >
-              <PreviewIcon width={24} height={24} fill="#4B5563" />
+              <EyeIcon width={24} height={24} fill="#4B5563" />
             </button>
           )}
         </div>
