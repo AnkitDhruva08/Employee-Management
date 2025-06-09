@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import Header from "../components/header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
+import CompanyLogo from "../components/CompanyLogo";
+import FileUpload from "../components/File/FileUpload";
 
 const LeaveTable = () => {
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -34,10 +36,10 @@ const LeaveTable = () => {
     const res = await fetch("http://localhost:8000/api/leave-requests/", {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const data = await res.json();
-    const leaveList = Array.isArray(data?.data) ? data.data : [];
-    console.log("Filtered leave list:", leaveList);
-    setLeaveRequests(leaveList);
+    const leaveList = await res.json();
+
+    console.log("Filtered leave list:", leaveList.data);
+    setLeaveRequests(leaveList.data);
   };
 
   useEffect(() => {
@@ -68,9 +70,7 @@ const LeaveTable = () => {
     currentPage * employeesPerPage
   );
 
-  const totalPages = Math.ceil(
-    filteredLeaveRequests.length / employeesPerPage
-  );
+  const totalPages = Math.ceil(filteredLeaveRequests.length / employeesPerPage);
 
   const handleApproveLeave = async (leaveId, type) => {
     const data = {
@@ -100,29 +100,44 @@ const LeaveTable = () => {
   };
 
   const renderStatusBadge = (status) => {
+    const baseClasses =
+      "px-3 py-1 rounded-full text-sm font-semibold shadow-md";
+
     switch (status) {
       case "Admin Approved":
-        return <span className="text-green-600 font-semibold">Approved</span>;
+        return (
+          <span className={`${baseClasses} bg-green-500 text-white`}>
+            Approved
+          </span>
+        );
       case "HR Approved":
-        return <span className="text-blue-500 font-semibold">Forward</span>;
+        return (
+          <span className={`${baseClasses} bg-blue-500 text-white`}>
+            Forwarded
+          </span>
+        );
       case "Admin Rejected":
       case "HR Rejected":
-        return <span className="text-red-500 font-semibold">Rejected</span>;
+        return (
+          <span className={`${baseClasses} bg-red-500 text-white`}>
+            Rejected
+          </span>
+        );
       default:
-        return <span className="text-gray-600 font-medium">Pending</span>;
+        return (
+          <span
+            className={`${baseClasses} bg-yellow-500 text-white animate-pulse`}
+          >
+            Pending
+          </span>
+        );
     }
   };
 
   return (
     <div className="flex h-screen bg-gray-100">
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        {dashboardData ? (
-          <h2 className="text-xl font-semibold text-white">
-            {dashboardData.company}
-          </h2>
-        ) : (
-          <h2 className="text-xl font-semibold text-white">Loading...</h2>
-        )}
+        {dashboardData && <CompanyLogo logoPath={dashboardData.company_logo} />}
         <div className="flex justify-center mb-8">
           <Sidebar quickLinks={quickLinks} />
         </div>
@@ -159,13 +174,13 @@ const LeaveTable = () => {
                 <th className="p-3 border text-left">From</th>
                 <th className="p-3 border text-left">To</th>
                 <th className="p-3 border text-left">Reason</th>
+                <th className="p-3 border text-left">Attached Documents</th>
                 <th className="p-3 border text-left">Status</th>
                 <th className="p-3 border text-left">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currentLeaveRequests.map((leave) => (
-                
+              {leaveRequests.map((leave) => (
                 <tr
                   key={leave.id}
                   className="border hover:bg-blue-50 even:bg-gray-50 transition duration-200 ease-in-out"
@@ -182,15 +197,34 @@ const LeaveTable = () => {
                   <td className="p-3 border">{leave.from_date}</td>
                   <td className="p-3 border">{leave.to_date || "—"}</td>
                   <td className="p-3 border">{leave.reason}</td>
-                  <td className="p-3 border">
+                  <td>
+                    <FileUpload
+                      isView={true}
+                      isCombine={false}
+                      initialFiles={
+                        leave.leave_document
+                          ? [
+                              `http://localhost:8000/${
+                                leave.leave_document.startsWith("media/")
+                                  ? ""
+                                  : "media/"
+                              }${leave.leave_document}`,
+                            ]
+                          : []
+                      }
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onFilesSelected={() => {}}
+                      onDeletedFiles={() => {}}
+                    />
+                  </td>
+                  {/* <td className="p-3 border">
                     {renderStatusBadge(leave.status)}
                   </td>
                   <td className="p-3 border">
                     {isCompany ? (
                       <span className="text-sm text-gray-400">No Actions</span>
                     ) : roleId === "1" || roleId === "2" ? (
-                      leave.status === "Admin Approved" &&
-                      roleId === "2" ? (
+                      leave.status === "Admin Approved" && roleId === "2" ? (
                         <span className="text-sm text-gray-400">
                           No Actions
                         </span>
@@ -208,6 +242,20 @@ const LeaveTable = () => {
                     ) : (
                       <span className="text-sm text-gray-400">No Actions</span>
                     )}
+                  </td> */}
+                  <td className="p-3 border">
+                    {renderStatusBadge(leave.status)}
+                  </td>
+                  <td className="p-3 border">
+                    <button
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                      onClick={() => {
+                        setSelectedLeave(leave);
+                        setModalOpen(true);
+                      }}
+                    >
+                      Take Action
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -242,9 +290,7 @@ const LeaveTable = () => {
               </button>
             ))}
             <button
-              onClick={() =>
-                setCurrentPage((p) => Math.min(p + 1, totalPages))
-              }
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
               className="px-3 py-1 rounded bg-white border hover:bg-gray-100"
             >
               Next

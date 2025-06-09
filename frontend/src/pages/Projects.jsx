@@ -6,6 +6,7 @@ import Sidebar from "../components/sidebar/Sidebar";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Select from "react-select";
 import ProjectCreationModal from '../components/modal/ProjectCreationModal';
+import CompanyLogo from "../components/CompanyLogo";
 import {
   fetchDashboard,
   fetchProjects,
@@ -13,6 +14,7 @@ import {
   fetchEmployees,
   fetchProjectById,
   fetchProjectDropdown,
+  fetchDashboardLink,
 } from "../utils/api";
 import {
   PieChart,
@@ -91,12 +93,11 @@ const Projects = () => {
   // Using useCallback to memoize fetchData and prevent unnecessary re-renders
   const fetchData = useCallback(async () => {
     try {
-      const links = await fetchProjectSidebar(token);
+      // const links = await fetchProjectSidebar(token);
       const empDashboard = await fetchDashboard(token);
       const employeesData = await fetchEmployees(token);
       const projectDropdownResponse = await fetchProjectDropdown(token);
-      console.log('projectDropdownResponse ==>>', projectDropdownResponse)
-
+      const links = await fetchDashboardLink(token)
       setQuickLinks(links.data || links);
       setDashboardData(empDashboard);
       setEmployees(Array.isArray(employeesData) ? employeesData : [employeesData]);
@@ -305,7 +306,11 @@ const Projects = () => {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6">
-        <h2 className="text-xl font-semibold mb-4">{dashboardData?.company}</h2>
+      {dashboardData && (
+          <CompanyLogo
+            logoPath={dashboardData.company_logo}
+          />
+        )}
         <Sidebar quickLinks={quickLinks} />
       </aside>
 

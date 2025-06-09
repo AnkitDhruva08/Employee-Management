@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/header/Header";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Pencil, Trash2 } from "lucide-react";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
 import { fetchDashboardLink, fetchDashboard, fetchRoles } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
+import CompanyLogo from "../components/CompanyLogo";
 
 const Role = () => {
-  const [formData, setFormData] = useState({ role_name: '' });
+  const [formData, setFormData] = useState({ role_name: "" });
   const [roles, setRoles] = useState([]);
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
@@ -84,7 +85,7 @@ const Role = () => {
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(formData),
@@ -93,7 +94,7 @@ const Role = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setFormData({ role_name: '' });
+        setFormData({ role_name: "" });
         setShowModal(false);
         setIsEditMode(false);
         setEditingRoleId(null);
@@ -116,7 +117,11 @@ const Role = () => {
 
   const deleteRole = async (id) => {
     if (!isSuperUser) {
-      Swal.fire("Permission Denied", "You are not authorized to delete roles.", "error");
+      Swal.fire(
+        "Permission Denied",
+        "You are not authorized to delete roles.",
+        "error"
+      );
       return;
     }
 
@@ -153,9 +158,12 @@ const Role = () => {
   return (
     <div className="flex h-screen bg-gray-100">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold text-white">
-          {dashboardData?.company || "Loading..."}
-        </h2>
+        {dashboardData && (
+          <CompanyLogo
+            companyName={dashboardData.company}
+            logoPath={dashboardData.company_logo}
+          />
+        )}
         <div className="flex justify-center mt-6">
           <Sidebar quickLinks={quickLinks} />
         </div>
@@ -165,14 +173,16 @@ const Role = () => {
         <Header title={HeaderTitle} />
 
         <div className="mx-[10px] bg-[#2b4d76] text-white px-6 py-4 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 rounded-t mt-6 mb-0">
-          <h2 className="text-xl font-semibold">Manage <span className="font-bold">Roles</span></h2>
+          <h2 className="text-xl font-semibold">
+            Manage <span className="font-bold">Roles</span>
+          </h2>
 
           {isSuperUser && (
             <button
               onClick={() => {
                 setShowModal(true);
                 setIsEditMode(false);
-                setFormData({ role_name: '' });
+                setFormData({ role_name: "" });
                 setError(null);
               }}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium"
@@ -196,7 +206,9 @@ const Role = () => {
               </h2>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-gray-700 font-medium mb-1">Role Name</label>
+                  <label className="block text-gray-700 font-medium mb-1">
+                    Role Name
+                  </label>
                   <input
                     type="text"
                     name="role_name"
@@ -206,7 +218,9 @@ const Role = () => {
                     className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
-                {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+                {error && (
+                  <div className="text-red-500 text-sm mt-2">{error}</div>
+                )}
                 <button
                   type="submit"
                   className="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition"
@@ -220,7 +234,9 @@ const Role = () => {
 
         <div className="overflow-x-auto p-4">
           {loading ? (
-            <div className="p-6 text-center text-gray-500">Loading Roles...</div>
+            <div className="p-6 text-center text-gray-500">
+              Loading Roles...
+            </div>
           ) : (
             <table className="min-w-full text-sm border-t shadow-md rounded overflow-hidden">
               <thead className="bg-gray-100 text-gray-700">
@@ -233,15 +249,23 @@ const Role = () => {
               <tbody>
                 {currentRole.map((role, index) => (
                   <tr key={role.id} className="border hover:bg-gray-50">
-                    <td className="p-3 border">{(currentPage - 1) * rolePerPage + index + 1}</td>
+                    <td className="p-3 border">
+                      {(currentPage - 1) * rolePerPage + index + 1}
+                    </td>
                     <td className="p-3 border">{role.role_name}</td>
                     <td className="p-3 border">
                       {isSuperUser ? (
                         <div className="flex space-x-3">
-                          <button onClick={() => handleEditClick(role)} className="text-yellow-500 hover:text-yellow-600">
+                          <button
+                            onClick={() => handleEditClick(role)}
+                            className="text-yellow-500 hover:text-yellow-600"
+                          >
                             <Pencil size={18} />
                           </button>
-                          <button onClick={() => deleteRole(role.id)} className="text-red-600 hover:text-red-700">
+                          <button
+                            onClick={() => deleteRole(role.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
                             <Trash2 size={18} />
                           </button>
                         </div>

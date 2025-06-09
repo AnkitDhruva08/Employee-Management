@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import FileUpload from "../File/FileUpload";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
+import Swal from "sweetalert2"; // Import SweetAlert2
 
 export default function OfficeDocumentsForm({ onNext, onPrev }) {
   const { id } = useParams();
@@ -27,7 +28,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  const [formErrors, setFormErrors] = useState({}); // State for validation errors
+  const [formErrors, setFormErrors] = useState({});
 
   const token = localStorage.getItem("token");
 
@@ -113,17 +114,55 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
       ...employeeFormData,
       [name]: value,
     });
-    setFormErrors((prevErrors) => ({ ...prevErrors, [name]: "" })); 
+    setFormErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
+  };
+
+  // Helper function for file validation
+  const validateFile = (file, fieldName, allowedTypes, errorMessage) => {
+    if (!file) return true; // No file, no validation needed for optional fields
+    const fileType = file.type;
+    if (!allowedTypes.includes(fileType)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid File Type',
+        text: errorMessage,
+      });
+      setFormErrors((prevErrors) => ({ ...prevErrors, [fieldName]: errorMessage }));
+      return false;
+    }
+    return true;
   };
 
   const handleFileChange = (fieldName, files) => {
     const selectedFile = files[0] instanceof File ? files[0] : files[0]?.file;
+    let isValid = true;
+    let errorMessage = "";
+    let allowedTypes = [];
 
-    setEmployeeFormData((prev) => ({
-      ...prev,
-      [fieldName]: selectedFile || null,
-    }));
-    setFormErrors((prevErrors) => ({ ...prevErrors, [fieldName]: "" })); 
+    if (fieldName === "photo") {
+      allowedTypes = ["image/jpeg", "image/png"];
+      errorMessage = "Photo can only be JPG or PNG.";
+    } else if (["aadhar", "pan", "dl", "appointment", "promotion", "resume", "esic_card"].includes(fieldName)) {
+      allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+      errorMessage = `${fieldName.replace(/_/g, ' ').toUpperCase()} can only be JPG, PNG, or PDF.`;
+    }
+
+    if (selectedFile) {
+      isValid = validateFile(selectedFile, fieldName, allowedTypes, errorMessage);
+    }
+
+    if (isValid) {
+      setEmployeeFormData((prev) => ({
+        ...prev,
+        [fieldName]: selectedFile || null,
+      }));
+      setFormErrors((prevErrors) => ({ ...prevErrors, [fieldName]: "" }));
+    } else {
+      setEmployeeFormData((prev) => ({
+        ...prev,
+        [fieldName]: null, 
+      }));
+    }
   };
 
   const handleFileDelete = (fieldName) => {
@@ -135,14 +174,13 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
       ...prev,
       [fieldName]: null,
     }));
-    setFormErrors((prevErrors) => ({ ...prevErrors, [fieldName]: "" })); 
+    setFormErrors((prevErrors) => ({ ...prevErrors, [fieldName]: "" }));
   };
 
   const validateForm = () => {
     let errors = {};
     let isValid = true;
 
-    // Validate required file fields (Aadhar and PAN)
     if (!employeeFormData.aadhar && !existingDocs.aadhar) {
       errors.aadhar = "Aadhar Card is required.";
       isValid = false;
@@ -162,7 +200,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
     setSuccess(null);
 
     if (!validateForm()) {
-      return; 
+      return;
     }
 
     setLoading(true);
@@ -182,8 +220,6 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
 
       if (isUpdating) {
         for (const fieldName of ['photo', 'aadhar', 'pan', 'dl', 'appointment', 'promotion', 'resume', 'esic_card']) {
-          // If a file was previously existing and is now null in formData,
-          // it means the user deleted it. Send a flag to backend.
           if (employeeFormData[fieldName] === null && existingDocs[fieldName]) {
             formData.append(`${fieldName}_deleted`, 'true');
           }
@@ -289,6 +325,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                   onFilesSelected={(files) => handleFileChange("photo", files)}
                   onDeletedFiles={() => handleFileDelete("photo")}
                 />
+                {formErrors.photo && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.photo}</p>
+                )}
               </div>
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -346,6 +385,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                   onFilesSelected={(files) => handleFileChange("dl", files)}
                   onDeletedFiles={() => handleFileDelete("dl")}
                 />
+                {formErrors.dl && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.dl}</p>
+                )}
               </div>
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -363,6 +405,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                   onFilesSelected={(files) => handleFileChange("appointment", files)}
                   onDeletedFiles={() => handleFileDelete("appointment")}
                 />
+                {formErrors.appointment && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.appointment}</p>
+                )}
               </div>
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -380,6 +425,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                   onFilesSelected={(files) => handleFileChange("promotion", files)}
                   onDeletedFiles={() => handleFileDelete("promotion")}
                 />
+                {formErrors.promotion && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.promotion}</p>
+                )}
               </div>
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -397,6 +445,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                   onFilesSelected={(files) => handleFileChange("resume", files)}
                   onDeletedFiles={() => handleFileDelete("resume")}
                 />
+                {formErrors.resume && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.resume}</p>
+                )}
               </div>
               <div>
                 <label className="block mb-1 text-sm font-medium text-gray-700">
@@ -414,6 +465,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                   onFilesSelected={(files) => handleFileChange("esic_card", files)}
                   onDeletedFiles={() => handleFileDelete("esic_card")}
                 />
+                {formErrors.esic_card && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.esic_card}</p>
+                )}
               </div>
             </div>
 

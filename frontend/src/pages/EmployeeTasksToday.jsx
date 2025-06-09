@@ -11,6 +11,8 @@ import {
   fetchProjectSidebar,
 } from "../utils/api";
 
+import CompanyLogo from "../components/CompanyLogo";
+
 const statusColors = {
   Open: "bg-red-500 text-white",
   "In Progress": "bg-orange-400 text-white",
@@ -68,20 +70,10 @@ const EmployeeTasksToday = () => {
   const [quickLinks, setQuickLinks] = useState([]);
   const fetchData = async () => {
     try {
-      const dashboardLinks = await fetchProjectSidebar(token);
+      const dashboardLinks = await fetchDashboardLink(token);
       setQuickLinks(dashboardLinks);
       const dashboard = await fetchDashboard(token);
       setDashboardData(dashboard);
-  
-      // const projects = await fetchProjects(token);
-      // setProjects(projects);
-  
-      // const employees = await fetchEmployees(token);
-      // setEmployees(employees);
-  
-      // const bugsData = await fetchBugsReports(token);
-      // setBugs(bugsData);
-  
     } catch (err) {
       console.error("Error:", err);
       localStorage.removeItem("token");
@@ -91,29 +83,30 @@ const EmployeeTasksToday = () => {
 
   const fetchEmployeeTaskDetails = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/tracking-employee-task/", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-  
+      const res = await fetch(
+        "http://localhost:8000/api/tracking-employee-task/",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-  
+
       const data = await res.json();
-      console.log('data ==<<<>>', data);
+      console.log("data ==<<<>>", data);
     } catch (err) {
-      console.error('err ===<<<>>', err);
+      console.error("err ===<<<>>", err);
     }
   };
-  
-  
 
   useEffect(() => {
-    if(!token) return;
+    if (!token) return;
     fetchData();
     fetchEmployeeTaskDetails();
   }, []);
@@ -121,48 +114,67 @@ const EmployeeTasksToday = () => {
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold mb-4">{dashboardData?.company}</h2>
-        <Sidebar quickLinks={quickLinks} />      </aside>
+        {dashboardData && (
+          <CompanyLogo
+            companyName={dashboardData.company}
+            logoPath={dashboardData.company_logo}
+          />
+        )}
+        <Sidebar quickLinks={quickLinks} />
+      </aside>
 
       <div className="flex-1 flex flex-col">
         <Header title="Employee Task Today" />
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        
-              <table className="w-full border-collapse border border-gray-300 text-sm">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="border border-gray-300 px-4 py-2 text-left">Employee</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left">Project</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left">Task</th>
-                    <th className="border border-gray-300 px-4 py-2 text-left">Status</th>
+          <table className="w-full border-collapse border border-gray-300 text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Employee
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Project
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Task
+                </th>
+                <th className="border border-gray-300 px-4 py-2 text-left">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {tasksToday.map(
+                ({ id, employee, initials, project, task, status }) => (
+                  <tr key={id} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-2 flex items-center gap-3">
+                      <span
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold select-none"
+                        aria-hidden="true"
+                      >
+                        {initials}
+                      </span>
+                      {employee}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      {project}
+                    </td>
+                    <td className="border border-gray-300 px-4 py-2">{task}</td>
+                    <td className="border border-gray-300 px-4 py-2">
+                      <span
+                        className={`inline-block px-3 py-1 rounded-full whitespace-nowrap text-xs font-semibold ${
+                          statusColors[status] || "bg-gray-300 text-black"
+                        }`}
+                        aria-label={`Status: ${status}`}
+                      >
+                        {status}
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {tasksToday.map(({ id, employee, initials, project, task, status }) => (
-                    <tr key={id} className="hover:bg-gray-50">
-                      <td className="border border-gray-300 px-4 py-2 flex items-center gap-3">
-                        <span
-                          className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500 text-white font-semibold select-none"
-                          aria-hidden="true"
-                        >
-                          {initials}
-                        </span>
-                        {employee}
-                      </td>
-                      <td className="border border-gray-300 px-4 py-2">{project}</td>
-                      <td className="border border-gray-300 px-4 py-2">{task}</td>
-                      <td className="border border-gray-300 px-4 py-2">
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full whitespace-nowrap text-xs font-semibold ${statusColors[status] || "bg-gray-300 text-black"}`}
-                          aria-label={`Status: ${status}`}
-                        >
-                          {status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                )
+              )}
+            </tbody>
+          </table>
         </main>
       </div>
     </div>

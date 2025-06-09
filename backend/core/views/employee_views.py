@@ -128,7 +128,7 @@ class EmployeeViewSet(APIView):
                 company_id = company.id
             elif is_employee:
                 emp_data = get_employee_by_email(user_email)
-                company = emp_data.company   # ✅ Ensure company is defined
+                company = emp_data.company   
                 company_id = company.id
             else:
                 return Response({'error': 'Unauthorized to create employees.'}, status=403)
@@ -152,6 +152,16 @@ class EmployeeViewSet(APIView):
             email = data.get('company_email')
             default_password = "Pass@123"
 
+        
+            print('Ankit Mishra')
+            # Prevent duplicate employee
+            if User.objects.filter(email=email).exists():
+                return Response({'error': 'Employee with this email already exists.'}, status=400)
+            
+            if Employee.objects.filter(contact_number=data.get('contact_number')).exists():
+                return Response({'error': 'Employee with this contact number already exists.'}, status=400)
+            
+
             # Check if user already exists
             user = get_user_by_email(email)
             if not user:
@@ -163,10 +173,6 @@ class EmployeeViewSet(APIView):
                     last_name=data.get('last_name', ''),
                     is_employee=True
                 )
-
-            # Prevent duplicate employee
-            if Employee.objects.filter(company_email=email).exists():
-                return Response({'error': 'Employee with this email already exists.'}, status=400)
 
             # Create employee
             employee = Employee.objects.create(
@@ -265,14 +271,19 @@ class EmployeeBankDetailsView(APIView):
 
     def post(self, request):
         try:
-            print('data comm')
+            print('data comming from fronntend ==<<<>>', request.data)
+            print('FILES coming from frontend ==<<<<>>', request.FILES)
             employee = Employee.objects.get(company_email=request.user.email)
             data = request.data.copy()
             data['active'] = True
+            data['employee'] = employee.id
 
-            data['employee'] = employee.id 
+            # Check if bank details already exist for this employee
+            if BankDetails.objects.filter(employee=employee).exists():
+                return Response({'error': 'Bank details already exist for this employee.'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-            serializer = BankDetailsSerializer(data=data)
+            serializer = BankDetailsSerializer(data=data, files=request.FILES)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Bank details created successfully.'}, status=status.HTTP_201_CREATED)
@@ -284,26 +295,41 @@ class EmployeeBankDetailsView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+
     def put(self, request, pk=None):
         try:
             print('data coming from frontend ==<<<<>>', request.data)
             print('FILES coming from frontend ==<<<<>>', request.FILES)
-            bank_details = BankDetails.objects.get(pk=pk)  # <-- fix here
+            bank_details = BankDetails.objects.get(pk=pk)
         except BankDetails.DoesNotExist:
             return Response({'error': 'Bank details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
 
         data = request.data.copy()
+
+        # Always set active True if provided
         if 'active' in data:
             data['active'] = True
+
+        # Remove fields that should not be overwritten
         data.pop('id', None)
         data.pop('employee', None)
 
+        # Add files into the data dictionary
+        data.update(request.FILES)
+
         serializer = BankDetailsSerializer(bank_details, data=data, partial=True)
+
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            print("Bank details updated successfully.")
+            return Response({
+                'message': 'Bank details updated successfully.',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     
 # Nominee Details CRUD operations
 class NomineeDetailsView(APIView):

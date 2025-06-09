@@ -27,10 +27,13 @@ class CompanyRegisterView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             # Convert QueryDict to dict for safe manipulation
+            print('data commming from frontend')
             company_data = request.data.dict()
             email = company_data.pop('email', None)
             default_password = company_data.pop('password', None)
             company_name = company_data.get('company_name')
+            contact_number = company_data.get('contact_number')
+
 
             if not email or not default_password:
                 return Response({
@@ -41,9 +44,10 @@ class CompanyRegisterView(APIView):
             # Check if email already exists in User model
             if User.objects.filter(email=email).exists():
                 return Response(
-                    {"email": "A user with this email already exists."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                    {"error": "A company with this email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+            print('contact_number ==<>>', contact_number)
+            if Company.objects.filter(contact_number=contact_number).exists():
+                return Response({'error': 'Company with this contact number already exists.'}, status=400) 
 
             # Create User
             user = User.objects.create(
@@ -52,7 +56,6 @@ class CompanyRegisterView(APIView):
                 password=make_password(default_password),
                 is_company=True
             )
-            print('User created successfully ==<<>>', user)
 
             # Filter company fields to match model fields
             allowed_fields = [

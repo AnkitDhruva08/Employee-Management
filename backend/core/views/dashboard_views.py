@@ -24,11 +24,9 @@ class DashboardView(APIView):
         email = user.email
 
         if user.is_superuser:
-            print('is superuser', user.is_superuser)
             return self._superuser_dashboard(user.email)
 
         if user.is_company:
-            print('is companay ==<<>>', user.is_company)
             return self._company_dashboard(user, email)
 
         return self._employee_dashboard(user, email)
@@ -121,6 +119,7 @@ class DashboardView(APIView):
         employee_data = Employee.objects.filter(company_email=email).first()
         profile_image = str(employee_data.profile_image) if employee_data.profile_image else None
         company_name = Company.objects.filter(id=company_id).values('company_name').first()
+        company = Company.objects.get(id=company_id)
 
         common_data = {
             "role_id": role_id,
@@ -133,7 +132,6 @@ class DashboardView(APIView):
             total_employees = Employee.objects.filter(company_id=company_id).count()
             total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
             upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
-            print('hr <<<<<<<<<<<>>>>>>>>>>>', role_id)
             
             hr_details = Employee.objects.get(company_email=email, active=True)
             hr_name = f"{hr_details.first_name} {hr_details.last_name}"
@@ -149,6 +147,7 @@ class DashboardView(APIView):
 
             return Response({
                 **common_data,
+                "company_logo": str(company.profile_image) if company.profile_image else None,
                 "employee_details": employee_details,
                 'hr_name' : hr_name,
                 "total_employees": total_employees,
@@ -165,6 +164,7 @@ class DashboardView(APIView):
         )
         return Response({
             **common_data,
+            "company_logo": str(company.profile_image) if company.profile_image else None,
             "employee_details": employee_details
         }, status=status.HTTP_200_OK)
 
@@ -203,13 +203,13 @@ class ProjectSideBarView(APIView):
     def get(self, request):
         projects = ProjectSideBar.objects.filter(active=True).order_by('id')
         serializer = ProjectSidebarSerializer(projects, many=True)
-        return Response({"dashboard_links": serializer.data}) 
+        return Response({"project_links": serializer.data}) 
 
 class TaskSideBarView(APIView):
     def get(self, request):
         tasks = TaskSideBar.objects.filter(active=True).order_by('id')
         serializer = TaskSidebarSerializer(tasks, many=True)
-        return Response({"dashboard_links": serializer.data}) 
+        return Response({"task_lins": serializer.data}) 
 
        
 

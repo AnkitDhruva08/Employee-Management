@@ -35,9 +35,7 @@ class LeaveRequestViewSet(APIView):
                 
             if(is_company):
                 company_data = Company.objects.get(email = request.user.email)
-                print('company_data ===<<<>>', company_data)
                 company_id = company_data.id
-                print('company_id ==<<<>>', company_id)
 
 
             data = get_leave_requests(is_company, role_id, emp_id, company_id)
@@ -57,45 +55,41 @@ class LeaveRequestViewSet(APIView):
 
     def post(self, request, *args, **kwargs):
         try:
-            data = request.data.copy()
-            print('data ==<<<>>', data)
-            user = request.user
-
+            print('data comming from frontend ==<<>>>', request.data)
             employee = Employee.objects.get(company_email=request.user.email)
-            data['employee'] = employee.id 
-            data['company_id'] = employee.company_id
-            data['active'] = True
 
-            role_id = employee.role_id
+            request.data._mutable = True 
 
-            # Set hr_reviewed and active if role is HR
-            if role_id == 2:  # HR
-                data['hr_reviewed'] = True
-                data['status'] == 'HR Approved'
-                
+            request.data['employee'] = employee.id
+            request.data['company_id'] = employee.company_id
+            request.data['active'] = True
 
-            # Handle 'Single day' case
-            if data.get('duration') == 'Single day':
-                data['to_date'] = data.get('from_date')
+            if employee.role_id == 2:
+                request.data['hr_reviewed'] = True
+                request.data['status'] = 'HR Approved'
 
-            # Remove empty to_date
-            if not data.get('to_date'):
-                data.pop('to_date', None)
+            if request.data.get('duration', '').lower() == 'single day':
+                request.data['to_date'] = request.data.get('from_date')
 
-            print('data after ==<<<<>>', data)
+            if not request.data.get('to_date'):
+                request.data.pop('to_date', None)
 
-            # Serialize and save
-            serializer = LeaveRequestSerializer(data=data)
-            print('serializer ==<<<>>>', serializer)
+            # Map 'attachment' to model's 'leave_document'
+            if 'attachment' in request.FILES:
+                request.data['leave_document'] = request.FILES['attachment']
+
+            serializer = LeaveRequestSerializer(data=request.data)
 
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Leave request created successfully.'}, status=status.HTTP_201_CREATED)
             else:
+                print("Serializer errors:", serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
     def put(self, request, pk, *args, **kwargs):

@@ -39,6 +39,7 @@ def get_leave_requests(is_company, role_id, emp_id, company_id):
             'status',
             'applied_at',
             'leave_type',
+            'leave_document',
             'employee_id',
             'employee__company_id',
             'employee__role_id'
@@ -80,16 +81,16 @@ def get_leave_requests(is_company, role_id, emp_id, company_id):
             'status',
             'applied_at',
             'leave_type',
+            'leave_document',
             'employee_id',
             'employee__company_id'
         ).order_by('-id')
 
         leave_requests = base_query.filter(
             employee__company_id=company_id,
-            hr_reviewed=True
+            # hr_reviewed=True
         )
 
-    print("leave_requests ===<<>>>", leave_requests)
 
     return {
         "success": True,

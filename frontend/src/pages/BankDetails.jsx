@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Upload, User, Banknote, Landmark, CreditCard, FileText, FileCheck } from 'lucide-react';
+import { User, Banknote, Landmark, CreditCard, FileText, FileCheck } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import Header from "../components/header/Header";
 import FileUpload from "../components/File/FileUpload";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
+import Swal from 'sweetalert2';
 
 const BankDetails = () => {
   const { id } = useParams();
@@ -18,6 +19,7 @@ const BankDetails = () => {
     account_number: '',
     account_type: '',
     bank_details_pdf: null,
+    bank_details_pdf_url: null,
   });
 
   const [dashboardData, setDashboardData] = useState(null);
@@ -26,6 +28,10 @@ const BankDetails = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/jpg"];
+  const allowedPdfType = "application/pdf";
+  const allowedTypes = [...allowedImageTypes, allowedPdfType];
 
   useEffect(() => {
     const fetchBankDetails = async () => {
@@ -50,7 +56,8 @@ const BankDetails = () => {
             ifsc_code: bank.ifsc_code || '',
             account_number: bank.account_number || '',
             account_type: bank.account_type || '',
-            bank_details_pdf: bank.bank_details_pdf || null,
+            bank_details_pdf: null,
+            bank_details_pdf_url: bank.bank_details_pdf || null,
           });
           setIsUpdating(true);
         }
@@ -68,7 +75,7 @@ const BankDetails = () => {
   useEffect(() => {
     const fetchLinks = async () => {
       try {
-        const links = await fetchDashboardLink(token); 
+        const links = await fetchDashboardLink(token);
         const dashboard = await fetchDashboard(token);
         setQuickLinks(links);
         setDashboardData(dashboard);
@@ -85,10 +92,24 @@ const BankDetails = () => {
     setBankData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Moved outside JSX - to be passed to FileUpload
   const onFilesSelected = (files) => {
-    console.log("Files selected:", files);
-    setBankData((prev) => ({ ...prev, bank_details_pdf: files[0]?.file || null }));
+    if (files && files.length > 0) {
+      const file = files[0];
+
+      if (!allowedTypes.includes(file.type)) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid File Type",
+          text: "Only JPG, PNG, JPEG, and PDF files are allowed.",
+        });
+        setBankData((prev) => ({ ...prev, bank_details_pdf: null }));
+        return;
+      }
+
+      setBankData((prev) => ({ ...prev, bank_details_pdf: file }));
+    } else {
+      setBankData((prev) => ({ ...prev, bank_details_pdf: null }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -96,13 +117,11 @@ const BankDetails = () => {
     setError(null);
     setSuccess(null);
 
-    console.log("Submitting bank details:", bankData);
-
     const formData = new FormData();
     Object.entries(bankData).forEach(([key, value]) => {
       if (key === "bank_details_pdf" && value instanceof File) {
         formData.append(key, value);
-      } else if (key !== "bank_details_pdf") {
+      } else if (key !== "bank_details_pdf_url" && key !== "bank_details_pdf") {
         formData.append(key, value ?? '');
       }
     });
@@ -124,13 +143,35 @@ const BankDetails = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData?.detail || "Failed to submit bank details");
+        throw new Error(errorData?.detail || JSON.stringify(errorData) || "Failed to submit bank details");
       }
 
-      setSuccess(isUpdating ? "Bank details updated successfully." : "Bank details added successfully.");
+      const responseData = await response.json();
+      setBankData(prev => ({
+        ...prev,
+        id: responseData.id,
+        bank_details_pdf_url: responseData.bank_details_pdf || null,
+      }));
       setIsUpdating(true);
+      setSuccess(isUpdating ? "Bank details updated successfully." : "Bank details added successfully.");
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const handlePreviewFile = () => {
+    if (bankData.bank_details_pdf_url) {
+      const fileUrl = `http://localhost:8000${bankData.bank_details_pdf_url}`;
+      window.open(fileUrl, "_blank");
+    } else if (bankData.bank_details_pdf instanceof File) {
+      const fileUrl = URL.createObjectURL(bankData.bank_details_pdf);
+      window.open(fileUrl, "_blank");
+    } else {
+      Swal.fire({
+        icon: "info",
+        title: "No File Available",
+        text: "No bank details PDF has been uploaded or selected.",
+      });
     }
   };
 
@@ -138,22 +179,8 @@ const BankDetails = () => {
     return <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">Loading...</div>;
   }
 
-  if (error) {
-    return <div className="text-red-600 text-center mt-10 text-xl animate-pulse">{error}</div>;
-  }
-
-  const handlePreviewFile = () => {
-    if (bankData.bank_details_pdf) {
-      const fileUrl = `http://localhost:8000/apip${bankData.bank_details_pdf}`;
-      window.open(fileUrl, "_blank");
-    } else {
-      alert("No file available for preview.");
-    }
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
         <div className="flex justify-center mt-8">
@@ -161,7 +188,6 @@ const BankDetails = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <Header title="Bank Details" />
         <div className="max-w-3xl mx-auto bg-white p-8 shadow-lg rounded-lg mt-6">
@@ -193,7 +219,6 @@ const BankDetails = () => {
               </div>
             ))}
 
-            {/* Account Type */}
             <div>
               <label className="block mb-1 text-sm font-medium text-gray-700">Account Type</label>
               <div className="flex items-center gap-2">
@@ -212,31 +237,29 @@ const BankDetails = () => {
               </div>
             </div>
 
-            {/* PDF Upload */}
             <div>
-              <label className="block mb-1 text-sm font-medium text-gray-700">Attach PDF (Optional)</label>
+              <label className="block mb-1 text-sm font-medium text-gray-700">Attach PDF/Image (Optional)</label>
               <FileUpload
                 isView={false}
                 isCombine={false}
-                initialFiles={bankData.bank_details_pdf ? [bankData.bank_details_pdf] : []}
+                initialFiles={bankData.bank_details_pdf_url ? [bankData.bank_details_pdf_url] : []}
                 onFilesSelected={onFilesSelected}
-                onDeletedFiles={() =>
-                  setBankData((prev) => ({ ...prev, bank_details_pdf: null }))
-                }
+                onDeletedFiles={() => {
+                  setBankData((prev) => ({ ...prev, bank_details_pdf: null, bank_details_pdf_url: null }));
+                }}
                 onPreviewFile={handlePreviewFile}
+                allowedFileTypes={allowedTypes}
               />
             </div>
 
-            {/* Submit Button */}
             <button
-              type="button"
-              onClick={handleSubmit}  
+              type="submit"
+              onClick={handleSubmit}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-md"
             >
               {isUpdating ? "Update Details" : "Submit Details"}
             </button>
 
-            {/* Status */}
             {success && <p className="text-green-600 text-center mt-4">{success}</p>}
             {error && <p className="text-red-600 text-center mt-4">{error}</p>}
           </div>

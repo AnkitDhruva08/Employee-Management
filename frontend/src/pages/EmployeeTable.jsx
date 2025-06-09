@@ -9,6 +9,7 @@ import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import CompanyLogo from "../components/CompanyLogo";
 
 import logo from "../assets/Logo.png";
 const EmployeeTable = () => {
@@ -25,8 +26,6 @@ const EmployeeTable = () => {
 
   const employeesPerPage = 5;
   const roleId = parseInt(localStorage.getItem("role_id"));
-
-
 
   const fetchDashboardInfo = async () => {
     try {
@@ -104,14 +103,14 @@ const EmployeeTable = () => {
   const getBase64ImageFromURL = (url) => {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'Anonymous';
+      img.crossOrigin = "Anonymous";
       img.onload = () => {
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
         canvas.width = img.width;
         canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0);
-        const dataURL = canvas.toDataURL('image/png');
+        const dataURL = canvas.toDataURL("image/png");
         resolve(dataURL);
       };
       img.onerror = (error) => reject(error);
@@ -121,7 +120,7 @@ const EmployeeTable = () => {
 
   // Function to download the PDF
   async function downloadEmployeePDF(employees) {
-    const doc = new jsPDF('landscape');
+    const doc = new jsPDF("landscape");
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
 
@@ -130,22 +129,22 @@ const EmployeeTable = () => {
     try {
       if (logo) {
         logoBase64 = await getBase64ImageFromURL(logo);
-        doc.addImage(logoBase64, 'PNG', 15, 10, 30, 15);
+        doc.addImage(logoBase64, "PNG", 15, 10, 30, 15);
       }
     } catch (error) {
-      console.warn('Logo not added. Error loading image:', error);
+      console.warn("Logo not added. Error loading image:", error);
     }
 
     // Add company name in the header
-    doc.setFont('helvetica', 'bold');
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(40, 40, 40);
-    doc.text(dashboardData?.company, pageWidth / 2, 20, { align: 'center' });
+    doc.text(dashboardData?.company, pageWidth / 2, 20, { align: "center" });
 
     // Add report title
     doc.setFontSize(14);
     doc.setTextColor(60, 60, 60);
-    doc.text("Employee Report", pageWidth / 2, 30, { align: 'center' });
+    doc.text("Employee Report", pageWidth / 2, 30, { align: "center" });
 
     // Subtle underline for header
     doc.setLineWidth(0.5);
@@ -168,14 +167,14 @@ const EmployeeTable = () => {
     // Table rows
     const tableRows = employees.map((emp, index) => [
       index + 1,
-      emp.username || '',
-      emp.company_name || '',
-      emp.company_email || '',
-      emp.personal_email || '',
-      emp.contact_number || '',
-      emp.role_name || '',
-      emp.date_of_birth || '',
-      emp.gender || '',
+      emp.username || "",
+      emp.company_name || "",
+      emp.company_email || "",
+      emp.personal_email || "",
+      emp.contact_number || "",
+      emp.role_name || "",
+      emp.date_of_birth || "",
+      emp.gender || "",
     ]);
 
     // Generate the table in the PDF using autoTable
@@ -186,53 +185,63 @@ const EmployeeTable = () => {
       styles: {
         fontSize: 10,
         cellPadding: 5,
-        valign: 'middle',
-        overflow: 'linebreak',
+        valign: "middle",
+        overflow: "linebreak",
       },
       headStyles: {
         fillColor: [0, 123, 255],
         textColor: 255,
-        fontStyle: 'bold',
+        fontStyle: "bold",
         fontSize: 12,
-        halign: 'center',
+        halign: "center",
       },
       alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
-        0: { cellWidth: 15, halign: 'center' }, // Sr No.
+        0: { cellWidth: 15, halign: "center" }, // Sr No.
         1: { cellWidth: 40 }, // Name
         2: { cellWidth: 40 }, // Company
         3: { cellWidth: 50 }, // Company Email
         4: { cellWidth: 50 }, // Personal Email
-        5: { cellWidth: 30, halign: 'center' }, // Phone
-        6: { cellWidth: 30, halign: 'center' }, // Role
-        7: { cellWidth: 30, halign: 'center' }, // DOB
-        8: { cellWidth: 20, halign: 'center' }, // Gender
+        5: { cellWidth: 30, halign: "center" }, // Phone
+        6: { cellWidth: 30, halign: "center" }, // Role
+        7: { cellWidth: 30, halign: "center" }, // DOB
+        8: { cellWidth: 20, halign: "center" }, // Gender
       },
     });
 
     // Footer
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text("Generated on: " + new Date().toLocaleDateString(), 15, pageHeight - 10);
-    doc.text("Page " + doc.internal.getNumberOfPages(), pageWidth - 30, pageHeight - 10);
+    doc.text(
+      "Generated on: " + new Date().toLocaleDateString(),
+      15,
+      pageHeight - 10
+    );
+    doc.text(
+      "Page " + doc.internal.getNumberOfPages(),
+      pageWidth - 30,
+      pageHeight - 10
+    );
 
     // Save the PDF
     doc.save("employee_report.pdf");
   }
 
-
   useEffect(() => {
-    if(!token) return;
+    if (!token) return;
     fetchEmployees();
     fetchDashboardInfo();
   }, []);
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold text-white">
-          {dashboardData?.company || "Loading..."}
-        </h2>
+        {dashboardData && (
+          <CompanyLogo
+            logoPath={dashboardData.company_logo}
+          />
+        )}
         <div className="flex justify-center mt-6">
           <Sidebar quickLinks={quickLinks} />
         </div>
@@ -244,7 +253,7 @@ const EmployeeTable = () => {
 
         {/* Page Heading and Add Button */}
         <div className="mx-4 text-white px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-t-xl mt-6 shadow-md">
-        {/* <h2 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium">
+          {/* <h2 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded font-medium">
             Manage <span className="font-bold">Employees</span>
           </h2> */}
           {roleId !== 2 && (
@@ -260,9 +269,8 @@ const EmployeeTable = () => {
             onClick={() => downloadEmployeePDF(employees)}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded font-medium"
           >
-             Export PDF
+            Export PDF
           </button>
-
         </div>
 
         {/* Error Message */}
@@ -274,30 +282,33 @@ const EmployeeTable = () => {
 
         {/* Table */}
         <div className="overflow-x-auto p-4 bg-white mx-4 rounded-b-xl shadow-lg">
-        {loading ? (
+          {loading ? (
             <div className="p-6 text-center text-gray-500">
               Loading employees...
             </div>
           ) : (
-          <table className="min-w-full text-sm text-left">
-           <thead className="bg-blue-700 text-white text-sm">
-          <tr>
-            <th className="p-3 border-b">Sr no.</th>
-            <th className="p-3 border-b">Employees Name</th>
-            <th className="p-3 border-b">Company Name</th>
-            <th className="p-3 border-b">Company Email</th>
-            <th className="p-3 border-b">Personal Email</th>
-            <th className="p-3 border-b">Contact Number</th>
-            <th className="p-3 border-b">Role</th>
-            <th className="p-3 border-b">Date Of Birth</th>
-            <th className="p-3 border-b">Gender</th>
-            <th className="p-3 border-b">Actions</th>
-          </tr>
-        </thead>
+            <table className="min-w-full text-sm text-left">
+              <thead className="bg-blue-700 text-white text-sm">
+                <tr>
+                  <th className="p-3 border-b">Sr no.</th>
+                  <th className="p-3 border-b">Employees Name</th>
+                  <th className="p-3 border-b">Company Name</th>
+                  <th className="p-3 border-b">Company Email</th>
+                  <th className="p-3 border-b">Personal Email</th>
+                  <th className="p-3 border-b">Contact Number</th>
+                  <th className="p-3 border-b">Role</th>
+                  <th className="p-3 border-b">Date Of Birth</th>
+                  <th className="p-3 border-b">Gender</th>
+                  <th className="p-3 border-b">Actions</th>
+                </tr>
+              </thead>
 
               <tbody>
                 {currentEmployees.map((emp, index) => (
-                  <tr key={emp.id} className="hover:bg-gray-50 even:bg-gray-50 border-b">
+                  <tr
+                    key={emp.id}
+                    className="hover:bg-gray-50 even:bg-gray-50 border-b"
+                  >
                     <td className="p-3 border">{index + 1}</td>
                     <td className="p-3 border">{emp.username}</td>
                     <td className="p-3 border">{emp.company_name}</td>
@@ -312,11 +323,11 @@ const EmployeeTable = () => {
                         {/* View is always allowed */}
                         <button className="text-blue-600 hover:text-blue-800">
                           <Link
-                              to={`/employee-views/${emp.id}`}
-                              className="text-green-500 hover:text-yellow-600"
-                            >
-                              <Eye size={18} />
-                            </Link>
+                            to={`/employee-views/${emp.id}`}
+                            className="text-green-500 hover:text-yellow-600"
+                          >
+                            <Eye size={18} />
+                          </Link>
                         </button>
 
                         {/* Only show edit & delete if not role_id 2 */}
@@ -348,7 +359,7 @@ const EmployeeTable = () => {
         {/* Pagination */}
         {!loading && employees.length > 0 && (
           <div className="flex flex-col sm:flex-row justify-between items-center px-6 py-4 bg-white mx-4 rounded-b-xl shadow-md text-sm gap-2">
-          <span className="text-gray-700">
+            <span className="text-gray-700">
               Showing {currentEmployees.length} out of {employees.length}{" "}
               entries
             </span>

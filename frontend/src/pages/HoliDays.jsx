@@ -3,6 +3,7 @@ import { useNavigate, Link, useParams } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Header from "../components/header/Header";
+import CompanyLogo from "../components/CompanyLogo";
 import {
   fetchDashboardLink,
   fetchDashboard,
@@ -27,8 +28,7 @@ const HoliDays = () => {
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
-  console.log('isCompany ===<<<>>>', isCompany)
-  
+
   let HeaderTitle = "Holiday Calendar";
 
   //    For Fetching the Dashboard
@@ -80,7 +80,7 @@ const HoliDays = () => {
       setNewHoliday((prev) => ({
         ...prev,
         date: value,
-        day_name: dayName, 
+        day_name: dayName,
       }));
     } else {
       setNewHoliday((prev) => ({ ...prev, [name]: value }));
@@ -160,9 +160,12 @@ const HoliDays = () => {
       {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
         <div className="flex items-center space-x-3 mb-6">
-          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md">
-          </div>
-          <h2 className="text-lg font-semibold">{dashboardData.company}</h2>
+          {dashboardData && (
+            <CompanyLogo
+              companyName={dashboardData.company}
+              logoPath={dashboardData.company_logo}
+            />
+          )}
         </div>
 
         <div className="flex justify-center mb-8">
@@ -179,15 +182,15 @@ const HoliDays = () => {
         <div className="p-6 overflow-y-auto flex-1">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-            {(isCompany || roleId === 1) && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-            >
-              Add New Holiday
-            </button>
-          )}
-            <button
+              {(isCompany || roleId === 1) && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                >
+                  Add New Holiday
+                </button>
+              )}
+              <button
                 onClick={generatePDF}
                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
               >

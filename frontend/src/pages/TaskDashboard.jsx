@@ -7,7 +7,8 @@ import {
   fetchProjectsData,
   fetchEmployees,
   fecthTasks,
-  fetchTaskSideBar
+  fetchTaskSideBar,
+  fetchProjectSidebar, // Added this import
 } from "../utils/api";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import Input from "../components/input/Input";
@@ -17,24 +18,15 @@ import Swal from "sweetalert2";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 import Sidebar from "../components/sidebar/Sidebar";
 
-
 const statuses = [
-  { key: "New", label: "New", color: "blue-500" },
-  { key: "In Progress", label: "In Progress", color: "orange-400" },
-  { key: "Testing", label: "Testing", color: "yellow-500" },
-  { key: "Completed", label: "Completed", color: "green-500" },
-  { key: "On Hold", label: "On Hold", color: "red-500" },
+  { key: "New", label: "New" },
+  { key: "In Progress", label: "In Progress" },
+  { key: "Testing", label: "Testing" },
+  { key: "Completed", label: "Completed" },
+  { key: "On Hold", label: "On Hold" },
 ];
 
-// Dummy employee list for team members
-const employees = [
-  { id: 1, username: "Alice Johnson" },
-  { id: 2, username: "Bob Smith" },
-  { id: 3, username: "Frank Wright" },
-  { id: 4, username: "Emily Davis" },
-];
-
-const TaskDahboard = () => {
+const TaskDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [tasks, setTask] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
@@ -59,58 +51,56 @@ const TaskDahboard = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  //  fetching data
   const fetchData = async () => {
     try {
       const dashboard = await fetchDashboard(token);
       const proj = await fetchProjectsData(token);
-      console.log('proj ===<<>>', proj);
       const taskData = await fecthTasks(token);
       const emps = await fetchEmployees(token);
-      const links = await fetchTaskSideBar(token);
-  
+      const links = await fetchDashboardLink(token);
+
+      setQuickLinks(links);
+
       setDashboardData(dashboard);
       setProjects(proj.results);
       setTask(taskData);
       setEmployees(emps);
-      setQuickLinks(links.data || links);
-  
     } catch (err) {
       console.error("Error:", err);
       localStorage.removeItem("token");
       sessionStorage.clear();
+      navigate("/login");
     }
   };
-  
+
   useEffect(() => {
-    if (!token) return;
+    if (!token) {
+      navigate("/login");
+      return;
+    }
     fetchData();
-  }, []);
+  }, [token, navigate]);
 
   const taskByStatus = statuses.reduce((acc, s) => {
     acc[s.key] = tasks?.filter((p) => p.status === s.key);
     return acc;
   }, {});
 
-
-  // Restriction condition
   const allowedCompletedDestinations = ["In Progress", "Testing", "On Hold"];
   const restrictedNewSourceStatuses = ["Completed", "In Progress", "Testing"];
-  
+
   const onDragEnd = async (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
-  
+
     const sourceCol = source.droppableId;
     const destCol = destination.droppableId;
-  
-    // Skip if dropped in same location
+
     if (sourceCol === destCol && source.index === destination.index) return;
-  
+
     const taskId = parseInt(draggableId);
     const draggedTask = tasks.find((task) => task.id === taskId);
-  
-    // Restrict moves for Completed tasks
+
     if (
       draggedTask.status === "Completed" &&
       !allowedCompletedDestinations.includes(destCol)
@@ -122,8 +112,7 @@ const TaskDahboard = () => {
       );
       return;
     }
-  
-    // Restrict moving tasks from In Progress or Testing back to New
+
     if (
       restrictedNewSourceStatuses.includes(draggedTask.status) &&
       destCol === "New"
@@ -135,14 +124,12 @@ const TaskDahboard = () => {
       );
       return;
     }
-  
-    // Optimistically update UI
+
     const updatedTasks = tasks.map((task) =>
       task.id === taskId ? { ...task, status: destCol } : task
     );
     setTask(updatedTasks);
-  
-    // Make PATCH request to update task status
+
     try {
       const response = await fetch(
         `http://localhost:8000/api/task-management/${taskId}/`,
@@ -155,23 +142,20 @@ const TaskDahboard = () => {
           body: JSON.stringify({ status: destCol }),
         }
       );
-  
+
       if (!response.ok) {
         throw new Error("Failed to update task status");
       }
-  
+
       const data = await response.json();
     } catch (error) {
       console.error("Error updating task status:", error);
       Swal.fire("Error", "Could not update task status", "error");
-  
-      // Revert UI change on error
+
       setTask(tasks);
     }
   };
-  
 
-  //  function for insert new task
   const handleAddTask = async () => {
     if (
       !formData.task_name.trim() ||
@@ -247,7 +231,6 @@ const TaskDahboard = () => {
     }
   };
 
-  //  function for open modal form
   const openModal = (mode, tasksData = null) => {
     setModalMode(mode);
     setIsModalOpen(true);
@@ -296,7 +279,6 @@ const TaskDahboard = () => {
     });
   };
 
-  // function for update
   const handleUpdateTask = async () => {
     if (
       !formData.task_name.trim() ||
@@ -344,7 +326,6 @@ const TaskDahboard = () => {
     }
   };
 
-  // function for  Delete
   const handleDelete = async (id) => {
     const confirm = await Swal.fire({
       title: "Delete Task?",
@@ -377,14 +358,32 @@ const TaskDahboard = () => {
     }
   };
 
+  let logoUrl = "https://placehold.co/48x48/cccccc/ffffff?text=Logo";
+  if (dashboardData && dashboardData.company_logo) {
+    const rawLogoPath = dashboardData.company_logo;
+    logoUrl = rawLogoPath.startsWith("http")
+      ? rawLogoPath
+      : `http://localhost:8000/${
+          rawLogoPath.startsWith("media/") ? "" : "media/"
+        }${rawLogoPath}`;
+  }
+
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
       <aside className="bg-gray-800 text-white w-full lg:w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold mb-4">
-          {dashboardData?.company || "Company Name"}
-        </h2>
+        {dashboardData && (
+          <div className="flex items-center space-x-4 mb-6">
+            <img
+              src={logoUrl}
+              alt={dashboardData.company || "Company Name"}
+              style={{ width: "9rem", height: "9rem" }}
+              className="rounded-full object-cover border-4 border-indigo-500 shadow-md"
+            />
+          </div>
+        )}
+
         <Sidebar quickLinks={quickLinks} />
-        </aside>
+      </aside>
       <div className="flex flex-col flex-1 bg-gray-500">
         <Header title="Task Dashboard" />
         <main className="p-6 space-y-4 overflow-hidden">
@@ -399,7 +398,7 @@ const TaskDahboard = () => {
 
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="flex flex-col md:flex-row gap-4 ">
-              {statuses.map(({ key, label, color }) => (
+              {statuses.map(({ key, label }) => (
                 <Droppable droppableId={key} key={key}>
                   {(provided, snapshot) => (
                     <div
@@ -416,7 +415,7 @@ const TaskDahboard = () => {
                         width: 250,
                       }}
                     >
-                      <h2 className={`text-${color} text-md font-semibold`}>
+                      <h2 className={`text-md font-semibold text-gray-800`}>
                         {label}
                       </h2>
                       <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">
@@ -449,13 +448,27 @@ const TaskDahboard = () => {
                               </p>
                               <div>
                                 <p className="text-sm text-gray-600">
-                                  status: {project.status}
+                                  Status: {project.status}
                                 </p>
                               </div>
                               <div className="bg-gray-300 h-2 rounded mt-2">
                                 <div
-                                  className={`bg-${color} h-2 rounded`}
-                                  style={{ width: `${project.progress}%` }}
+                                  className={`h-2 rounded`}
+                                  style={{
+                                    width: `${project.progress}%`,
+                                    backgroundColor:
+                                      project.status === "New"
+                                        ? "#3B82F6"
+                                        : project.status === "In Progress"
+                                        ? "#F97316"
+                                        : project.status === "Testing"
+                                        ? "#EAB308"
+                                        : project.status === "Completed"
+                                        ? "#22C55E"
+                                        : project.status === "On Hold"
+                                        ? "#EF4444"
+                                        : "#9CA3AF",
+                                  }}
                                 />
                               </div>
                             </div>
@@ -665,4 +678,4 @@ const TaskDahboard = () => {
   );
 };
 
-export default TaskDahboard;
+export default TaskDashboard;

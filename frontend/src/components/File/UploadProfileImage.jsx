@@ -1,25 +1,92 @@
 import React, { useState } from 'react';
 import FileUpload from "../File/FileUpload";
+import Swal from "sweetalert2";
 
 export default function UploadImageModal({ isOpen, onClose, onUploadSuccess, uploadFor }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
   const [formDataState, setFormDataState] = useState({
     profileImage: null
   });
 
+  const allowedTypes = ["image/png", "image/jpg", "image/jpeg"];
+
+
+
   const handleFileChange = (files) => {
-    setFormDataState({
-      profileImage: files.length > 0 ? files[0] : null,
-    });
-    setError(null);
+    if (files && files.length > 0) {
+      const file = files[0];
+
+      if (!allowedTypes.includes(file.type)) {
+        // Show SweetAlert error for invalid file type
+        Swal.fire({
+          icon: "error",
+          title: "Invalid File Type",
+          text: "Only PNG, JPG, or JPEG files are allowed.",
+        });
+
+        // Clear file and errors
+        setFormDataState({ profileImage: null });
+        setFormErrors((prev) => ({
+          ...prev,
+          company_logo: "Only PNG, JPG, or JPEG files are allowed.",
+        }));
+      } else {
+        // Valid file selected
+        setFormDataState({ profileImage: file });
+        setFormErrors((prev) => ({ ...prev, company_logo: null }));
+      }
+    } else {
+      // No files selected, clear state and errors
+      setFormDataState({ profileImage: null });
+      setFormErrors((prev) => ({ ...prev, company_logo: null }));
+    }
   };
 
   const handleUpload = async () => {
-    if (!formDataState.profileImage || !(formDataState.profileImage instanceof File)) {
-      setError("Please select a valid image file to upload.");
+    if (!formDataState.profileImage) {
+      Swal.fire({
+        icon: "error",
+        title: "No file selected",
+        text: "Please select a valid image file before uploading.",
+      });
       return;
+    }
+
+    // Extra validation before upload (optional)
+    if (!allowedTypes.includes(formDataState.profileImage.type)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid File Type",
+        text: "Only PNG, JPG, or JPEG files are allowed.",
+      });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      // Simulate upload or call your upload API here
+      await new Promise((res) => setTimeout(res, 1500));
+
+      Swal.fire({
+        icon: "success",
+        title: "Upload Successful",
+        text: "Your image has been uploaded.",
+      });
+
+      if (onUploadSuccess) onUploadSuccess(formDataState.profileImage);
+      onClose();
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Upload Failed",
+        text: "There was an error uploading your image. Please try again.",
+      });
+    } finally {
+      setUploading(false);
     }
 
     setUploading(true);

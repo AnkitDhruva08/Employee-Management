@@ -9,7 +9,12 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { fetchEmployees, fetchDashboardLink, fetchDashboard } from "../utils/api";
+import {
+  fetchEmployees,
+  fetchDashboardLink,
+  fetchDashboard,
+} from "../utils/api";
+import CompanyLogo from "../components/CompanyLogo";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
@@ -68,25 +73,26 @@ function Attendance() {
       const response = await fetch("http://localhost:8000/api/attendance/", {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
+
       const data = await response.json();
       console.log("Attendance data:", data);
-  
+
       // Block if profile is incomplete
       if (data.is_complete === false) {
         Swal.fire({
           icon: "warning",
           title: "Profile Incomplete",
-          text: data.message || "Please complete your profile before accessing attendance features.",
-          footer: `Missing: ${data.missing_sections || "Required Sections"}`
+          text:
+            data.message ||
+            "Please complete your profile before accessing attendance features.",
+          footer: `Missing: ${data.missing_sections || "Required Sections"}`,
         });
-        navigate('/dashboard');
-        return; 
+        navigate("/dashboard");
+        return;
       }
-  
+
       // Everything is fine
       return data.data || [];
-  
     } catch (error) {
       console.error("Failed to fetch attendance:", error);
       Swal.fire({
@@ -97,13 +103,12 @@ function Attendance() {
       return null;
     }
   };
-  
 
   const fetchData = async () => {
     let empData = [];
-if (roleId !== 3) {
-  empData = await fetchEmployees(token);
-}
+    if (roleId !== 3) {
+      empData = await fetchEmployees(token);
+    }
     const attData = await fetchEmployeesAttendance(token);
     const links = await fetchDashboardLink(token);
     const dashboardData = await fetchDashboard(token);
@@ -114,7 +119,9 @@ if (roleId !== 3) {
     setAttendanceRecords(attData);
 
     if (roleId === 3) {
-      const employeeData = attData?.filter((record) => String(record.id) === String(roleId));
+      const employeeData = attData?.filter(
+        (record) => String(record.id) === String(roleId)
+      );
       setFilteredRecords(employeeData);
       generateSummary(employeeData);
     } else {
@@ -155,9 +162,10 @@ if (roleId !== 3) {
         const updatedRecords = [...attendanceRecords, newRecord];
         setAttendanceRecords(updatedRecords);
 
-        const newFiltered = roleId === 3
-          ? updatedRecords.filter((record) => String(record.id))
-          : updatedRecords;
+        const newFiltered =
+          roleId === 3
+            ? updatedRecords.filter((record) => String(record.id))
+            : updatedRecords;
 
         setFilteredRecords(newFiltered);
         generateSummary(newFiltered);
@@ -172,8 +180,6 @@ if (roleId !== 3) {
     }
   };
 
-
-  
   const applyFilters = () => {
     const { employee, status, fromDate, toDate, search, month } = filters;
 
@@ -183,7 +189,8 @@ if (roleId !== 3) {
       const matchesStatus = status ? record.status === status : true;
       const matchesFrom = fromDate ? recordDate >= new Date(fromDate) : true;
       const matchesTo = toDate ? recordDate <= new Date(toDate) : true;
-      const matchesMonth = month !== "" ? recordDate.getMonth() === Number(month) : true;
+      const matchesMonth =
+        month !== "" ? recordDate.getMonth() === Number(month) : true;
       const matchesSearch =
         !search ||
         record.username?.toLowerCase().includes(search.toLowerCase()) ||
@@ -206,12 +213,16 @@ if (roleId !== 3) {
   const exportToExcel = () => {
     const formattedData = filteredRecords?.map((record, index) => ({
       "Sr No.": index + 1,
-      "Employee": record.username || "",
-      "Date": record.date || "",
-      "Login Time": record.login_time ? new Date(record.login_time).toLocaleTimeString() : "",
-      "Logout Time": record.logout_time ? new Date(record.logout_time).toLocaleTimeString() : "",
+      Employee: record.username || "",
+      Date: record.date || "",
+      "Login Time": record.login_time
+        ? new Date(record.login_time).toLocaleTimeString()
+        : "",
+      "Logout Time": record.logout_time
+        ? new Date(record.logout_time).toLocaleTimeString()
+        : "",
       "Duration (hrs)": record.duration_hours?.toFixed(2) || "0.00",
-      "Status": record.status || "",
+      Status: record.status || "",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
@@ -244,7 +255,9 @@ if (roleId !== 3) {
     ]);
 
     doc.autoTable({
-      head: [["#", "Employee", "Date", "Login", "Logout", "Duration", "Status"]],
+      head: [
+        ["#", "Employee", "Date", "Login", "Logout", "Duration", "Status"],
+      ],
       body: tableData,
     });
     doc.save("Attendance.pdf");
@@ -253,7 +266,12 @@ if (roleId !== 3) {
   return (
     <div className="flex min-h-screen bg-gray-100">
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
+        {dashboardData && (
+          <CompanyLogo
+            companyName={dashboardData.company}
+            logoPath={dashboardData.company_logo}
+          />
+        )}
         <div className="flex justify-center mt-8">
           <Sidebar quickLinks={quickLinks} />
         </div>
@@ -267,7 +285,10 @@ if (roleId !== 3) {
             <h3 className="text-2xl font-bold text-blue-700 mb-6">
               {roleId === 3 ? "Apply for Leave" : "Record Attendance"}
             </h3>
-            <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-md grid grid-cols-1 md:grid-cols-3 gap-6">
+            <form
+              onSubmit={handleSubmit}
+              className="bg-white p-6 rounded-xl shadow-md grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
               {roleId !== 3 && (
                 <select
                   name="employee"
@@ -318,12 +339,16 @@ if (roleId !== 3) {
                     type="text"
                     placeholder="Search name/email"
                     value={filters.search}
-                    onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                    onChange={(e) =>
+                      setFilters({ ...filters, search: e.target.value })
+                    }
                     className="border px-3 py-2 rounded-lg"
                   />
                   <select
                     value={filters.employee}
-                    onChange={(e) => setFilters({ ...filters, employee: e.target.value })}
+                    onChange={(e) =>
+                      setFilters({ ...filters, employee: e.target.value })
+                    }
                     className="border px-3 py-2 rounded-lg"
                   >
                     <option value="">All Employees</option>
@@ -335,7 +360,9 @@ if (roleId !== 3) {
                   </select>
                   <select
                     value={filters.status}
-                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    onChange={(e) =>
+                      setFilters({ ...filters, status: e.target.value })
+                    }
                     className="border px-3 py-2 rounded-lg"
                   >
                     <option value="">All Statuses</option>
@@ -345,26 +372,34 @@ if (roleId !== 3) {
                   </select>
                   <select
                     value={filters.month}
-                    onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+                    onChange={(e) =>
+                      setFilters({ ...filters, month: e.target.value })
+                    }
                     className="border px-3 py-2 rounded-lg"
                   >
                     <option value="">All Months</option>
                     {Array.from({ length: 12 }, (_, i) => (
                       <option key={i} value={i}>
-                        {new Date(0, i).toLocaleString("default", { month: "long" })}
+                        {new Date(0, i).toLocaleString("default", {
+                          month: "long",
+                        })}
                       </option>
                     ))}
                   </select>
                   <input
                     type="date"
                     value={filters.fromDate}
-                    onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
+                    onChange={(e) =>
+                      setFilters({ ...filters, fromDate: e.target.value })
+                    }
                     className="border px-3 py-2 rounded-lg"
                   />
                   <input
                     type="date"
                     value={filters.toDate}
-                    onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
+                    onChange={(e) =>
+                      setFilters({ ...filters, toDate: e.target.value })
+                    }
                     className="border px-3 py-2 rounded-lg"
                   />
                   <div className="flex gap-2">
@@ -376,7 +411,14 @@ if (roleId !== 3) {
                     </button>
                     <button
                       onClick={() => {
-                        setFilters({ employee: "", status: "", fromDate: "", toDate: "", search: "", month: "" });
+                        setFilters({
+                          employee: "",
+                          status: "",
+                          fromDate: "",
+                          toDate: "",
+                          search: "",
+                          month: "",
+                        });
                         setFilteredRecords(attendanceRecords);
                         generateSummary(attendanceRecords);
                       }}
@@ -389,10 +431,16 @@ if (roleId !== 3) {
 
                 {/* Export Buttons */}
                 <div className="mt-4 flex gap-4">
-                  <button onClick={exportToExcel} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                  <button
+                    onClick={exportToExcel}
+                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  >
                     Export to Excel
                   </button>
-                  <button onClick={exportToPDF} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                  <button
+                    onClick={exportToPDF}
+                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                  >
                     Export to PDF
                   </button>
                 </div>
@@ -401,7 +449,9 @@ if (roleId !== 3) {
 
             {/* Chart */}
             <div className="mt-10 bg-white p-6 rounded-xl shadow-md">
-              <h3 className="text-xl font-bold text-blue-700 mb-4">Monthly Attendance Summary</h3>
+              <h3 className="text-xl font-bold text-blue-700 mb-4">
+                Monthly Attendance Summary
+              </h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={summary}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -418,7 +468,9 @@ if (roleId !== 3) {
             {/* Table */}
             {roleId !== 3 && (
               <div className="mt-10">
-                <h3 className="text-xl font-bold text-blue-700 mb-4">Attendance Records</h3>
+                <h3 className="text-xl font-bold text-blue-700 mb-4">
+                  Attendance Records
+                </h3>
                 <div className="overflow-x-auto bg-white rounded shadow">
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-100 text-gray-700">
@@ -433,24 +485,33 @@ if (roleId !== 3) {
                       </tr>
                     </thead>
                     <tbody>
-                    {filteredRecords?.map((record, index) => (
-                      <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="p-3 border">{index + 1}</td>
-                        <td className="p-3 border">{record.username}</td>
-                        <td className="p-3 border">{record.date ? record.date : ""}</td>
-                        <td className="p-3 border">
-                          {record.login_time ? new Date(record.login_time).toLocaleTimeString() : ""}
-                        </td>
-                        <td className="p-3 border">
-                          {record.logout_time ? new Date(record.logout_time).toLocaleTimeString() : ""}
-                        </td>
-                        <td className="p-3 border">
-                          {record.duration_hours != null ? `${record.duration_hours.toFixed(2)} hrs` : ""}
-                        </td>
-                        <td className="p-3 border">{record.status}</td>
-                      </tr>
-                    ))}
-
+                      {filteredRecords?.map((record, index) => (
+                        <tr key={record.id} className="hover:bg-gray-50">
+                          <td className="p-3 border">{index + 1}</td>
+                          <td className="p-3 border">{record.username}</td>
+                          <td className="p-3 border">
+                            {record.date ? record.date : ""}
+                          </td>
+                          <td className="p-3 border">
+                            {record.login_time
+                              ? new Date(record.login_time).toLocaleTimeString()
+                              : ""}
+                          </td>
+                          <td className="p-3 border">
+                            {record.logout_time
+                              ? new Date(
+                                  record.logout_time
+                                ).toLocaleTimeString()
+                              : ""}
+                          </td>
+                          <td className="p-3 border">
+                            {record.duration_hours != null
+                              ? `${record.duration_hours.toFixed(2)} hrs`
+                              : ""}
+                          </td>
+                          <td className="p-3 border">{record.status}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

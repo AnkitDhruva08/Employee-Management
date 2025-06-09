@@ -8,7 +8,8 @@ import {
 import Header from "../header/Header";
 import Sidebar from "../sidebar/Sidebar";
 import UploadImageModal from "../File/UploadProfileImage";
-import { MapPin, Building, Globe, Hash, Flag, Edit, Camera, Phone, Mail } from "lucide-react"; // Added more icons
+import { MapPin, Building, Globe, Hash, Flag, Edit, Camera, Phone, Mail } from "lucide-react"; 
+import CompanyLogo from "../CompanyLogo";
 
 export default function UserProfilePage() {
   const [userProfile, setUserProfile] = useState(null);
@@ -40,7 +41,6 @@ export default function UserProfilePage() {
     const fetchData = async () => {
       try {
         const profileData = await fetchUserProfile(token);
-        console.log("profileData ==<<>>", profileData);
         setUserProfile(profileData.data || profileData);
         setRoleName(profileData.role_name);
         setLoading(false);
@@ -65,7 +65,6 @@ export default function UserProfilePage() {
   if (userProfile) {
     if (isCompany) {
       const rawPath = userProfile.profile_image ;
-      console.log('rawPath ==<<<>>', rawPath)
       if (rawPath) {
         displayImageUrl = rawPath.startsWith("http")
           ? rawPath
@@ -138,9 +137,11 @@ export default function UserProfilePage() {
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans">
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col shadow-lg">
-        <h2 className="text-2xl font-bold mb-8 text-indigo-300 border-b border-indigo-600 pb-4">
-          {dashboardData?.company || "Dashboard"}
-        </h2>
+      {dashboardData && (
+          <CompanyLogo
+            logoPath={dashboardData.company_logo}
+          />
+        )}
         <Sidebar quickLinks={quickLinks} />
       </div>
 
@@ -181,7 +182,6 @@ export default function UserProfilePage() {
                       <Edit size={20} /> Update Profile
                     </Link>
                   )}
-                  {/* Removed the dedicated "Update Profile Picture" button as it's handled by image click */}
                 </div>
               </div>
 
@@ -189,7 +189,7 @@ export default function UserProfilePage() {
                 <div className="space-y-8">
                   <div className="flex justify-center lg:justify-start">
                     <div
-                      onClick={handleProfileImageClick} // Use onClick for simplicity; dblclick can be finicky
+                      onClick={handleProfileImageClick} 
                       className={`relative group cursor-pointer ${
                         isCompany ? "rounded-xl" : "rounded-full"
                       } overflow-hidden w-52 h-52 border-4 border-white shadow-xl transition-transform duration-300 transform hover:scale-105`}

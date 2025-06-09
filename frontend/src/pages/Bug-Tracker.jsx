@@ -4,14 +4,15 @@ import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
 import CkEditor from "../components/editor/CkEditor";
 import FileUpload from "../components/File/FileUpload";
+import CompanyLogo from "../components/CompanyLogo";
 import {
-  fetchDashboardLink,
   fetchDashboard,
   fetchProjectsData,
   fetchEmployees,
   fetchBugsReports,
   fetchProjectSidebar,
   fetchBugDetails,
+  fetchDashboardLink,
 } from "../utils/api";
 import Swal from "sweetalert2";
 import Select from "react-select";
@@ -82,10 +83,11 @@ const BugTracker = () => {
 
   const fetchData = async () => {
     try {
-      const dashboardLinks = await fetchProjectSidebar(token);
-      setQuickLinks(dashboardLinks);
+      const links = await fetchDashboardLink(token)
+      setQuickLinks(links.data || links);
   
       const dashboard = await fetchDashboard(token);
+      console.log('dashboard ==<<<>>', dashboard)
       setDashboardData(dashboard);
   
       const projects = await fetchProjectsData(token);
@@ -190,7 +192,7 @@ const BugTracker = () => {
         status: formData.status,
         priority: formData.priority,
         description: formData.description,
-        resolution_comments: formData.resolutionComments, // Include comments in new bug
+        resolution_comments: formData.resolutionComments, 
         assigned_to_name: formData.assignedTo.map((a) => a.label).join(", "),
         created: new Date().toISOString().split("T")[0],
         project_name:
@@ -230,13 +232,13 @@ const BugTracker = () => {
     data.append("status", formData.status);
     data.append("priority", formData.priority);
     data.append("description", formData.description);
-    data.append("resolution_comments", formData.resolutionComments); // Add resolution comments
+    data.append("resolution_comments", formData.resolutionComments); 
 
     // Handle assigned_to
     if (formData.assignedTo && Array.isArray(formData.assignedTo)) {
       formData.assignedTo.forEach((item) => {
         if (item?.value) {
-          data.append("assigned_to", item.value); // Append each as repeated key
+          data.append("assigned_to", item.value); 
         }
       });
     }
@@ -253,7 +255,6 @@ const BugTracker = () => {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
-            // ❌ Do NOT set 'Content-Type': let the browser handle it when using FormData
           },
           body: data,
         }
@@ -273,7 +274,7 @@ const BugTracker = () => {
 
       const updatedBug = {
         ...selectedBug,
-        ...updatedData, // use fresh data from server
+        ...updatedData, 
         project_name:
           projects.find((p) => p.id === formData.projectId)?.project_name || "",
       };
@@ -298,7 +299,7 @@ const BugTracker = () => {
       priority: "",
       assignedTo: [],
       description: "",
-      resolutionComments: "", // Reset resolution comments
+      resolutionComments: "", 
     });
     setShowModal(false);
     setSelectedBug(null);
@@ -516,10 +517,17 @@ const BugTracker = () => {
     setShowModal(true);
   };
 
+
+
+
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold mb-4">{dashboardData?.company}</h2>
+      {dashboardData && (
+          <CompanyLogo
+            logoPath={dashboardData.company_logo}
+          />
+        )}
         <Sidebar quickLinks={quickLinks} />
       </aside>
 
@@ -825,7 +833,7 @@ const BugTracker = () => {
                   isView={modalMode === "view"}
                   isCombine={false}
                   initialFiles={
-                    formData.bugAttachment ? [formData.bugAttachment] : []
+                    formData.bugAttachment ? [formData.ba] : []
                   }
                   onFilesSelected={handleFileChange}
                 />

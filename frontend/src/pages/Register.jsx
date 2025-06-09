@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import FileUpload from "../components/File/FileUpload";
 import PhoneInput from "react-phone-input-2";
+import Swal from "sweetalert2";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,11 +19,10 @@ const Register = () => {
     zip_code: "",
     country: "",
     contact_number: "",
-    company_logo: null,
+    company_logo: null, 
   });
 
   const [formErrors, setFormErrors] = useState({});
-  const [apiError, setApiError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -35,9 +35,11 @@ const Register = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    // Clear the specific error when the user starts typing/changing the field
     if (formErrors[name]) {
       setFormErrors((prevErrors) => ({ ...prevErrors, [name]: null }));
     }
+    // Special handling for password and confirm_password to clear confirm_password error
     if (name === "password" && formErrors.confirm_password) {
       setFormErrors((prevErrors) => ({
         ...prevErrors,
@@ -46,94 +48,115 @@ const Register = () => {
     }
   };
 
-  const handlePhoneChange = (value, country, e, formattedValue) => {
+  const handlePhoneChange = (value) => {
     setFormData({ ...formData, contact_number: value });
+    // Clear error for phone number
     if (formErrors?.contact_number) {
       setFormErrors((prevErrors) => ({ ...prevErrors, contact_number: null }));
     }
   };
 
   const handleLogoUpload = (files) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      company_logo: files && files.length > 0 ? files : null,
-    }));
-    if (formErrors?.company_logo) {
-      setFormErrors((prevErrors) => ({ ...prevErrors, company_logo: null }));
+    if (files && files.length > 0) {
+      const file = files[0];
+      const allowedTypes = ["image/png", "image/jpg", "image/jpeg"];
+
+      if (!allowedTypes.includes(file.type)) {
+        setFormErrors((prevErrors) => ({
+          ...prevErrors,
+          company_logo: "Only PNG, JPG, or JPEG files are allowed.",
+        }));
+        setFormData((prevData) => ({
+          ...prevData,
+          company_logo: files, 
+        }));
+      } else {
+        // Clear error and set the file if it's a valid type
+        setFormErrors((prevErrors) => ({
+          ...prevErrors,
+          company_logo: null,
+        }));
+        setFormData((prevData) => ({
+          ...prevData,
+          company_logo: files,
+        }));
+      }
+    } else {
+      // If no file is selected (e.g., cleared), remove the file and any error
+      setFormData((prevData) => ({
+        ...prevData,
+        company_logo: null,
+      }));
+      setFormErrors((prevErrors) => ({
+        ...prevErrors,
+        company_logo: null,
+      }));
     }
   };
 
   const validateForm = () => {
     const errors = {};
 
+    // Company Name Validation
     if (!formData.company_name.trim()) {
       errors.company_name = "Company name is required.";
     } else if (formData.company_name.trim().length < 3) {
       errors.company_name = "Company name must be at least 3 characters long.";
     }
 
+    // Team Size Validation
     if (!formData.team_size) {
       errors.team_size = "Team size is required.";
     }
 
-    // Email validation without regex
+    // Email Validation
     if (!formData.email.trim()) {
       errors.email = "Email is required.";
     } else {
-      const atIndex = formData.email.indexOf("@");
-      const dotIndex = formData.email.lastIndexOf(".");
-      if (
-        atIndex < 1 ||
-        dotIndex < atIndex + 2 ||
-        dotIndex === formData.email.length - 1 ||
-        formData.email.split("@").length !== 2
-      ) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
         errors.email = "Invalid email format.";
       }
     }
 
-    // Contact number validation without regex (already handled by numericValue in handlePhoneChange)
+    // Contact Number Validation
     if (!formData.contact_number.trim()) {
       errors.contact_number = "Contact number is required.";
     } else if (formData.contact_number.length < 10) {
+      // Assuming a minimum length of 10 digits for a valid phone number (after stripping country code, etc.)
       errors.contact_number = "Contact number must be at least 10 digits long.";
     }
 
+    // Password Validation
     if (!formData.password) {
       errors.password = "Password is required.";
     } else if (formData.password.length < 8) {
       errors.password = "Password must be at least 8 characters long.";
     } else {
-      let hasUpper = false;
-      let hasLower = false;
-      let hasDigit = false;
-      let hasSpecial = false;
-
-      for (let i = 0; i < formData.password.length; i++) {
-        const char = formData.password[i];
-        if (char >= "A" && char <= "Z") {
-          hasUpper = true;
-        } else if (char >= "a" && char <= "z") {
-          hasLower = true;
-        } else if (char >= "0" && char <= "9") {
-          hasDigit = true;
-        } else if ("!@#$%^&*()_+-=[]{};':\"\\|,.<>/?~".includes(char)) {
-          hasSpecial = true;
-        }
-      }
-
-      if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+      const passwordRegex =
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]).{8,}$/;
+      if (!passwordRegex.test(formData.password)) {
         errors.password =
           "Password must include uppercase, lowercase, number, and special character.";
       }
     }
 
+    // Confirm Password Validation
     if (!formData.confirm_password) {
       errors.confirm_password = "Confirm password is required.";
     } else if (formData.password !== formData.confirm_password) {
       errors.confirm_password = "Passwords do not match.";
     }
 
+    if (formData.company_logo && formData.company_logo.length > 0) {
+      const file = formData.company_logo[0];
+      const allowedTypes = ["image/png", "image/jpg", "image/jpeg"];
+      if (!allowedTypes.includes(file.type)) {
+        errors.company_logo = "Only PNG, JPG, or JPEG files are allowed.";
+      }
+    }
+
+    // Address Validation
     if (!formData.street_address.trim()) {
       errors.street_address = "Street address is required.";
     }
@@ -144,100 +167,112 @@ const Register = () => {
       errors.state_province = "State/Province is required.";
     }
 
+    // Zip Code Validation
     if (!formData.zip_code.trim()) {
       errors.zip_code = "Zip/Postal code is required.";
     } else {
-      // Check if zip_code contains only digits
-      let isNumeric = true;
-      for (let i = 0; i < formData.zip_code.length; i++) {
-        const char = formData.zip_code[i];
-        if (char < "0" || char > "9") {
-          isNumeric = false;
-          break;
-        }
-      }
-      if (
-        !isNumeric ||
-        formData.zip_code.length < 5 ||
-        formData.zip_code.length > 10
-      ) {
+      const zipRegex = /^\d{5,10}$/; 
+      if (!zipRegex.test(formData.zip_code)) {
         errors.zip_code = "Zip/Postal code must be 5–10 digits.";
       }
     }
 
+    // Country Validation
     if (!formData.country.trim()) {
       errors.country = "Country is required.";
     }
 
-    // if (!formData.company_logo) {
-    //   errors.company_logo = 'Company logo is required.';
-    // } else if (formData.company_logo.length > 1) {
-    //   errors.company_logo = 'Please upload only one logo.';
-    // }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    setFormErrors(errors); 
+    return Object.keys(errors).length === 0; 
   };
 
   const handleSubmit = async (e) => {
     if (e) {
       e.preventDefault();
     }
-    setApiError(null);
 
-    const isValid = validateForm();
+    const isValid = validateForm(); 
 
-    if (isValid) {
-      setLoading(true);
-      try {
-        const formDataToSend = new FormData();
-        formDataToSend.append("company_name", formData.company_name);
-        formDataToSend.append("team_size", formData.team_size);
-        formDataToSend.append("email", formData.email);
-        formDataToSend.append("password", formData.password);
-        formDataToSend.append("street_address", formData.street_address);
-        formDataToSend.append("city", formData.city);
-        formDataToSend.append("state_province", formData.state_province);
-        formDataToSend.append("zip_code", formData.zip_code);
-        formDataToSend.append("country", formData.country);
-        formDataToSend.append("contact_number", formData.contact_number);
-        if (formData.company_logo && formData.company_logo.length > 0) {
-          formDataToSend.append("company_logo", formData.company_logo[0]);
-        }
-
-        const response = await fetch("http://localhost:8000/api/register/", {
-          method: "POST",
-          body: formDataToSend,
+    if (!isValid) {
+      // Display a general alert only if there are formErrors
+      if (Object.keys(formErrors).length > 0) {
+        Swal.fire({
+          icon: "error",
+          title: "Validation Failed",
+          html: Object.values(formErrors).join("<br>") || "Please correct the errors in the form.",
         });
-
-        const data = await response.json();
-
-        if (response.ok && data.tokens && data.tokens.access) {
-          localStorage.setItem("token", data.tokens.access);
-
-          localStorage.removeItem("is_superuser");
-          localStorage.removeItem("is_company");
-
-          if (data.is_superuser === true) {
-            localStorage.setItem("is_superuser", "true");
-          } else if (data.is_company === true) {
-            localStorage.setItem("is_company", "true");
-          }
-
-          navigate("/dashboard");
-        } else {
-          setApiError(
-            data.detail ||
-              data.message ||
-              "Registration failed. Please check your details."
-          );
-        }
-      } catch (err) {
-        console.error("Registration error:", err);
-        setApiError("An unexpected error occurred. Please try again.");
-      } finally {
-        setLoading(false);
       }
+      return; 
+    }
+
+    setLoading(true);
+    try {
+      const formDataToSend = new FormData();
+      formDataToSend.append("company_name", formData.company_name);
+      formDataToSend.append("team_size", formData.team_size);
+      formDataToSend.append("email", formData.email);
+      formDataToSend.append("password", formData.password);
+      formDataToSend.append("street_address", formData.street_address);
+      formDataToSend.append("city", formData.city);
+      formDataToSend.append("state_province", formData.state_province);
+      formDataToSend.append("zip_code", formData.zip_code);
+      formDataToSend.append("country", formData.country);
+      formDataToSend.append("contact_number", formData.contact_number);
+
+      // Append the company logo only if it exists and is valid
+      if (formData.company_logo && formData.company_logo.length > 0 && formErrors.company_logo === null) {
+        formDataToSend.append("company_logo", formData.company_logo[0]);
+      } 
+
+      const response = await fetch("http://localhost:8000/api/register/", {
+        method: "POST",
+        body: formDataToSend,
+      });
+
+      const data = await response.json();
+      console.log('data ==<<>>', data)
+
+      if (response.ok && data.tokens && data.tokens.access) {
+        localStorage.setItem("token", data.tokens.access);
+
+        localStorage.removeItem("is_superuser");
+        localStorage.removeItem("is_company");
+
+        if (data.is_superuser === true) {
+          localStorage.setItem("is_superuser", "true");
+        } else if (data.is_company === true) {
+          localStorage.setItem("is_company", "true");
+        }
+
+        Swal.fire({
+          icon: "success",
+          title: "Registration Successful!",
+          text: "Your company has been registered.",
+          showConfirmButton: false,
+          timer: 1500,
+        }).then(() => {
+          navigate("/dashboard");
+        });
+      } else {
+        const errorMessage =
+          data.detail ||
+          data.message ||
+          "Registration failed. Please check your details.";
+        Swal.fire({
+          icon: "error",
+          title: data.error,
+          text: errorMessage,
+        });
+      }
+    } catch (err) {
+      console.error("Registration error:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "An unexpected error occurred. Please try again.",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -412,7 +447,7 @@ const Register = () => {
               className="absolute right-3 top-[43px] text-gray-500 hover:text-gray-700 transition-colors duration-200"
               tabIndex={-1}
             >
-              {showPassword ? "🚫" : "👁️"}
+              {showPassword ? "👁️‍🗨️" : "👁️"}
             </button>
             {formErrors.password && (
               <p className="text-red-500 text-xs mt-1 animate-fadeIn">
@@ -447,7 +482,7 @@ const Register = () => {
               className="absolute right-3 top-[43px] text-gray-500 hover:text-gray-700 transition-colors duration-200"
               tabIndex={-1}
             >
-              {showConfirmPassword ? "🚫" : "👁️"}
+              {showConfirmPassword ? "👁️‍🗨️" : "👁️"}
             </button>
             {formErrors.confirm_password && (
               <p className="text-red-500 text-xs mt-1 animate-fadeIn">
@@ -607,16 +642,6 @@ const Register = () => {
               )}
             </div>
           </div>
-
-          {apiError && (
-            <div
-              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative transition-all duration-300 animate-fadeIn"
-              role="alert"
-            >
-              <strong className="font-bold">Error!</strong>
-              <span className="block sm:inline ml-2">{apiError}</span>
-            </div>
-          )}
 
           <button
             type="button"

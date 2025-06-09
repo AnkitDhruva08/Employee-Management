@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useParams } from "react-router-dom";
 import FileUpload from "../File/FileUpload";
-import Header from "../header/Header";
+import Swal from 'sweetalert2';
 
 export default function BankDetailsForm({ onNext, onPrev }) {
   const token = localStorage.getItem("token");
@@ -22,107 +22,140 @@ export default function BankDetailsForm({ onNext, onPrev }) {
     ifsc_code: "",
     account_number: "",
     account_type: "",
-    bank_details_pdf: null,
+    bankPdf: null,
   });
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [success, setSuccess] = useState(null);
-  const [error, setError] = useState(null);
+  const [apiError, setApiError] = useState(null);
+
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/jpg", "image/pdf"];
+  const allowedPdfType = "application/pdf";
+  const allowedFileTypes = [...allowedImageTypes, allowedPdfType];
 
   const validate = () => {
     const newErrors = {};
-    if (!bankData.account_holder_name) newErrors.account_holder_name = "Required";
-    if (!bankData.bank_name) newErrors.bank_name = "Required";
-    if (!bankData.branch_name) newErrors.branch_name = "Required";
-    if (!bankData.ifsc_code) newErrors.ifsc_code = "Required";
-    if (!bankData.account_number) {
-      newErrors.account_number = "Required";
+    if (!bankData.account_holder_name.trim()) newErrors.account_holder_name = "Account Holder Name is required.";
+    if (!bankData.bank_name.trim()) newErrors.bank_name = "Bank Name is required.";
+    if (!bankData.branch_name.trim()) newErrors.branch_name = "Branch Name is required.";
+    if (!bankData.ifsc_code.trim()) newErrors.ifsc_code = "IFSC Code is required.";
+    if (!bankData.account_number.trim()) {
+      newErrors.account_number = "Account Number is required.";
     } else if (
       bankData.account_number.length < 9 ||
-      bankData.account_number.length > 18
+      bankData.account_number.length > 18 ||
+      !/^\d+$/.test(bankData.account_number)
     ) {
-      newErrors.account_number = "Account number must be 9–18 digits";
+      newErrors.account_number = "Account number must be 9–18 digits.";
     }
-    if (!bankData.account_type) newErrors.account_type = "Select account type";
+    if (!bankData.account_type) newErrors.account_type = "Please select an account type.";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  useEffect(() => {
-    const fetchBankDetails = async () => {
-      setLoading(true);
-      if (id) {
-        try {
-          const response = await fetch(
-            "http://localhost:8000/api/employee-bank-details/",
-            {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          if (!response.ok) throw new Error("Failed to fetch bank details");
-          const data = await response.json();
-
-          if (data?.length > 0) {
-            const bank = data[0];
-            setBankData({
-              id: bank.id,
-              account_holder_name: bank.account_holder_name || "",
-              bank_name: bank.bank_name || "",
-              branch_name: bank.branch_name || "",
-              ifsc_code: bank.ifsc_code || "",
-              account_number: bank.account_number || "",
-              account_type: bank.account_type || "",
-              bank_details_pdf: bank.bank_details_pdf || null,
-            });
-            setIsUpdating(true);
+  const fetchBankDetails = async () => {
+    setLoading(true);
+    if (id) {
+      try {
+        const response = await fetch(
+          "http://localhost:8000/api/employee-bank-details/",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
-        } catch (err) {
-          setError(err.message);
-        } finally {
-          setLoading(false);
+        );
+
+        if (!response.ok) throw new Error("Failed to fetch bank details.");
+        const data = await response.json();
+        console.log('data ==<<>>', data)
+
+        if (data?.length > 0) {
+          const bank = data[0];
+          console.log('data ankit ==<<>>', data.bank_details_pdf)
+          setBankData({
+            id: bank.id,
+            account_holder_name: bank.account_holder_name || "",
+            bank_name: bank.bank_name || "",
+            branch_name: bank.branch_name || "",
+            ifsc_code: bank.ifsc_code || "",
+            account_number: bank.account_number || "",
+            account_type: bank.account_type || "",
+            bankPdf: data[0].bank_details_pdf || null,
+          });
+          setIsUpdating(true);
         }
-      } else {
+      } catch (err) {
+        setApiError(err.message);
+        Swal.fire('Error', err.message, 'error');
+      } finally {
         setLoading(false);
       }
-    };
+    } else {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchBankDetails();
-  }, [id, token]);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setBankData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
   };
+
+
+    
+  const handleFileChange = (files) => {
+    console.log("Selected files:", files);
+    console.log("First file:", files[0]);
+    setBankData({
+      ...bankData,
+      bankPdf: files.length > 0 ? files[0] : null,
+    });
+  };
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
 
-    setError(null);
+    if (!validate()) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Validation Error',
+        text: 'Please fill in all required fields correctly.',
+      });
+      return;
+    }
+
+    setApiError(null);
     setSuccess(null);
     setLoading(true);
 
     const formData = new FormData();
 
-    Object.entries(bankData).forEach(([key, value]) => {
-      if (key === "bank_details_pdf") {
-        if (value instanceof File) {
-          console.log("Appending file to form data:", value);
-          formData.append(key, value);
-        }
-      } else {
-        formData.append(key, value ?? "");
-      }
-    });
+// Append text fields
+formData.append("account_holder_name", bankData.account_holder_name);
+formData.append("bank_name", bankData.bank_name);
+formData.append("branch_name", bankData.branch_name);
+formData.append("ifsc_code", bankData.ifsc_code);
+formData.append("account_number", bankData.account_number);
+formData.append("account_type", bankData.account_type);
 
+// Append file if present
+if (bankData.bankPdf instanceof File) {
+  formData.append("bank_details_pdf", bankData.bankPdf); 
+}
+
+    console.log('formdata ==<<>>', formData)
     const endpoint = isUpdating
-      ? `http://localhost:8000/api/employee-bank-details/${bankData.id || id}/`
+      ? `http://localhost:8000/api/employee-bank-details/${bankData.id}/`
       : "http://localhost:8000/api/employee-bank-details/";
 
     const method = isUpdating ? "PUT" : "POST";
@@ -138,45 +171,34 @@ export default function BankDetailsForm({ onNext, onPrev }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData?.detail || "Failed to submit bank details");
+        throw new Error(errorData?.detail || JSON.stringify(errorData) || "Failed to submit bank details.");
       }
 
-      setSuccess("Bank details saved successfully.");
+      const responseData = await response.json();
+      setSuccess("Bank details saved successfully!");
       setIsUpdating(true);
-      console.log("Form submission successful");
+      setBankData(prev => ({
+        ...prev,
+        id: responseData.id || prev.id,
+        bankPdf: null,
+      }));
+
       if (onNext) onNext();
     } catch (err) {
-      setError(err.message);
-      console.error("Form submission error:", err);
+      setApiError(err.message);
+      Swal.fire('Submission Error', err.message, 'error');
+      console.error("❌ Form submission error:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePreviewFile = () => {
-    if (bankData.bank_details_pdf) {
-      let fileUrl = "";
 
-      if (bankData.bank_details_pdf instanceof File) {
-        // File object from input, create URL object for preview
-        fileUrl = URL.createObjectURL(bankData.bank_details_pdf);
-        console.log("Previewing local file:", fileUrl);
-      } else if (typeof bankData.bank_details_pdf === "string") {
-        // URL string from backend
-        fileUrl = `http://localhost:8000${bankData.bank_details_pdf}`;
-        console.log("Previewing remote file:", fileUrl);
-      }
-
-      window.open(fileUrl, "_blank");
-    } else {
-      alert("No file available for preview.");
-    }
-  };
 
   if (loading) {
     return (
       <div className="text-center mt-10 text-xl text-gray-500 animate-pulse">
-        Loading...
+        Loading bank details...
       </div>
     );
   }
@@ -190,11 +212,19 @@ export default function BankDetailsForm({ onNext, onPrev }) {
       <div  className="space-y-8" noValidate>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
-            { label: "Account Holder Name", name: "account_holder_name", icon: <User /> },
+            {
+              label: "Account Holder Name",
+              name: "account_holder_name",
+              icon: <User />,
+            },
             { label: "Bank Name", name: "bank_name", icon: <Banknote /> },
             { label: "Branch Name", name: "branch_name", icon: <Landmark /> },
             { label: "IFSC Code", name: "ifsc_code", icon: <FileText /> },
-            { label: "Account Number", name: "account_number", icon: <CreditCard /> },
+            {
+              label: "Account Number",
+              name: "account_number",
+              icon: <CreditCard />,
+            },
           ].map(({ label, name, icon }) => (
             <div key={name}>
               <label
@@ -222,7 +252,6 @@ export default function BankDetailsForm({ onNext, onPrev }) {
             </div>
           ))}
 
-          {/* Account Type */}
           <div>
             <label
               htmlFor="account_type"
@@ -252,46 +281,28 @@ export default function BankDetailsForm({ onNext, onPrev }) {
           </div>
         </div>
 
-        {/* PDF Upload */}
         <div>
           <label className="block mb-1 text-sm font-semibold text-gray-700">
-            Attach PDF (Optional)
+            Attach Bank Proof (PDF/Image)
           </label>
+   
+
           <FileUpload
             isView={false}
             isCombine={false}
             initialFiles={
-              bankData.bank_details_pdf
-                ? [
-                    typeof bankData.bank_details_pdf === "string"
-                      ? { url: `http://localhost:8000${bankData.bank_details_pdf}`, name: "BankDetails.pdf" }
-                      : { file: bankData.bank_details_pdf, name: bankData.bank_details_pdf.name },
-                  ]
-                : []
+              bankData.bankPdf ? [bankData.bankPdf] : []
             }
-            onFilesSelected={(files) => {
-              console.log("Files selected:", files);
-              if (files.length > 0) {
-                setBankData((prev) => ({
-                  ...prev,
-                  bank_details_pdf: files[0].file || null,
-                }));
-              }
-            }}
-            onDeletedFiles={() => {
-              console.log("Files deleted");
-              setBankData((prev) => ({ ...prev, bank_details_pdf: null }));
-            }}
-            onPreviewFile={handlePreviewFile}
+            
+            onFilesSelected={handleFileChange}
           />
         </div>
 
-        {/* Buttons */}
         <div className="flex justify-between mt-8">
           <button
             type="button"
             onClick={onPrev}
-            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-200"
           >
             Previous
           </button>
@@ -299,15 +310,18 @@ export default function BankDetailsForm({ onNext, onPrev }) {
             type="submit"
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? "Submitting..." : "Next"}
+            {loading ? "Saving..." : "Next"}
           </button>
         </div>
 
-        {/* Messages */}
-        {success && <p className="text-green-600 text-center mt-4">{success}</p>}
-        {error && <p className="text-red-600 text-center mt-4">{error}</p>}
+        {success && (
+          <p className="text-green-600 text-center mt-4">{success}</p>
+        )}
+        {apiError && (
+          <p className="text-red-600 text-center mt-4">{apiError}</p>
+        )}
       </div>
     </div>
   );

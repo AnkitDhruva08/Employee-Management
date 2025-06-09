@@ -58,12 +58,12 @@ def is_profile_complete(employee_id):
                 "missing_sections": "Emergency Contact"
             }
 
-        if not OfficeDetails.objects.filter(employee_id=employee_id, active=True).exists():
-            return {
-                "is_complete": False,
-                "message": "Please complete your Office Details to access full features.",
-                "missing_sections": "Office Details"
-            }
+        # if not OfficeDetails.objects.filter(employee_id=employee_id, active=True).exists():
+        #     return {
+        #         "is_complete": False,
+        #         "message": "Please complete your Office Details to access full features.",
+        #         "missing_sections": "Office Details"
+        #     }
 
         # ✅ If everything is complete
         return {

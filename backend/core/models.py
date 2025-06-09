@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.utils.timezone import now
+from django.core.validators import FileExtensionValidator
 
 # Custom user model to differentiate companies and employees
 class User(AbstractUser):
@@ -222,8 +223,14 @@ class Holiday(models.Model):
 
 
 class LeaveRequest(models.Model):
+
+    LEAVE_TYPES = [
+    ('CL', 'Casual Leave'),
+    ('PL', 'Personal Leave'),
+    ('SL', 'Sick Leave'),  # ✅ Add this
+]
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
-    leave_type = models.CharField(choices=[('CL', 'Casual Leave'), ('PL', 'Personal Leave')], max_length=2)
+    leave_type = models.CharField(choices=LEAVE_TYPES, max_length=2)
     from_date = models.DateField()
     to_date = models.DateField(null=True, blank=True)
     reason = models.TextField()
@@ -232,7 +239,10 @@ class LeaveRequest(models.Model):
     admin_reviewed = models.BooleanField(default=False)
     applied_at = models.DateTimeField(auto_now_add=True)
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    active = models.BooleanField(default=True)  # New field
+    leave_document = models.FileField(upload_to='leave_documents/',null=True,blank=True,validators=[FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])],
+        help_text="Optional. Upload supporting document (PDF, JPG, PNG, JPEG)."
+    )
+    active = models.BooleanField(default=True) 
 
     # Audit fields
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="leave_created_by")
