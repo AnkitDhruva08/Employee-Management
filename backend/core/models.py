@@ -5,10 +5,16 @@ from django.utils.timezone import now
 from django.core.validators import FileExtensionValidator
 
 # Custom user model to differentiate companies and employees
+
 class User(AbstractUser):
     is_company = models.BooleanField(default=False)
     is_employee = models.BooleanField(default=False)
-    username = models.CharField(max_length=150, unique=False) 
+    
+    username = models.CharField(max_length=150) 
+    email = models.EmailField(unique=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username'] 
 
     def __str__(self):
         return self.username
@@ -302,8 +308,17 @@ class EmployeeDashboardLink(models.Model):
 
 
 # Hr dashboard link
-
 class HrDashboardLink(models.Model):
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=255)
+    color = models.CharField(max_length=50)
+    icons = models.CharField(max_length=50, blank=True, null=True)
+    active = models.BooleanField(default=True) 
+    def __str__(self):
+        return self.name 
+    
+
+class AdminDashboardLink(models.Model):
     name = models.CharField(max_length=255)
     path = models.CharField(max_length=255)
     color = models.CharField(max_length=50)

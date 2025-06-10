@@ -27,7 +27,6 @@ class CompanyRegisterView(APIView):
     def post(self, request, *args, **kwargs):
         try:
             # Convert QueryDict to dict for safe manipulation
-            print('data commming from frontend')
             company_data = request.data.dict()
             email = company_data.pop('email', None)
             default_password = company_data.pop('password', None)

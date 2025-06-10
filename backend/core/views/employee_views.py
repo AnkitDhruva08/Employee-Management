@@ -98,8 +98,6 @@ class EmployeeViewSet(APIView):
     def post(self, request):
         try:
             data = request.data.copy()
-            print('data coming from frontend ==<<>>', data)
-
             # Flags
             is_company = False
             is_employee = False 
@@ -153,7 +151,6 @@ class EmployeeViewSet(APIView):
             default_password = "Pass@123"
 
         
-            print('Ankit Mishra')
             # Prevent duplicate employee
             if User.objects.filter(email=email).exists():
                 return Response({'error': 'Employee with this email already exists.'}, status=400)
@@ -271,19 +268,19 @@ class EmployeeBankDetailsView(APIView):
 
     def post(self, request):
         try:
-            print('data comming from fronntend ==<<<>>', request.data)
-            print('FILES coming from frontend ==<<<<>>', request.FILES)
             employee = Employee.objects.get(company_email=request.user.email)
             data = request.data.copy()
             data['active'] = True
             data['employee'] = employee.id
-
+            account_number = data.get('account_number')
             # Check if bank details already exist for this employee
             if BankDetails.objects.filter(employee=employee).exists():
                 return Response({'error': 'Bank details already exist for this employee.'},
                                 status=status.HTTP_400_BAD_REQUEST)
+            if BankDetails.objects.filter(account_number=account_number).exists():
+                return Response({'error': 'Bank details with account number already exist'},status=status.HTTP_400_BAD_REQUEST)
 
-            serializer = BankDetailsSerializer(data=data, files=request.FILES)
+            serializer = BankDetailsSerializer(data=data)
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Bank details created successfully.'}, status=status.HTTP_201_CREATED)
@@ -298,39 +295,52 @@ class EmployeeBankDetailsView(APIView):
 
 
     def put(self, request, pk=None):
-        try:
-            print('data coming from frontend ==<<<<>>', request.data)
-            print('FILES coming from frontend ==<<<<>>', request.FILES)
-            bank_details = BankDetails.objects.get(pk=pk)
-        except BankDetails.DoesNotExist:
-            return Response({'error': 'Bank details not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                bank_details = BankDetails.objects.get(pk=pk)
+               
+            except BankDetails.DoesNotExist:
+                return Response(
+                    {'error': 'Bank details not found for the given ID'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
-        data = request.data.copy()
+            data = request.data.copy()
 
-        # Always set active True if provided
-        if 'active' in data:
-            data['active'] = True
+            if 'active' in data:
+                data['active'] = True  #
 
-        # Remove fields that should not be overwritten
-        data.pop('id', None)
-        data.pop('employee', None)
+            # Prevent overwriting protected fields
+            for field in ['id', 'employee']:
+                data.pop(field, None)
 
-        # Add files into the data dictionary
-        data.update(request.FILES)
+            # Include uploaded files
+            data.update(request.FILES)
 
-        serializer = BankDetailsSerializer(bank_details, data=data, partial=True)
+            account_number = data.get('account_number')
 
-        if serializer.is_valid():
-            serializer.save()
-            print("Bank details updated successfully.")
-            return Response({
-                'message': 'Bank details updated successfully.',
-                'data': serializer.data
-            }, status=status.HTTP_200_OK)
+            # Only check uniqueness if account_number is changing
+            if account_number and account_number != bank_details.account_number:
+                exists = BankDetails.objects.filter(account_number=account_number).exclude(pk=pk).exists()
+                if exists:
+                    return Response(
+                        {'error': 'Another bank detail with this account number already exists.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer = BankDetailsSerializer(bank_details, data=data, partial=True)
 
-    
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {
+                        'message': 'Bank details updated successfully.',
+                        'data': serializer.data
+                    },
+                    status=status.HTTP_200_OK
+                )
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
 # Nominee Details CRUD operations
 class NomineeDetailsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -423,28 +433,28 @@ class EmployeeDocumentUploadView(APIView):
 # post a new document of an employee
     def post(self, request):
         try:
-            # Get employee linked to logged-in user email
             employee = Employee.objects.get(company_email=request.user.email)
 
-            # Make mutable copy of data and add extra fields
             data = request.data.copy()
             data['active'] = True
             data['employee'] = employee.id
-
-            print('data coming from frontend ==<<>>', data)
-            print('files coming from frontend ==<<<>', request.FILES)
-
-            # Merge request.data and request.FILES properly for serializer
             combined_data = data.copy()
             combined_data.update(request.FILES)
 
-            serializer = EmployeeDocumentSerializer(data=combined_data, context={'request': request})
+            # Duplicate check
+            for field in ['uan', 'epf_member', 'insurance_number']:
+                value = combined_data.get(field)
+                if value and EmployeeDocument.objects.filter(**{field: value}).exists():
+                    return Response(
+                        {f'error': f'{field.replace("_", " ").title()} already exists.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
+            serializer = EmployeeDocumentSerializer(data=combined_data, context={'request': request})
             if serializer.is_valid():
                 serializer.save()
                 return Response({'success': 'Employee document uploaded successfully.'}, status=status.HTTP_201_CREATED)
             else:
-                print('Serializer errors:', serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Employee.DoesNotExist:
@@ -452,21 +462,30 @@ class EmployeeDocumentUploadView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-# update an existing document of an employee
     def put(self, request, pk):
         try:
-            print('data coming from frontend ==<<<<>>', request.data)
-            print('FILES coming from frontend ==<<<<>>', request.FILES)
             employee_document = EmployeeDocument.objects.get(employee_id=pk)
+
             data = request.data.copy()
-            # Handle optional 'active' field safely
             data['active'] = True
+            data.update(request.FILES)
+
+            # Duplicate check (excluding the current instance)
+            for field in ['uan', 'epf_member', 'insurance_number']:
+                value = data.get(field)
+                if value and EmployeeDocument.objects.filter(**{field: value}).exclude(pk=employee_document.pk).exists():
+                    return Response(
+                        {f'error': f'{field.replace("_", " ").title()} already exists for another employee.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
             serializer = EmployeeDocumentSerializer(employee_document, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response({'success': 'Employee document updated successfully.'}, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         except EmployeeDocument.DoesNotExist:
             return Response({'error': 'Employee document not found for the given ID'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
@@ -646,9 +665,7 @@ class ProfileImageUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        print('Requesting user email:', request.user.email)
         image = request.FILES.get('image')
-        print('image==<<<>>', image)
         if not image:
             return Response({"error": "No image provided."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -774,12 +791,10 @@ class EmployeeProfileViewSet(APIView):
             is_employee = user_data.is_employee
             if(is_company):
                 company = Company.objects.get(email=request.user.email)
-                print('Company details:', company)
                 return Response(CompanySerializer(company).data, status=status.HTTP_200_OK)
           
             employee = Employee.objects.get(company_email=request.user.email)
             role_name = Role.objects.get(id=employee.role_id).role_name
-            print('role_name ==<<<>>', role_name)
 
             # Fetch related data
             emergency_contacts = EmergencyContact.objects.filter(employee=employee)

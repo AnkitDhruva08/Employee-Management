@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { DateRange } from "react-date-range";
-import "react-date-range/dist/styles.css";
-import "react-date-range/dist/theme/default.css";
 import Header from "../components/header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import Sidebar from "../components/sidebar/Sidebar";
@@ -12,16 +9,25 @@ import CompanyLogo from "../components/CompanyLogo";
 import FileUpload from "../components/File/FileUpload";
 
 const LeaveRequest = () => {
-  const [leaves, setLeaves] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [open, setOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showRangePicker, setShowRangePicker] = useState(false);
-  const [showSingleDate, setShowSingleDate] = useState(true);
-  const [duration, setDuration] = useState({ years: 0, months: 0, days: 0 });
+  const [newLeave, setNewLeave] = useState({
+    duration: "Single Day",
+    leave_type: "PL",
+    from_date: format(new Date(), "yyyy-MM-dd"),
+    to_date: "",
+    reason: "",
+    attachment: null,
+  });
+  const [dateRange] = useState([
+    {
+      startDate: new Date(),
+      endDate: new Date(),
+      key: "selection",
+    },
+  ]);
   const [quickLinks, setQuickLinks] = useState([]);
-  const [existingData, setExistingData] = useState(null);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -33,23 +39,6 @@ const LeaveRequest = () => {
   const HeaderTitle = "Employee Leave Details";
   const employeesPerPage = 5;
   const roleId = parseInt(localStorage.getItem("role_id"));
-
-  const [newLeave, setNewLeave] = useState({
-    duration: "Single Day",
-    leave_type: "PL",
-    from_date: format(new Date(), "yyyy-MM-dd"),
-    to_date: "",
-    reason: "",
-    attachment: null,
-  });
-
-  const [dateRange, setDateRange] = useState([
-    {
-      startDate: new Date(),
-      endDate: addDays(new Date(), 1),
-      key: "selection",
-    },
-  ]);
 
   const handleAuthenticationError = (errMessage) => {
     Swal.fire({
@@ -78,7 +67,6 @@ const LeaveRequest = () => {
       }
 
       const data = await res.json();
-      console.log("leave data ==<<<>>", data);
 
       if (data.is_complete === false) {
         Swal.fire({
@@ -88,8 +76,9 @@ const LeaveRequest = () => {
             data.message ||
             "Please complete your profile before accessing leave features.",
           footer: `Missing: ${data.missing_sections || "Required Sections"}`,
+        }).then(() => {
+          navigate("/dashboard");
         });
-        navigate("/dashboard");
         return;
       }
 
@@ -106,33 +95,38 @@ const LeaveRequest = () => {
     }
   };
 
-  const fetchInitialData = async () => {
-    try {
-      const links = await fetchDashboardLink(token);
-      const dashboardInfo = await fetchDashboard(token);
-      setQuickLinks(links);
-      setDashboardData(dashboardInfo);
-      const leaveData = await fetchLeaveRequests();
-      console.log("leaveData ===<<<<>>", leaveData);
-    } catch (err) {
-      console.error("Failed to load initial data:", err);
-      if (err.message.includes("Unauthorized")) {
-        handleAuthenticationError();
-      } else {
-        setError("Failed to load dashboard or leave requests.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        const links = await fetchDashboardLink(token);
+        const dashboardInfo = await fetchDashboard(token);
+        setQuickLinks(links);
+        setDashboardData(dashboardInfo);
+        await fetchLeaveRequests();
+      } catch (err) {
+        console.error("Failed to load initial data:", err);
+        if (err.message.includes("Unauthorized")) {
+          handleAuthenticationError();
+        } else {
+          setError("Failed to load dashboard or leave requests.");
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to load initial data.",
+          });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (!token) {
       handleAuthenticationError("No authentication token found.");
       return;
     }
     fetchInitialData();
-  }, [token]);
+  }, [token, navigate]);
 
   const handleOpen = () => setOpen(!open);
 
@@ -208,7 +202,7 @@ const LeaveRequest = () => {
       if (res.ok) {
         const newData = await res.json();
         setSuccess("Leave Applied Successfully");
-        setLeaves((prev) => [...prev, newData]);
+        setLeaveRequests((prev) => [...prev, newData]);
         setOpen(false);
         setNewLeave({
           duration: "Single Day",
@@ -218,13 +212,30 @@ const LeaveRequest = () => {
           reason: "",
           attachment: null,
         });
+        Swal.fire({
+          icon: "success",
+          title: "Success!",
+          text: "Leave applied successfully!",
+          timer: 1500,
+          showConfirmButton: false,
+        });
         fetchLeaveRequests();
       } else {
         const errorData = await res.json();
         setError(errorData.message || "Failed to apply leave.");
+        Swal.fire({
+          icon: "error",
+          title: "Error!",
+          text: errorData.message || "Failed to apply leave.",
+        });
       }
     } catch (err) {
       setError("Failed to connect to server.");
+      Swal.fire({
+        icon: "error",
+        title: "Error!",
+        text: "Failed to connect to server.",
+      });
     } finally {
       setLoading(false);
     }
@@ -421,80 +432,82 @@ const LeaveRequest = () => {
           </div>
         )}
 
-        <div className="p-6">
-          <h2 className="text-2xl font-semibold mb-4">Leave Status</h2>
-          {loading ? (
-            <div className="text-center text-gray-500">
-              Loading leave requests...
-            </div>
-          ) : (
-            <table className="min-w-full table-auto border border-gray-300">
-              <thead className="bg-blue-50">
-                <tr>
-                  <th className="px-4 py-2 border">Leave Type</th>
-                  <th className="px-4 py-2 border">From Date</th>
-                  <th className="px-4 py-2 border">To Date</th>
-                  <th className="px-4 py-2 border">Duration</th>
-                  <th className="px-4 py-2 border">Reason</th>
-                  <th className="px-4 py-2 border">Attaced Docments</th>
-                  <th className="px-4 py-2 border">Status</th>
+<div className="p-6">
+  <h2 className="text-2xl font-semibold mb-4">Leave Status</h2>
+  {loading ? (
+    <div className="text-center text-gray-500">Loading leave requests...</div>
+  ) : (
+    <table className="min-w-full table-auto border border-gray-300">
+      <thead className="bg-blue-50">
+        <tr>
+          <th className="px-4 py-2 border">Leave Type</th>
+          <th className="px-4 py-2 border">From Date</th>
+          <th className="px-4 py-2 border">To Date</th>
+          <th className="px-4 py-2 border">Duration</th>
+          <th className="px-4 py-2 border">Reason</th>
+          <th className="px-4 py-2 border">Attached Documents</th>
+          <th className="px-4 py-2 border">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {currentLeaveRequests.length > 0 ? (
+          currentLeaveRequests
+            .filter((leave) =>
+              roleId === 3
+                ? true
+                : roleId === 2
+                ? leave.employee__role_id === 2
+                : leave.employee__role_id === 1
+            )
+            .map((leave, index) => {
+              let leaveDocumentUrl = "";
+              if (leave.leave_document) {
+                leaveDocumentUrl = leave.leave_document.startsWith("media/")
+                  ? `http://localhost:8000/${leave.leave_document}`
+                  : `http://localhost:8000/media/${leave.leave_document}`;
+              }
+
+              return (
+                <tr key={index} className="odd:bg-gray-50 even:bg-white">
+                  <td className="px-4 py-2 border">{leave.leave_type}</td>
+                  <td className="px-4 py-2 border">{leave.from_date}</td>
+                  <td className="px-4 py-2 border">{leave.to_date || "-"}</td>
+                  <td className="px-4 py-2 border">{leave.duration}</td>
+                  <td className="px-4 py-2 border">{leave.reason}</td>
+                  <td>
+                    <FileUpload
+                      isView={true}
+                      isCombine={false}
+                      initialFiles={
+                        leave.leave_document ? [leaveDocumentUrl] : []
+                      }
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onFilesSelected={() => {}}
+                      onDeletedFiles={() => {}}
+                    />
+                  </td>
+                  <td
+                    className={`px-4 py-2 border text-center font-medium ${getStatusColor(
+                      getStatusText(leave)
+                    )}`}
+                  >
+                    {getStatusText(leave)}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {currentLeaveRequests.length > 0 ? (
-                  currentLeaveRequests
-                    .filter(
-                      (leave) => roleId !== 2 || leave.employee__role_id === 2
-                    )
-                    .map((leave, index) => (
-                      <tr key={index} className="odd:bg-gray-50 even:bg-white">
-                        <td className="px-4 py-2 border">{leave.leave_type}</td>
-                        <td className="px-4 py-2 border">{leave.from_date}</td>
-                        <td className="px-4 py-2 border">
-                          {leave.to_date || "-"}
-                        </td>
-                        <td className="px-4 py-2 border">{leave.duration}</td>
-                        <td className="px-4 py-2 border">{leave.reason}</td>
-                        <td>
-                          <FileUpload
-                            isView={true}
-                            isCombine={false}
-                            initialFiles={
-                              leave.leave_document
-                                ? [
-                                    `http://localhost:8000/${
-                                      leave.leave_document.startsWith("media/")
-                                        ? ""
-                                        : "media/"
-                                    }${leave.leave_document}`,
-                                  ]
-                                : []
-                            }
-                            accept=".jpg,.jpeg,.png,.pdf"
-                            onFilesSelected={() => {}}
-                            onDeletedFiles={() => {}}
-                          />
-                        </td>
-                        <td
-                          className={`px-4 py-2 border text-center font-medium ${getStatusColor(
-                            getStatusText(leave)
-                          )}`}
-                        >
-                          {getStatusText(leave)}
-                        </td>
-                      </tr>
-                    ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center py-4">
-                      No leave requests found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
+              );
+            })
+        ) : (
+          <tr>
+            <td colSpan="7" className="text-center py-4">
+              No leave requests found.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  )}
+</div>
+
 
         {filteredLeaveRequests.length > employeesPerPage && (
           <div className="flex justify-center mt-4">
@@ -517,17 +530,6 @@ const LeaveRequest = () => {
             >
               Next
             </button>
-          </div>
-        )}
-
-        {success && (
-          <div className="fixed bottom-5 left-5 bg-green-500 text-white p-4 rounded-md shadow-lg">
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="fixed bottom-5 left-5 bg-red-500 text-white p-4 rounded-md shadow-lg">
-            {error}
           </div>
         )}
       </div>

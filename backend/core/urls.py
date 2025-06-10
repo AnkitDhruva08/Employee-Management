@@ -111,6 +111,7 @@ urlpatterns = [
 
     # path for holyday calendar
     path('holidays/', HolidaysViewset.as_view(), name='holidays'),
+    path('holidays/<int:pk>/', HolidaysViewset.as_view(), name='holidays-update'),
 
     # Attendance History
     path('attendance/', AttendanceView.as_view(), name='attendance'),

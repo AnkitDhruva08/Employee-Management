@@ -71,11 +71,9 @@ export default function BankDetailsForm({ onNext, onPrev }) {
 
         if (!response.ok) throw new Error("Failed to fetch bank details.");
         const data = await response.json();
-        console.log('data ==<<>>', data)
 
         if (data?.length > 0) {
           const bank = data[0];
-          console.log('data ankit ==<<>>', data.bank_details_pdf)
           setBankData({
             id: bank.id,
             account_holder_name: bank.account_holder_name || "",
@@ -153,7 +151,6 @@ if (bankData.bankPdf instanceof File) {
   formData.append("bank_details_pdf", bankData.bankPdf); 
 }
 
-    console.log('formdata ==<<>>', formData)
     const endpoint = isUpdating
       ? `http://localhost:8000/api/employee-bank-details/${bankData.id}/`
       : "http://localhost:8000/api/employee-bank-details/";

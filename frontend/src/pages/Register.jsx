@@ -230,7 +230,6 @@ const Register = () => {
       });
 
       const data = await response.json();
-      console.log('data ==<<>>', data)
 
       if (response.ok && data.tokens && data.tokens.access) {
         localStorage.setItem("token", data.tokens.access);

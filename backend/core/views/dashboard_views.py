@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from core.models import Employee, Company, EmployeeDashboardLink, LeaveRequest, Event, Holiday, ProjectSideBar, Role, TaskSideBar
+from core.models import Employee, Company, EmployeeDashboardLink, LeaveRequest, Event, Holiday, ProjectSideBar, Role, TaskSideBar, Project, Task
 from core.serializers import ProjectSidebarSerializer, TaskSidebarSerializer
 from rest_framework import status
 from django.contrib.auth import get_user_model
@@ -19,7 +19,6 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        print('user email:', request.user.email)
         user = request.user
         email = user.email
 
@@ -107,6 +106,8 @@ class DashboardView(APIView):
 
         except Company.DoesNotExist:
             return Response({"error": "Company not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+   
 
     def _employee_dashboard(self, user, email):
         role_info = Employee.objects.filter(company_email=email).values('role_id', 'company_id').first()
@@ -132,12 +133,19 @@ class DashboardView(APIView):
             total_employees = Employee.objects.filter(company_id=company_id).count()
             total_leave_requests = LeaveRequest.objects.filter(employee__company_id=company_id).count()
             upcoming_events = Event.objects.filter(company_id=company_id, date__gte=date.today()).values('title', 'date')
+            total_projects = Project.objects.filter(company_id=company_id).count()
+            total_tasks = Task.objects.filter(company_id=company_id).count()
             
-            hr_details = Employee.objects.get(company_email=email, active=True)
-            hr_name = f"{hr_details.first_name} {hr_details.last_name}"
-            
+            data_details = Employee.objects.get(company_email=email, active=True)
+            hr_name = ''
+            admin_name = ''
 
+            if(role_id == 1):
+                admin_name = f"{data_details.first_name} {data_details.last_name}"
 
+            elif(role_id == 2):
+                hr_name = f"{data_details.first_name} {data_details.last_name}"
+        
 
             employee_details = Employee.objects.filter(active=True).select_related('role').values(
                 'id', 'first_name', 'middle_name', 'last_name', 'contact_number',
@@ -149,12 +157,15 @@ class DashboardView(APIView):
                 **common_data,
                 "company_logo": str(company.profile_image) if company.profile_image else None,
                 "employee_details": employee_details,
-                'hr_name' : hr_name,
+                "hr_name" : hr_name,
+                "admin_name" : admin_name,
                 "total_employees": total_employees,
                 "total_leave_requests": total_leave_requests,
                 "upcoming_events": upcoming_events,
                 "admin_profile" if role_id == 1 else "hr_profile": profile_image,
-                **({"total_projects": 12, "total_tasks": 10, "departments": 5} if role_id == 1 else {})
+                "total_projects" : total_projects,
+                "total_tasks": total_tasks,
+                **({ "departments": 5} if role_id == 1 else {})
             }, status=status.HTTP_200_OK)
 
         # Solution Engineer or others
@@ -173,7 +184,6 @@ class DashboardLinkViewSet(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, *args, **kwargs):
         try:
-            print('request.user:', request.user.email)
             user_data = User.objects.get(email=request.user.email)
             email = request.user.email
             is_company = False

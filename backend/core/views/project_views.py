@@ -24,7 +24,6 @@ class ProjectManagement(APIView):
         user_data = User.objects.get(email=user.email)
         is_company = user_data.is_company
         is_employee = user_data.is_employee
-        print('is_company:', is_company, 'is_employee:', is_employee)
 
         try:
             # Initialize variables
@@ -49,7 +48,6 @@ class ProjectManagement(APIView):
 
                 # Role 1: Company Admin - see all
                 elif role_id == 1 or is_company:
-                    print('is company id ==<<>>', company_id)
                     base_queryset = Project.objects.filter(
                         company_id=company_id,
                         active=True
@@ -74,7 +72,6 @@ class ProjectManagement(APIView):
 
             # If pk is provided → return specific project if visible to user
             if pk:
-                print('pk provided:', pk)
                 project = filtered_queryset.filter(id=pk).first()
                 if not project:
                     return Response({"detail": "Project not found or unauthorized"}, status=404)
@@ -139,10 +136,8 @@ class ProjectManagement(APIView):
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
         elif hasattr(user_details, 'is_company') and user_details.is_company:
-            print('user_details.email:', user_details.email)
             company_data = Company.objects.get(email=user_details.email)
             company_id = company_data.id
-            print('company_id:', company_id)
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -343,8 +338,6 @@ class ProjectManagement(APIView):
         user = request.user
         is_company = False
         is_employee = False
-        print('user email:', user.email)
-        print('pk to delete:', pk)
 
         try:
             user_data = User.objects.get(email=user.email)
@@ -525,7 +518,6 @@ class BugsReportsA(APIView):
         data.setlist('assigned_to', [str(i) for i in assigned_to_ids])  
         # Handle file upload
         if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
-            print('bug_attachment found')
             data['bug_attachment'] = request.FILES['bug_attachment']
 
         # Serialize and save
@@ -558,8 +550,6 @@ class BugsReportsA(APIView):
 
     def put(self, request, pk):
         user = request.user
-        print('data coming from frontend', request.data)
-
         # Get user data
         try:
             user_data = User.objects.get(email=user.email)
@@ -601,10 +591,7 @@ class BugsReportsA(APIView):
 
           # Handle file
         if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
-            print('bug_attachment found')
             data['bug_attachment'] = request.FILES['bug_attachment']
-
-        print('cleaned data', data)
 
 
         serializer = BugSerializer(bug, data=data, partial=True)

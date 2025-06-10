@@ -19,6 +19,7 @@ const LeaveTable = () => {
   const roleId = localStorage.getItem("role_id");
   const isCompany = localStorage.getItem("is_company") === "true";
 
+
   const fetchLinks = async () => {
     try {
       const links = await fetchDashboardLink(token);
@@ -38,7 +39,6 @@ const LeaveTable = () => {
     });
     const leaveList = await res.json();
 
-    console.log("Filtered leave list:", leaveList.data);
     setLeaveRequests(leaveList.data);
   };
 
@@ -197,7 +197,7 @@ const LeaveTable = () => {
                   <td className="p-3 border">{leave.from_date}</td>
                   <td className="p-3 border">{leave.to_date || "—"}</td>
                   <td className="p-3 border">{leave.reason}</td>
-                  <td>
+                  <td className="p-3 border">
                     <FileUpload
                       isView={true}
                       isCombine={false}
@@ -217,45 +217,23 @@ const LeaveTable = () => {
                       onDeletedFiles={() => {}}
                     />
                   </td>
-                  {/* <td className="p-3 border">
+                  <td className="p-3 border">
                     {renderStatusBadge(leave.status)}
                   </td>
                   <td className="p-3 border">
-                    {isCompany ? (
+                    {Number(roleId) === Number(leave.employee__role_id) ? (
                       <span className="text-sm text-gray-400">No Actions</span>
-                    ) : roleId === "1" || roleId === "2" ? (
-                      leave.status === "Admin Approved" && roleId === "2" ? (
-                        <span className="text-sm text-gray-400">
-                          No Actions
-                        </span>
-                      ) : (
-                        <button
-                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                          onClick={() => {
-                            setSelectedLeave(leave);
-                            setModalOpen(true);
-                          }}
-                        >
-                          Take Action
-                        </button>
-                      )
                     ) : (
-                      <span className="text-sm text-gray-400">No Actions</span>
+                      <button
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                        onClick={() => {
+                          setSelectedLeave(leave);
+                          setModalOpen(true);
+                        }}
+                      >
+                        Take Action
+                      </button>
                     )}
-                  </td> */}
-                  <td className="p-3 border">
-                    {renderStatusBadge(leave.status)}
-                  </td>
-                  <td className="p-3 border">
-                    <button
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setModalOpen(true);
-                      }}
-                    >
-                      Take Action
-                    </button>
                   </td>
                 </tr>
               ))}

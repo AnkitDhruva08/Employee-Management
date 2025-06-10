@@ -11,6 +11,7 @@ import {
   Settings,
   CreditCard,
   Bell,
+  LockIcon,
 } from "lucide-react";
 
 const Header = ({ title }) => {
@@ -29,7 +30,7 @@ const Header = ({ title }) => {
   useEffect(() => {
     const fetchEffects = async () => {
       try {
-        const notifyData= await fetchUnreadNotifications(token);
+        const notifyData = await fetchUnreadNotifications(token);
         const dashData = await fetchDashboardDetails(token);
         setUserData(dashData);
         setNotifications(notifyData);
@@ -75,18 +76,17 @@ const Header = ({ title }) => {
   const isCompany = userData?.is_company;
   const isSuperUser = userData?.is_superuser;
   const displayName = isSuperUser
-  ? "Superuser"
-  : userData?.role_id === 1
-  ? userData?.admin_name || "Admin"
-  : userData?.role_id === 2
-  ? userData?.hr_name || "HR"
-  : isCompany
-  ? userData?.company
-  : userData?.employee_details?.[0]?.first_name || "User";
+    ? "Superuser"
+    : userData?.role_id === 1
+    ? userData?.admin_name || "Admin"
+    : userData?.role_id === 2
+    ? userData?.hr_name || "HR"
+    : isCompany
+    ? userData?.company
+    : userData?.employee_details?.[0]?.first_name || "User";
 
-const email = userData?.email || "example@example.com";
-const firstLetter = displayName?.charAt(0)?.toUpperCase();
-
+  const email = userData?.email || "example@example.com";
+  const firstLetter = displayName?.charAt(0)?.toUpperCase();
 
   const profileImagePath = userData?.is_company
     ? userData?.company_logo
@@ -106,16 +106,20 @@ const firstLetter = displayName?.charAt(0)?.toUpperCase();
 
       <div className="flex items-center gap-6 cursor-pointer">
         {/* 🔔 Notification */}
+        {/* 🔔 Notification */}
         <div className="relative" ref={notifRef}>
-          <Bell
-            className="w-6 h-6 text-gray-600 hover:text-blue-600"
+          <div
             onClick={() => setShowNotifications((prev) => !prev)}
-          />
-          {notifications.length > 0 && (
-            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-600 rounded-full">
-              {notifications.length}
-            </span>
-          )}
+            className="relative"
+          >
+            <Bell className="w-6 h-6 text-gray-600 hover:text-blue-600" />
+            {notifications.length > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-600 rounded-full">
+                {notifications.length}
+              </span>
+            )}
+          </div>
+
           {showNotifications && (
             <div className="absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl z-50 p-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">
@@ -128,11 +132,17 @@ const firstLetter = displayName?.charAt(0)?.toUpperCase();
               ) : (
                 <ul className="divide-y divide-gray-200">
                   {notifications.map((notif) => (
-                  <li key={notif.id} className="py-2 text-sm text-gray-600 hover:text-blue-600">
-                    <Link to={`/notification/${notif.id}`} className="block w-full">
-                      {notif.message}
-                    </Link>
-                  </li>
+                    <li
+                      key={notif.id}
+                      className="py-2 text-sm text-gray-600 hover:text-blue-600"
+                    >
+                      <Link
+                        to={`/notification/${notif.id}`}
+                        className="block w-full"
+                      >
+                        {notif.message}
+                      </Link>
+                    </li>
                   ))}
                 </ul>
               )}
@@ -172,34 +182,8 @@ const firstLetter = displayName?.charAt(0)?.toUpperCase();
         <div className="relative" ref={dropdownRef}>
           {showDropdown && (
             <div className="absolute right-0 mt-4 w-64 bg-white rounded-xl shadow-2xl z-50 p-4">
-              <div className="flex items-center space-x-3 mb-4">
-                {profileImageUrl ? (
-                  <img
-                    src={profileImageUrl}
-                    alt="Profile"
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
-                    {firstLetter}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-medium">{displayName}</p>
-                  <p className="text-xs text-gray-500">{email}</p>
-                </div>
-              </div>
-
-              <div className="divide-y divide-gray-100 text-sm">
-                <div className="space-y-1 pb-3">
-                  <DropdownItem icon={<User />} label="View Profile" path="/profile-page" />
-                  <DropdownItem icon={<Settings />} label="Settings" />
-                </div>
-
-                <div className="space-y-1 py-3">
-                  <DropdownItem icon={<CreditCard />} label="Home" path="/dashboard" />
-                </div>
-
+              {isSuperUser ? (
+                // Only Logout button for super user
                 <div className="pt-3">
                   <button
                     onClick={handleLogout}
@@ -211,7 +195,58 @@ const firstLetter = displayName?.charAt(0)?.toUpperCase();
                     <span className="text-xs text-gray-400">⌘ Q</span>
                   </button>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-3 mb-4">
+                    {profileImageUrl ? (
+                      <img
+                        src={profileImageUrl}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg">
+                        {firstLetter}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">{displayName}</p>
+                      <p className="text-xs text-gray-500">{email}</p>
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-gray-100 text-sm">
+                    <div className="space-y-1 pb-3">
+                      <DropdownItem
+                        icon={<User />}
+                        label="View Profile"
+                        path="/profile-page"
+                      />
+                      <DropdownItem icon={<Settings />} label="Settings" />
+                    </div>
+
+                    <div className="space-y-1 py-3">
+                      <DropdownItem
+                        icon={<CreditCard />}
+                        label="Home"
+                        path="/dashboard"
+                      />
+                    </div>
+
+                    <div className="pt-3">
+                      <button
+                        onClick={handleLogout}
+                        className="flex items-center justify-between w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-md"
+                      >
+                        <span className="flex items-center gap-2">
+                          <LogOut className="w-4 h-4" /> Logout
+                        </span>
+                        <span className="text-xs text-gray-400">⌘ Q</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

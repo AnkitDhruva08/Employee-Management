@@ -405,7 +405,7 @@ const ProjectCreationModal = ({
               }
               classNamePrefix="react-select"
               placeholder="Select employees"
-              disabled={roleId === 3}
+              isDisabled={Number(roleId) === 3}
             />
           </div>
 

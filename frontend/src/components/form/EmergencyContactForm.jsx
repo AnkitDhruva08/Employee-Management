@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { User, Phone, HeartHandshake, FileCheck } from "lucide-react";
+import PhoneInput from "react-phone-input-2";
 import Header from "../header/Header";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
 import Sidebar from "../sidebar/Sidebar";
@@ -26,6 +27,7 @@ export default function EmergencyContactForm({ onNext, onPrev }) {
   const [success, setSuccess] = useState(null);
   const navigate = useNavigate();
    const [empId, setId] = useState(null);
+   const [formErrors, setFormErrors] = useState({});
 
   const token = localStorage.getItem("token");
   const headerTitle = "Emergency Contact Details";
@@ -81,6 +83,14 @@ export default function EmergencyContactForm({ onNext, onPrev }) {
 
   const handleChange = (e) => {
     setEmergencyData({ ...emergencyData, [e.target.name]: e.target.value });
+  };
+
+  const handlePhoneChange = (phone) => {
+    setEmergencyData((prevData) => ({
+      ...prevData,
+      emergency_contact: phone,
+    }));
+    setFormErrors((prevErrors) => ({ ...prevErrors, emergency_contact: "" }));
   };
 
   // Function for handle form submission
@@ -160,19 +170,41 @@ export default function EmergencyContactForm({ onNext, onPrev }) {
             {/* Contact Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-              <div className="flex items-center gap-2">
-                <Phone className="w-5 h-5 text-blue-500" />
-                <input
-                  type="tel"
-                  name="emergency_contact"
+              <PhoneInput
+                  country={"in"}
                   value={emergencyData.emergency_contact}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:outline-none"
+                  onChange={handlePhoneChange}
+                  inputProps={{
+                    id: "nominee_contact",
+                    name: "nominee_contact",
+                    className: `w-full pl-14 pr-4 py-3 text-sm rounded-xl transition-all duration-200 outline-none ${
+                      formErrors.emergency_contact
+                        ? "border border-red-500 focus:ring-2 focus:ring-red-300"
+                        : "border border-gray-300 focus:ring-2 focus:ring-blue-400"
+                    } bg-white text-gray-800 placeholder-gray-400 shadow-sm`,
+                    placeholder: "e.g. +91 9876543210",
+                  }}
+                  containerStyle={{
+                    width: "100%",
+                    borderRadius: "0.75rem",
+                    border: "none",
+                  }}
+                  buttonStyle={{
+                    borderRadius: "0.75rem 0 0 0.75rem",
+                    backgroundColor: "#f9fafb",
+                    borderRight: formErrors.emergency_contact
+                      ? "1px solid #ef4444"
+                      : "1px solid #d1d5db",
+                  }}
+                  dropdownStyle={{
+                    borderRadius: "0.75rem",
+                  }}
                 />
-              </div>
+                {formErrors.nominee_contact && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.nominee_contact}</p>
+                )}
             </div>
-  
+            
             {/* Relation */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Relation</label>

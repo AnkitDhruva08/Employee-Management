@@ -92,7 +92,6 @@ class TaskManagementViews(APIView):
 
         # Final serializer call
         serializer = TaskSerializer(data=data)
-        print('serializer ==<<<>>', serializer)
 
         if serializer.is_valid():
             serializer.save()
@@ -103,8 +102,6 @@ class TaskManagementViews(APIView):
     #  function update 
     def put(self, request, pk):
         user = request.user
-        print('pk for update ==<<>>>', pk)
-        print('data coming from frontend ==<<<>>>', request.data)
 
         # Get user data
         try:
@@ -170,8 +167,6 @@ class TaskManagementViews(APIView):
 
     def delete(self, request, pk):
         user = request.user
-        print('pk for detelet')
-
         # Get user data
         try:
             user_data = User.objects.get(email=user.email)
@@ -208,8 +203,6 @@ class TaskTrackingViews(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        print('currenly logged in user ==<<<>>', request.user)
-
 
         tasks = Task.objects.filter(
             active=True,

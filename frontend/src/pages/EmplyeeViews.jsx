@@ -4,7 +4,8 @@ import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
 import { fetchDashboardLink, fetchDashboard } from "../utils/api";
 import SectionCard from "../components/SectionCard";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
+import CompanyLogo from "../components/CompanyLogo";
 
 const EmplyeeViews = () => {
   const { id } = useParams();
@@ -85,35 +86,34 @@ const EmplyeeViews = () => {
           body: JSON.stringify(officeFormData),
         }
       );
-  
+
       if (!response.ok) throw new Error("Failed to update office details");
-  
+
       await fetchEmployeeData();
       setShowOfficeModal(false);
-  
+
       // SweetAlert2 success popup
       Swal.fire({
-        icon: 'success',
-        title: 'Saved!',
-        text: 'Office details updated successfully.',
+        icon: "success",
+        title: "Saved!",
+        text: "Office details updated successfully.",
         timer: 2000,
         showConfirmButton: false,
       });
     } catch (err) {
       Swal.fire({
-        icon: 'error',
-        title: 'Oops...',
+        icon: "error",
+        title: "Oops...",
         text: err.message,
       });
     }
   };
-  
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
       {/* Sidebar */}
       <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        <h2 className="text-xl font-semibold">{dashboardData?.company}</h2>
+        {dashboardData && <CompanyLogo logoPath={dashboardData.company_logo} />}
         <div className="flex justify-center mt-8">
           <Sidebar quickLinks={quickLinks} />
         </div>

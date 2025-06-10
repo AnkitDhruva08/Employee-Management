@@ -11,7 +11,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import CompanyLogo from "../components/CompanyLogo";
 
-import logo from "../assets/Logo.png";
+// import logo from "../assets/Logo.png";
 const EmployeeTable = () => {
   const token = localStorage.getItem("token");
   const HeaderTitle = "Employees Table";
@@ -99,6 +99,12 @@ const EmployeeTable = () => {
 
   const totalPages = Math.ceil(employees.length / employeesPerPage);
 
+  const logoPath = dashboardData?.company_logo;
+  const logoUrl = logoPath
+    ? `http://localhost:8000/${
+        logoPath.startsWith("media/") ? "" : "media/"
+      }${logoPath}`
+    : null;
   // Function to convert image URL to base64
   const getBase64ImageFromURL = (url) => {
     return new Promise((resolve, reject) => {
@@ -127,8 +133,9 @@ const EmployeeTable = () => {
     // Add logo and header
     let logoBase64 = null;
     try {
-      if (logo) {
-        logoBase64 = await getBase64ImageFromURL(logo);
+      if (logoUrl) {
+        console.log("yes url is tehre");
+        logoBase64 = await getBase64ImageFromURL(logoUrl);
         doc.addImage(logoBase64, "PNG", 15, 10, 30, 15);
       }
     } catch (error) {
@@ -197,15 +204,15 @@ const EmployeeTable = () => {
       },
       alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
-        0: { cellWidth: 15, halign: "center" }, // Sr No.
-        1: { cellWidth: 40 }, // Name
-        2: { cellWidth: 40 }, // Company
-        3: { cellWidth: 50 }, // Company Email
-        4: { cellWidth: 50 }, // Personal Email
-        5: { cellWidth: 30, halign: "center" }, // Phone
-        6: { cellWidth: 30, halign: "center" }, // Role
-        7: { cellWidth: 30, halign: "center" }, // DOB
-        8: { cellWidth: 20, halign: "center" }, // Gender
+        0: { cellWidth: 15, halign: "center" },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 50 },
+        4: { cellWidth: 50 },
+        5: { cellWidth: 30, halign: "center" },
+        6: { cellWidth: 30, halign: "center" },
+        7: { cellWidth: 30, halign: "center" },
+        8: { cellWidth: 20, halign: "center" },
       },
     });
 
@@ -237,11 +244,7 @@ const EmployeeTable = () => {
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-        {dashboardData && (
-          <CompanyLogo
-            logoPath={dashboardData.company_logo}
-          />
-        )}
+        {dashboardData && <CompanyLogo logoPath={dashboardData.company_logo} />}
         <div className="flex justify-center mt-6">
           <Sidebar quickLinks={quickLinks} />
         </div>

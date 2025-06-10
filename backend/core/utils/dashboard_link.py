@@ -2,8 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from core.utils.utils import is_profile_complete
-from core.models import  Company, Employee, EmployeeDashboardLink, Event, HrDashboardLink, CompanyDashboardLink, LeaveRequest, User,Holiday, ProjectSideBar, Role, TaskSideBar
-from core.serializers import EmployeeDashboardLinkSerializer, HrDashboardLinkSerializer, CompanyDashboardLinkSerializer, ProjectSidebarSerializer, TaskSidebarSerializer
+from core.models import  Company, Employee, EmployeeDashboardLink, Event, HrDashboardLink, CompanyDashboardLink, LeaveRequest, User,Holiday, ProjectSideBar, Role, TaskSideBar, AdminDashboardLink
+from core.serializers import EmployeeDashboardLinkSerializer, HrDashboardLinkSerializer, CompanyDashboardLinkSerializer, ProjectSidebarSerializer, TaskSidebarSerializer, AdminDashboardLinkSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -191,7 +191,7 @@ def dashboard_links(role_id, is_company, email, is_superuser):
             return Response(data, status=status.HTTP_200_OK)
 
         # Company or Admin Dashboard
-        elif is_company or role_id == 1:
+        elif is_company:
             dashboard_links = CompanyDashboardLink.objects.filter(active=True).order_by("id")
             serializer = CompanyDashboardLinkSerializer(dashboard_links, many=True)
 
@@ -200,6 +200,40 @@ def dashboard_links(role_id, is_company, email, is_superuser):
             else:
                 employee = Employee.objects.get(company_email=email)
                 company_obj = employee.company
+
+            company_id = company_obj.id
+            total_employees, total_leave_requests, upcoming_events = get_common_dashboard_data(company_id)
+
+            # ⬇️ Add combined sidebar
+            combined_sidebar = serializer.data + [
+                {
+                    "name": "Projects",
+                    "icons": "FaProjectDiagram",
+                    "submenu": project_serialized
+                },
+                {
+                    "name": "Tasks",
+                    "icons": "FaTasks",
+                    "submenu": task_serialized
+                }
+            ]
+
+            data.update({
+                "dashboard_links": serializer.data,
+                "sidebar": combined_sidebar,
+                "total_employees": total_employees,
+                "total_leave_requests": total_leave_requests,
+                "upcoming_events": upcoming_events
+            })
+            return Response(data, status=status.HTTP_200_OK)
+        
+        # admin dashboard
+        elif role_id == 1:
+            dashboard_links = AdminDashboardLink.objects.filter(active=True).order_by("id")
+            serializer = AdminDashboardLinkSerializer(dashboard_links, many=True)
+
+            employee = Employee.objects.get(company_email=email)
+            company_obj = employee.company
 
             company_id = company_obj.id
             total_employees, total_leave_requests, upcoming_events = get_common_dashboard_data(company_id)

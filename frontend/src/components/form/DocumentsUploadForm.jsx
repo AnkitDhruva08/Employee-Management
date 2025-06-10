@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import FileUpload from "../File/FileUpload";
 import { fetchDashboardLink, fetchDashboard } from "../../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
-import Swal from "sweetalert2"; // Import SweetAlert2
+import Swal from "sweetalert2";
 
 export default function OfficeDocumentsForm({ onNext, onPrev }) {
   const { id } = useParams();
@@ -36,7 +36,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
     if (id) {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:8000/api/employee-documents/${id}`, {
+        const response = await fetch(`http://localhost:8000/api/employee-documents/${id}/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -50,8 +50,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
         }
 
         const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          const doc = data[0];
+        const doc = Array.isArray(data) && data.length > 0 ? data[0] : data;
+
+        if (doc && Object.keys(doc).length > 0) {
           setEmployeeFormData((prev) => ({
             ...prev,
             insurance_number: doc.insurance_number || "",
@@ -86,6 +87,11 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
       } catch (err) {
         setError(err.message);
         setLoading(false);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.message || 'Failed to fetch existing documents.',
+        });
       }
     } else {
       setLoading(false);
@@ -94,18 +100,25 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
   };
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadAllData = async () => {
       try {
+        setLoading(true);
         await fetchDashboardLink(token);
         await fetchDashboard(token);
         await fetchEmployeeDocuments();
       } catch (err) {
-        setError("Failed to load dashboard or employee documents.");
+        setError("Failed to load necessary data or employee documents.");
+        Swal.fire({
+          icon: 'error',
+          title: 'Initialization Error',
+          text: 'Failed to load initial data. Please try refreshing.',
+        });
+      } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    loadAllData();
   }, [token, id]);
 
   const handleChange = (e) => {
@@ -117,11 +130,15 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
     setFormErrors((prevErrors) => ({ ...prevErrors, [name]: "" }));
   };
 
-  // Helper function for file validation
   const validateFile = (file, fieldName, allowedTypes, errorMessage) => {
-    if (!file) return true; // No file, no validation needed for optional fields
+    if (!file) return true;
+
     const fileType = file.type;
-    if (!allowedTypes.includes(fileType)) {
+    const fileExtension = file.name.split('.').pop().toLowerCase();
+
+    const isAllowed = allowedTypes.includes(fileType) || allowedTypes.some(type => fileExtension === type.split('/')[1]);
+
+    if (!isAllowed) {
       Swal.fire({
         icon: 'error',
         title: 'Invalid File Type',
@@ -135,6 +152,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
 
   const handleFileChange = (fieldName, files) => {
     const selectedFile = files[0] instanceof File ? files[0] : files[0]?.file;
+    
     let isValid = true;
     let errorMessage = "";
     let allowedTypes = [];
@@ -160,7 +178,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
     } else {
       setEmployeeFormData((prev) => ({
         ...prev,
-        [fieldName]: null, 
+        [fieldName]: null,
       }));
     }
   };
@@ -183,10 +201,20 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
 
     if (!employeeFormData.aadhar && !existingDocs.aadhar) {
       errors.aadhar = "Aadhar Card is required.";
+      Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        text: errors.aadhar,
+      });
       isValid = false;
     }
     if (!employeeFormData.pan && !existingDocs.pan) {
       errors.pan = "PAN Card is required.";
+      Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        text: errors.pan,
+      });
       isValid = false;
     }
 
@@ -199,9 +227,14 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
     setError(null);
     setSuccess(null);
 
-    if (!validateForm()) {
-      return;
-    }
+    // if (!validateForm()) {
+    //   Swal.fire({
+    //     icon: 'warning',
+    //     title: 'Validation Error',
+    //     text: 'Please fill in all required fields and correct any file type errors.',
+    //   });
+    //   return;
+    // }
 
     setLoading(true);
 
@@ -213,7 +246,12 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
         const value = employeeFormData[key];
         if (value instanceof File) {
           formData.append(key, value);
-        } else if (value !== null && value !== undefined && value !== "") {
+        } else if (
+          typeof value === "string" &&
+          value !== null &&
+          value !== undefined &&
+          value !== ""
+        ) {
           formData.append(key, value);
         }
       }
@@ -225,7 +263,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
           }
         }
       }
-
+      
       const endpoint = isUpdating
         ? `http://localhost:8000/api/employee-documents/${id}/`
         : "http://localhost:8000/api/employee-documents/";
@@ -240,19 +278,37 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error("Failed to submit. " + (errData?.detail || JSON.stringify(errData) || `Status: ${response.status}`));
+        const detailedError = errData?.error;
+        Swal.fire({
+          icon: 'error',
+          title: 'Submission Error',
+          text: errData.error,
+        });
+        throw new Error("Failed to submit: " + detailedError);
       }
 
       setSuccess("Documents submitted successfully!");
-      setIsUpdating(true);
+      setIsUpdating(true); 
+      
+      await fetchEmployeeDocuments(); 
 
-      await fetchEmployeeDocuments();
-
-      setTimeout(() => {
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Documents submitted successfully.',
+        showConfirmButton: false,
+        timer: 1500,
+      }).then(() => {
         navigate("/profile-page");
-      }, 1200);
+      });
+
     } catch (err) {
       setError(err.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Error',
+        text: err.message || 'An unexpected error occurred during submission.',
+      });
     } finally {
       setLoading(false);
     }
@@ -261,9 +317,9 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
   return (
     <div className="max-w-7xl mx-auto">
       {loading ? (
-        <div className="text-center py-10 text-gray-500">Loading...</div>
+        <div className="text-center py-10 text-gray-500">Loading document data...</div>
       ) : (
-        <div  className="mt-8 bg-white shadow-xl border border-gray-200 rounded-3xl px-10 py-12">
+        <div className="mt-8 bg-white shadow-xl border border-gray-200 rounded-3xl px-10 py-12">
           <h2 className="text-4xl font-extrabold text-center text-blue-700 mb-10">
             {isUpdating ? "Update Documents Details" : "Upload Documents Details"}
           </h2>
@@ -271,11 +327,12 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
           <div className="space-y-10">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                <label htmlFor="insurance_number" className="block text-sm font-medium text-gray-700 mb-1 capitalize">
                   Insurance Number
                 </label>
                 <input
                   type="text"
+                  id="insurance_number"
                   name="insurance_number"
                   value={employeeFormData.insurance_number}
                   onChange={handleChange}
@@ -283,11 +340,12 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                <label htmlFor="epf_member" className="block text-sm font-medium text-gray-700 mb-1 capitalize">
                   EPF Member
                 </label>
                 <input
                   type="text"
+                  id="epf_member"
                   name="epf_member"
                   value={employeeFormData.epf_member}
                   onChange={handleChange}
@@ -295,11 +353,12 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
+                <label htmlFor="uan" className="block text-sm font-medium text-gray-700 mb-1 capitalize">
                   UAN
                 </label>
                 <input
                   type="text"
+                  id="uan"
                   name="uan"
                   value={employeeFormData.uan}
                   onChange={handleChange}
@@ -475,7 +534,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
               <button
                 type="button"
                 onClick={onPrev}
-                className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition duration-200"
               >
                 Previous
               </button>
@@ -483,10 +542,10 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
                 type="submit"
                 onClick={handleSubmit}
                 disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-lg"
+                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 shadow-lg transition duration-200"
               >
                 {loading
-                  ? "Uploading..."
+                  ? "Processing..."
                   : isUpdating
                   ? "Update Details"
                   : "Submit Details"}

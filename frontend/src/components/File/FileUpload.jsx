@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
+import Swal from "sweetalert2";
 import DeleteIcon from "../icons/DeleteIcon";
 import EyeIcon from "../icons/EyeIcon";
 import PreviewIcon from "../icons/PreviewIcon";
+
+const allowedFileTypes = ["image/png", "image/jpg", "image/jpeg", "application/pdf"];
 
 const FileUpload = ({
   isView = false,
@@ -11,7 +14,7 @@ const FileUpload = ({
   onDeletedFiles,
   onPreviewFile,
   initialFiles = [],
-  accept = "*/*",
+  accept = ".jpg,.jpeg,.png,.pdf",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [files, setFiles] = useState([]);
@@ -42,12 +45,10 @@ const FileUpload = ({
       }
     });
 
-    // Set only if files state is empty — to avoid overwriting user uploads
     setFiles((currentFiles) =>
       currentFiles.length === 0 ? mappedFiles : currentFiles
     );
 
-    // Cleanup on unmount
     return () => {
       mappedFiles.forEach((f) => {
         if (!f.isRemote && f.url) {
@@ -57,18 +58,38 @@ const FileUpload = ({
     };
   }, [initialFiles]);
 
-  // Handle file input changes
+  const validateFileTypes = (fileList) => {
+    const validFiles = fileList.filter((file) =>
+      allowedFileTypes.includes(file.type)
+    );
+    const isValid = validFiles.length === fileList.length;
+    const error = isValid
+      ? ""
+      : "Only PNG, JPG, JPEG, and PDF files are allowed.";
+    return { isValid, validFiles, error };
+  };
+
   const handleFileUpload = (e) => {
     const fileList = Array.from(e.target.files || []);
+    const { isValid, validFiles, error } = validateFileTypes(fileList);
 
-    // Revoke URLs of existing local files if you want to replace all
+    if (!isValid) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid File Type",
+        text: error,
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
     files.forEach((f) => {
       if (!f.isRemote && f.url) {
         URL.revokeObjectURL(f.url);
       }
     });
 
-    const mappedFiles = fileList.map((file) => ({
+    const mappedFiles = validFiles.map((file) => ({
       id: uuidv4(),
       name: file.name,
       url: URL.createObjectURL(file),
@@ -76,25 +97,19 @@ const FileUpload = ({
       isRemote: false,
     }));
 
-    // If you want to append:
-    // setFiles(prev => [...prev, ...mappedFiles]);
-
-    // If you want to replace all:
     setFiles(mappedFiles);
 
     if (isCombine) {
       onFilesSelected?.([...files.filter((f) => f.isRemote), ...mappedFiles]);
     } else {
-      onFilesSelected?.(fileList);
+      onFilesSelected?.(validFiles);
     }
   };
 
-  // Open modal showing list of files
   const previewFileList = () => {
     setIsOpen(true);
   };
 
-  // Open a new tab/window to preview the particular file's URL
   const previewParticularFile = (fileToPreview) => {
     if (fileToPreview && fileToPreview.url) {
       window.open(fileToPreview.url, "_blank");
@@ -104,7 +119,6 @@ const FileUpload = ({
     setIsOpen(false);
   };
 
-  // Delete a file by id, cleanup and update callbacks
   const handleDelete = (id) => {
     const deletedFile = files.find((f) => f.id === id);
     const updatedFiles = files.filter((f) => f.id !== id);
@@ -116,7 +130,6 @@ const FileUpload = ({
     setFiles(updatedFiles);
 
     if (onDeletedFiles) {
-      // Return just the original File objects (local files only)
       const originalFileObjects = updatedFiles
         .filter((f) => !f.isRemote)
         .map((f) => f.file);
@@ -129,7 +142,6 @@ const FileUpload = ({
     }
   };
 
-  // Download file logic: works for remote and local files
   const downloadFile = async (file) => {
     if (file.isRemote) {
       try {
@@ -201,7 +213,6 @@ const FileUpload = ({
         )
       )}
 
-      {/* Modal - File List */}
       {isOpen && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg overflow-hidden">

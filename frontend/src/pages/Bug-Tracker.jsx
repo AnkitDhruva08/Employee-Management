@@ -5,6 +5,7 @@ import Sidebar from "../components/sidebar/Sidebar";
 import CkEditor from "../components/editor/CkEditor";
 import FileUpload from "../components/File/FileUpload";
 import CompanyLogo from "../components/CompanyLogo";
+import { validateFileTypes } from "../utils/validation";
 import {
   fetchDashboard,
   fetchProjectsData,
@@ -61,6 +62,7 @@ const BugTracker = () => {
   const [modalMode, setModalMode] = useState("");
   const [selectedBug, setSelectedBug] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
+  const [fileError, setFileError] = useState("");
 
   const roleId = parseInt(localStorage.getItem("role_id"));
   const isCompany = localStorage.getItem("is_company") === "true";
@@ -74,7 +76,7 @@ const BugTracker = () => {
     priority: "",
     assignedTo: [],
     description: "",
-    resolutionComments: "", 
+    resolutionComments: "",
     bugAttachment: null,
   });
 
@@ -83,21 +85,20 @@ const BugTracker = () => {
 
   const fetchData = async () => {
     try {
-      const links = await fetchDashboardLink(token)
+      const links = await fetchDashboardLink(token);
       setQuickLinks(links.data || links);
-  
+
       const dashboard = await fetchDashboard(token);
-      console.log('dashboard ==<<<>>', dashboard)
       setDashboardData(dashboard);
-  
+
       const projects = await fetchProjectsData(token);
       setProjects(projects.results);
-  
+
       const employeesData = await fetchEmployees(token);
       setEmployees(
         Array.isArray(employeesData) ? employeesData : [employeesData]
       );
-  
+
       if (id) {
         const bugDetails = await fetchBugDetails(token, id);
         setBugs([bugDetails]);
@@ -117,21 +118,30 @@ const BugTracker = () => {
       navigate("/login");
     }
   };
-  
-  
+
   useEffect(() => {
     if (!token) return;
     fetchData();
   }, [token, statusFilter, priorityFilter, selectedProjectId, id]);
 
-  
+  // handle file changes
   const handleFileChange = (files) => {
-    console.log("Selected files:", files);
-    console.log("First file:", files[0]);
-    setFormData({
-      ...formData,
-      bugAttachment: files.length > 0 ? files[0] : null,
-    });
+    const { isValid, validFiles, error } = validateFileTypes(files);
+
+    if (!isValid) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid File Type",
+        text: error,
+        confirmButtonColor: "#3085d6",
+      });
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      bugAttachment: validFiles[0] || null,
+    }));
   };
 
   // Function for adding new bugs
@@ -192,7 +202,7 @@ const BugTracker = () => {
         status: formData.status,
         priority: formData.priority,
         description: formData.description,
-        resolution_comments: formData.resolutionComments, 
+        resolution_comments: formData.resolutionComments,
         assigned_to_name: formData.assignedTo.map((a) => a.label).join(", "),
         created: new Date().toISOString().split("T")[0],
         project_name:
@@ -232,13 +242,13 @@ const BugTracker = () => {
     data.append("status", formData.status);
     data.append("priority", formData.priority);
     data.append("description", formData.description);
-    data.append("resolution_comments", formData.resolutionComments); 
+    data.append("resolution_comments", formData.resolutionComments);
 
     // Handle assigned_to
     if (formData.assignedTo && Array.isArray(formData.assignedTo)) {
       formData.assignedTo.forEach((item) => {
         if (item?.value) {
-          data.append("assigned_to", item.value); 
+          data.append("assigned_to", item.value);
         }
       });
     }
@@ -274,7 +284,7 @@ const BugTracker = () => {
 
       const updatedBug = {
         ...selectedBug,
-        ...updatedData, 
+        ...updatedData,
         project_name:
           projects.find((p) => p.id === formData.projectId)?.project_name || "",
       };
@@ -299,7 +309,7 @@ const BugTracker = () => {
       priority: "",
       assignedTo: [],
       description: "",
-      resolutionComments: "", 
+      resolutionComments: "",
     });
     setShowModal(false);
     setSelectedBug(null);
@@ -361,31 +371,36 @@ const BugTracker = () => {
       { key: "project_name", label: "Project" },
       { key: "created", label: "Created Date" },
       { key: "description", label: "Description" },
-      { key: "resolution_comments", label: "Resolution Comments" }, // Added for export
+      { key: "resolution_comments", label: "Resolution Comments" },
     ];
 
-    const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A2" });
+    // Step 1: Ensure only relevant fields are exported
+    const cleanedData = data.map((row) =>
+      Object.fromEntries(headers.map(({ key }) => [key, row[key] || ""]))
+    );
 
-    // Add headers with styling
+    // Step 2: Create worksheet (starts at A1, includes raw headers)
+    const worksheet = XLSX.utils.json_to_sheet(cleanedData);
+
+    // Step 3: Replace raw headers with styled labels
     headers.forEach((header, index) => {
       const cellAddress = XLSX.utils.encode_cell({ c: index, r: 0 });
-      worksheet[cellAddress] = {
-        t: "s",
-        v: header.label,
-        s: {
-          font: { bold: true, sz: 12, color: { rgb: "FF000000" } },
-          alignment: {
-            horizontal: "center",
-            vertical: "center",
-            wrapText: true,
-          },
-          fill: { patternType: "solid", fgColor: { rgb: "FFCCE5FF" } },
-          border: {
-            top: { style: "thin", color: { rgb: "FF000000" } },
-            bottom: { style: "thin", color: { rgb: "FF000000" } },
-            left: { style: "thin", color: { rgb: "FF000000" } },
-            right: { style: "thin", color: { rgb: "FF000000" } },
-          },
+      if (!worksheet[cellAddress]) return;
+
+      worksheet[cellAddress].v = header.label; // Set header label
+      worksheet[cellAddress].s = {
+        font: { bold: true, sz: 14, color: { rgb: "FFFFFFFF" } },
+        alignment: {
+          horizontal: "center",
+          vertical: "center",
+          wrapText: true,
+        },
+        fill: { patternType: "solid", fgColor: { rgb: "FF2F5496" } },
+        border: {
+          top: { style: "medium", color: { rgb: "FF000000" } },
+          bottom: { style: "medium", color: { rgb: "FF000000" } },
+          left: { style: "medium", color: { rgb: "FF000000" } },
+          right: { style: "medium", color: { rgb: "FF000000" } },
         },
       };
     });
@@ -400,62 +415,83 @@ const BugTracker = () => {
       "Re-Open": "FFFF99CC", // Pink
     };
 
-    // Apply styles to cells
-    for (let i = 0; i < data.length; i++) {
-      const rowNumber = i + 2;
+    // Step 4: Style each cell row by row
+    cleanedData.forEach((row, rowIndex) => {
+      const excelRow = rowIndex + 1; // +1 because header is row 0
+      const rowFillColor =
+        rowIndex % 2 === 0 ? { rgb: "FFF2F2F2" } : { rgb: "FFFFFFFF" };
 
       headers.forEach((header, colIdx) => {
-        const value = data[i][header.key];
-        const cellAddress = XLSX.utils.encode_cell({ c: colIdx, r: rowNumber });
+        const value = row[header.key];
+        const cellAddress = XLSX.utils.encode_cell({ c: colIdx, r: excelRow });
 
-        // Ensure the cell exists before trying to style it
-        if (!worksheet[cellAddress]) {
-            worksheet[cellAddress] = { t: 's', v: value || '' }; // Create cell if it doesn't exist
-        }
+        worksheet[cellAddress] = worksheet[cellAddress] || { t: "s", v: value };
 
-        // Set default cell style
         worksheet[cellAddress].s = {
           alignment: {
-            vertical: "center",
-            horizontal: "center",
+            vertical: "top",
+            horizontal: "left",
             wrapText: true,
           },
-          font: { name: "Calibri", sz: 11 },
+          font: { name: "Calibri", sz: 11, color: { rgb: "FF333333" } },
           border: {
-            top: { style: "thin", color: { rgb: "FFCCCCCC" } },
-            bottom: { style: "thin", color: { rgb: "FFCCCCCC" } },
-            left: { style: "thin", color: { rgb: "FFCCCCCC" } },
-            right: { style: "thin", color: { rgb: "FFCCCCCC" } },
+            top: { style: "thin", color: { rgb: "FFDDDDDD" } },
+            bottom: { style: "thin", color: { rgb: "FFDDDDDD" } },
+            left: { style: "thin", color: { rgb: "FFDDDDDD" } },
+            right: { style: "thin", color: { rgb: "FFDDDDDD" } },
           },
-          fill: {},
+          fill: { patternType: "solid", fgColor: rowFillColor },
         };
 
-        // Style status column with background color
+        // Status-specific styling
         if (header.key === "status") {
-          const fillColor = statusColorsExport[value] || "FFFFFFFF";
-          worksheet[cellAddress].s.fill = {
-            patternType: "solid",
-            fgColor: { rgb: fillColor },
+          worksheet[cellAddress].s.fill.fgColor = {
+            rgb: statusColorsExport[value] || "FFFFFFFF",
           };
           worksheet[cellAddress].s.font.bold = true;
+          worksheet[cellAddress].s.font.color = { rgb: "FF000000" };
+          worksheet[cellAddress].s.alignment.horizontal = "center";
+        }
+
+        // Center-align these columns
+        if (["id", "priority", "created"].includes(header.key)) {
+          worksheet[cellAddress].s.alignment.horizontal = "center";
+        }
+
+        // Force wrap and alignment for text-heavy fields
+        if (["description", "resolution_comments"].includes(header.key)) {
+          worksheet[cellAddress].s.alignment.horizontal = "left";
+          worksheet[cellAddress].s.alignment.vertical = "top";
         }
       });
-    }
+    });
 
-    // Auto column width
+    // Step 5: Adjust column widths
     worksheet["!cols"] = headers.map(({ key, label }) => {
-      let maxLength = label.length; // Start with header length
-      for (const row of data) {
+      let maxLength = label.length;
+
+      if (key === "id") maxLength = Math.max(maxLength, 8);
+      if (key === "title") maxLength = Math.max(maxLength, 30);
+      if (key === "status") maxLength = Math.max(maxLength, 15);
+      if (key === "priority") maxLength = Math.max(maxLength, 10);
+      if (key === "assigned_to_name") maxLength = Math.max(maxLength, 25);
+      if (key === "project_name") maxLength = Math.max(maxLength, 25);
+      if (key === "created") maxLength = Math.max(maxLength, 18);
+      if (key === "description") maxLength = Math.max(maxLength, 50);
+      if (key === "resolution_comments") maxLength = Math.max(maxLength, 40);
+
+      for (const row of cleanedData) {
         const val = row[key];
         if (val) {
-          const len = String(val).length;
+          const len = String(val).length > 200 ? 200 : String(val).length;
           if (len > maxLength) maxLength = len;
         }
       }
-      return { wch: maxLength + 3 };
+
+      return { wch: maxLength + 7 };
     });
 
-
+    // Step 6: Export
     XLSX.utils.book_append_sheet(workbook, worksheet, "Defect Tracker");
 
     const excelBuffer = XLSX.write(workbook, {
@@ -517,17 +553,10 @@ const BugTracker = () => {
     setShowModal(true);
   };
 
-
-
-
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
-      {dashboardData && (
-          <CompanyLogo
-            logoPath={dashboardData.company_logo}
-          />
-        )}
+        {dashboardData && <CompanyLogo logoPath={dashboardData.company_logo} />}
         <Sidebar quickLinks={quickLinks} />
       </aside>
 
@@ -690,9 +719,7 @@ const BugTracker = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
           <div className="relative w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-xl overflow-hidden">
-            {/* Scrollable content wrapper */}
             <div className="max-h-[90vh] overflow-y-auto p-6 space-y-6">
-              {/* Close button */}
               <button
                 className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-xl"
                 onClick={resetForm}
@@ -701,7 +728,6 @@ const BugTracker = () => {
                 ✕
               </button>
 
-              {/* Modal Title */}
               <h2 className="text-2xl font-bold text-gray-800">
                 {modalMode === "add"
                   ? "Add Bug"
@@ -710,153 +736,194 @@ const BugTracker = () => {
                   : "View Bug"}
               </h2>
 
-              {/* Title */}
-              <Input
-                label="Title"
-                name="title"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                readOnly={modalMode === "view"}
-              />
+              {/* Helpers */}
+              {(() => {
+                const isReadOnly = modalMode === "view" || Number(roleId) === 3;
+                const isDevRestricted = Number(roleId) === 3;
 
-              {/* Project */}
-              <div>
-                <label className="block font-medium mb-1">Project *</label>
-                <Select
-                  options={projects.map((p) => ({
-                    value: p.id,
-                    label: p.project_name,
-                  }))}
-                  value={
-                    projects
-                      .map((p) => ({ value: p.id, label: p.project_name }))
-                      .find((opt) => opt.value === formData.projectId) || null
-                  }
-                  onChange={(opt) =>
-                    setFormData({ ...formData, projectId: opt?.value || "" })
-                  }
-                  isDisabled={modalMode === "view"}
-                  placeholder="Select Project"
-                />
-              </div>
+                return (
+                  <>
+                    {/* Title */}
+                    <Input
+                      label="Title"
+                      name="title"
+                      value={formData.title}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
+                      readOnly={isReadOnly}
+                    />
 
-              {/* Status */}
-              <div>
-                <label className="block font-medium mb-1">Status *</label>
-                <Select
-                  options={statusOptions}
-                  value={
-                    statusOptions.find(
-                      (opt) => opt.value === formData.status
-                    ) || null
-                  }
-                  onChange={(opt) =>
-                    setFormData({ ...formData, status: opt?.value || "" })
-                  }
-                  isDisabled={modalMode === "view"}
-                  placeholder="Select Status"
-                />
-              </div>
+                    {/* Project */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Project *
+                      </label>
+                      <Select
+                        options={projects.map((p) => ({
+                          value: p.id,
+                          label: p.project_name,
+                        }))}
+                        value={
+                          projects
+                            .map((p) => ({
+                              value: p.id,
+                              label: p.project_name,
+                            }))
+                            .find((opt) => opt.value === formData.projectId) ||
+                          null
+                        }
+                        onChange={(opt) =>
+                          setFormData({
+                            ...formData,
+                            projectId: opt?.value || "",
+                          })
+                        }
+                        isDisabled={isReadOnly}
+                        placeholder="Select Project"
+                      />
+                    </div>
 
-              {/* Priority */}
-              <div>
-                <label className="block font-medium mb-1">Priority *</label>
-                <Select
-                  options={priorityOptions}
-                  value={
-                    priorityOptions.find(
-                      (opt) => opt.value === formData.priority
-                    ) || null
-                  }
-                  onChange={(opt) =>
-                    setFormData({ ...formData, priority: opt?.value || "" })
-                  }
-                  isDisabled={modalMode === "view"}
-                  placeholder="Select Priority"
-                />
-              </div>
+                    {/* Status */}
+                    <div>
+                      <label className="block font-medium mb-1">Status *</label>
+                      <Select
+                        options={statusOptions}
+                        value={
+                          statusOptions.find(
+                            (opt) => opt.value === formData.status
+                          ) || null
+                        }
+                        onChange={(opt) =>
+                          setFormData({ ...formData, status: opt?.value || "" })
+                        }
+                        isDisabled={modalMode === "view"} // dev can edit
+                        placeholder="Select Status"
+                      />
+                    </div>
 
-              {/* Assigned To */}
-              <div>
-                <label className="block font-medium mb-1">Assigned To</label>
-                <Select
-                  options={
-                    Array.isArray(employees)
-                      ? employees.map((emp) => ({
-                          value: emp.id,
-                          label: emp.username,
-                        }))
-                      : []
-                  }
-                  isMulti
-                  value={formData.assignedTo}
-                  onChange={(selected) =>
-                    setFormData({ ...formData, assignedTo: selected || [] })
-                  }
-                  isDisabled={modalMode === "view"}
-                  placeholder="Select Employees"
-                />
-              </div>
+                    {/* Priority */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Priority *
+                      </label>
+                      <Select
+                        options={priorityOptions}
+                        value={
+                          priorityOptions.find(
+                            (opt) => opt.value === formData.priority
+                          ) || null
+                        }
+                        onChange={(opt) =>
+                          setFormData({
+                            ...formData,
+                            priority: opt?.value || "",
+                          })
+                        }
+                        isDisabled={isReadOnly}
+                        placeholder="Select Priority"
+                      />
+                    </div>
 
-              {/* Description */}
-              <div>
-                <label className="block font-medium mb-1">Description</label>
-                <CkEditor
-                  value={formData.description}
-                  onChange={(data) =>
-                    setFormData({ ...formData, description: data })
-                  }
-                  readOnly={modalMode === "view"}
-                />
-              </div>
+                    {/* Assigned To */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Assigned To
+                      </label>
+                      <Select
+                        options={
+                          Array.isArray(employees)
+                            ? employees.map((emp) => ({
+                                value: emp.id,
+                                label: emp.username,
+                              }))
+                            : []
+                        }
+                        isMulti
+                        value={formData.assignedTo}
+                        onChange={(selected) =>
+                          setFormData({
+                            ...formData,
+                            assignedTo: selected || [],
+                          })
+                        }
+                        isDisabled={isReadOnly}
+                        placeholder="Select Employees"
+                      />
+                    </div>
 
-              {/* Resolution Comments */}
-              <div>
-                <label className="block font-medium mb-1">
-                  Resolution Comments
-                </label>
-                <CkEditor
-                  value={formData.resolutionComments}
-                  onChange={(data) =>
-                    setFormData({ ...formData, resolutionComments: data })
-                  }
-                  readOnly={modalMode === "view"}
-                />
-              </div>
+                    {/* Description */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Description
+                      </label>
+                      <CkEditor
+                        value={formData.description}
+                        onChange={(data) =>
+                          setFormData({ ...formData, description: data })
+                        }
+                        readOnly={isReadOnly}
+                      />
+                    </div>
 
-              {/* Attachment */}
-              <div>
-                <label className="block font-medium mb-1">Attachment</label>
-                <FileUpload
-                  isView={modalMode === "view"}
-                  isCombine={false}
-                  initialFiles={
-                    formData.bugAttachment ? [formData.ba] : []
-                  }
-                  onFilesSelected={handleFileChange}
-                />
-              </div>
+                    {/* Resolution Comments */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Resolution Comments
+                      </label>
+                      <CkEditor
+                        value={formData.resolutionComments}
+                        onChange={(data) =>
+                          setFormData({ ...formData, resolutionComments: data })
+                        }
+                        readOnly={modalMode === "view"}
+                      />
+                    </div>
 
-              {/* Submit Button */}
-            {modalMode !== "view" && (
-                  <div className="flex justify-end gap-3 pt-4">
-                    <button
-                      onClick={resetForm}
-                      className="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
-                    >
-                      Cancel
-                    </button>
+                    {/* Attachment */}
+                    <div>
+                      <label className="block font-medium mb-1">
+                        Attachment
+                      </label>
+                      <FileUpload
+                        isView={modalMode === "view"}
+                        isCombine={false}
+                        initialFiles={
+                          formData.bugAttachment ? [formData.bugAttachment] : []
+                        }
+                        onFilesSelected={handleFileChange}
+                      />
+                    </div>
 
-                    <button
-                      onClick={modalMode === "add" ? handleAddBug : handleUpdateBug}
-                      className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
-                    >
-                      {modalMode === "add" ? "Add Bug" : "Update Bug"}
-                    </button>
-                  </div>
-                )}
+                    {/* Submit Button */}
+                    {modalMode !== "view" && (
+                      <div className="flex justify-end gap-3 pt-4">
+                        <button
+                          onClick={resetForm}
+                          className="px-5 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
+                        >
+                          Cancel
+                        </button>
+
+                        {/* Role 3 (Dev) can only update, not add */}
+                        {(modalMode === "add" && roleId !== 3) ||
+                        modalMode === "edit" ? (
+                          <button
+                            onClick={
+                              modalMode === "add"
+                                ? handleAddBug
+                                : handleUpdateBug
+                            }
+                            className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
+                          >
+                            {modalMode === "add" ? "Add Bug" : "Update Bug"}
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

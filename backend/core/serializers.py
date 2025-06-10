@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Notification, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar
+from .models import Company, Employee, Notification, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, AdminDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -117,10 +117,7 @@ class NomineeDetailsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# class EmployeeDocumentSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = EmployeeDocument
-#         fields = '__all__'
+
 
 
 class EmployeeDocumentSerializer(serializers.ModelSerializer):
@@ -181,6 +178,13 @@ class EmployeeDashboardLinkSerializer(serializers.ModelSerializer):
 class HrDashboardLinkSerializer(serializers.ModelSerializer):
     class Meta:
         model = HrDashboardLink
+        fields = ['name', 'path', 'color', 'icons']
+
+# Admin Serializers
+
+class AdminDashboardLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminDashboardLink
         fields = ['name', 'path', 'color', 'icons']
 
 
