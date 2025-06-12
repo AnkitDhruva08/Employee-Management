@@ -3,11 +3,21 @@ import { useParams, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-import { fetchRoles } from "../utils/api";
-
+import Header from "../components/header/Header";
+import Sidebar from "../components/sidebar/Sidebar";
+import {
+  fetchEmployees,
+  fetchDashboardLink,
+  fetchDashboard,
+  fetchRoles,
+} from "../utils/api";
+import CompanyLogo from "../components/CompanyLogo";
 const AddEmployee = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [dashboardData, setDashboardData] = useState(null);
+  const [quickLinks, setQuickLinks] = useState([]);
+
   const [formData, setFormData] = useState({
     first_name: "",
     middle_name: "",
@@ -31,6 +41,11 @@ const AddEmployee = () => {
 
   const fetchLinks = async () => {
     try {
+      const links = await fetchDashboardLink(token);
+      setQuickLinks(links.data || links);
+
+      const dashboard = await fetchDashboard(token);
+      setDashboardData(dashboard);
       const userRoles = await fetchRoles(token);
       console.log("userRoles for add employee ==<<>>", userRoles);
       setRoles(userRoles);
@@ -259,355 +274,372 @@ const AddEmployee = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4 font-sans">
-      <div className="max-w-6xl w-full mx-auto my-8 p-10 bg-white rounded-3xl shadow-2xl border border-gray-200 transform transition-transform duration-300 ease-in-out hover:scale-[1.005]">
-        <h2 className="text-4xl md:text-5xl font-extrabold text-center text-blue-800 mb-10 tracking-tight drop-shadow-md animate-fadeIn">
-          ✨ {headerContent} ✨
-        </h2>
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      <aside className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+        {dashboardData && <CompanyLogo logoPath={dashboardData.company_logo} />}
+        <Sidebar quickLinks={quickLinks} />
+      </aside>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Section Title for Personal Information */}
-          <h3 className="text-2xl md:text-3xl font-bold text-gray-800 border-b-2 border-blue-200 pb-3 mb-6 relative group">
-            Personal Information
-            <span className="absolute left-0 bottom-0 w-16 h-1 bg-blue-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out"></span>
-          </h3>
+      <div className="flex-1 flex flex-col">
+        <Header title="✨ ADD NEW EMPLOYEE ✨" />
+        <main className="flex-1  p-6 space-y-6">
+            <div className="max-w-6xl w-full mx-auto my-8 p-10 bg-white rounded-3xl shadow-2xl border border-gray-200 transform transition-transform duration-300 ease-in-out hover:scale-[1.005]">
+             
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
-            {/* First Name Input */}
-            <div className="relative group">
-              <label
-                htmlFor="first_name"
-                className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                First Name
-              </label>
-              <input
-                type="text"
-                id="first_name"
-                name="first_name"
-                value={formData.first_name || ""}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.first_name ? "border-red-500" : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
-                placeholder="e.g. John"
-                autoComplete="given-name"
-              />
-              {formErrors.first_name && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.first_name}
-                </p>
-              )}
-            </div>
+              <div  className="space-y-8">
+                {/* Section Title for Personal Information */}
+                <h3 className="text-2xl md:text-3xl font-bold text-gray-800 border-b-2 border-blue-200 pb-3 mb-6 relative group">
+                  Personal Information
+                  <span className="absolute left-0 bottom-0 w-16 h-1 bg-blue-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out"></span>
+                </h3>
 
-            {/* Middle Name Input */}
-            <div className="relative group">
-              <label
-                htmlFor="middle_name"
-                className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                Middle Name
-              </label>
-              <input
-                type="text"
-                id="middle_name"
-                name="middle_name"
-                value={formData.middle_name || ""}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.middle_name ? "border-red-500" : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
-                placeholder="e.g. David"
-                autoComplete="additional-name"
-              />
-              {formErrors.middle_name && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.middle_name}
-                </p>
-              )}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
+                  {/* First Name Input */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="first_name"
+                      className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      id="first_name"
+                      name="first_name"
+                      value={formData.first_name || ""}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.first_name
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
+                      placeholder="e.g. John"
+                      autoComplete="given-name"
+                    />
+                    {formErrors.first_name && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.first_name}
+                      </p>
+                    )}
+                  </div>
 
-            {/* Last Name Input */}
-            <div className="relative group">
-              <label
-                htmlFor="last_name"
-                className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                Last Name
-              </label>
-              <input
-                type="text"
-                id="last_name"
-                name="last_name"
-                value={formData.last_name || ""}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.last_name ? "border-red-500" : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
-                placeholder="e.g. Doe"
-                autoComplete="family-name"
-              />
-              {formErrors.last_name && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.last_name}
-                </p>
-              )}
-            </div>
+                  {/* Middle Name Input */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="middle_name"
+                      className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      Middle Name
+                    </label>
+                    <input
+                      type="text"
+                      id="middle_name"
+                      name="middle_name"
+                      value={formData.middle_name || ""}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.middle_name
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
+                      placeholder="e.g. David"
+                      autoComplete="additional-name"
+                    />
+                    {formErrors.middle_name && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.middle_name}
+                      </p>
+                    )}
+                  </div>
 
-            {/* Contact Number Input */}
+                  {/* Last Name Input */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="last_name"
+                      className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      id="last_name"
+                      name="last_name"
+                      value={formData.last_name || ""}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.last_name
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
+                      placeholder="e.g. Doe"
+                      autoComplete="family-name"
+                    />
+                    {formErrors.last_name && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.last_name}
+                      </p>
+                    )}
+                  </div>
 
-            <div className="mb-4">
-              <label
-                htmlFor="contact_number"
-                className="block text-gray-800 font-semibold mb-2 text-sm"
-              >
-                📞 Company Contact Number
-              </label>
-              <PhoneInput
-                country={"in"}
-                value={formData.contact_number}
-                onChange={handlePhoneChange}
-                inputProps={{
-                  id: "contact_number",
-                  name: "contact_number",
-                  className: `w-full pl-14 pr-4 py-3 text-sm rounded-xl transition-all duration-200 outline-none ${
-                    formErrors.contact_number
-                      ? "border border-red-500 focus:ring-2 focus:ring-red-300"
-                      : "border border-gray-300 focus:ring-2 focus:ring-blue-400"
-                  } bg-white text-gray-800 placeholder-gray-400 shadow-sm`,
-                  placeholder: "e.g. +91 9876543210",
-                }}
-                containerStyle={{
-                  width: "100%",
-                  borderRadius: "0.75rem",
-                  border: "none",
-                }}
-                buttonStyle={{
-                  borderRadius: "0.75rem 0 0 0.75rem",
-                  backgroundColor: "#f9fafb",
-                  borderRight: formErrors.contact_number
-                    ? "1px solid #ef4444"
-                    : "1px solid #d1d5db",
-                }}
-                dropdownStyle={{
-                  borderRadius: "0.75rem",
-                }}
-              />
-              {formErrors.contact_number && (
-                <p className="text-red-500 text-xs mt-1">
-                  {formErrors.contact_number}
-                </p>
-              )}
-            </div>
+                  {/* Contact Number Input */}
 
-            {/* Company Email Input */}
-            <div className="relative group">
-              <label
-                htmlFor="company_email"
-                className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                🏢 Company Email
-              </label>
-              <input
-                type="email"
-                id="company_email"
-                name="company_email"
-                value={formData.company_email || ""}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.company_email
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
-                placeholder="e.g. john.doe@company.com"
-                autoComplete="organization-email"
-              />
-              {formErrors.company_email && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.company_email}
-                </p>
-              )}
-            </div>
+                  <div className="mb-4">
+                    <label
+                      htmlFor="contact_number"
+                      className="block text-gray-800 font-semibold mb-2 text-sm"
+                    >
+                      📞 Company Contact Number
+                    </label>
+                    <PhoneInput
+                      country={"in"}
+                      value={formData.contact_number}
+                      onChange={handlePhoneChange}
+                      inputProps={{
+                        id: "contact_number",
+                        name: "contact_number",
+                        className: `w-full pl-14 pr-4 py-3 text-sm rounded-xl transition-all duration-200 outline-none ${
+                          formErrors.contact_number
+                            ? "border border-red-500 focus:ring-2 focus:ring-red-300"
+                            : "border border-gray-300 focus:ring-2 focus:ring-blue-400"
+                        } bg-white text-gray-800 placeholder-gray-400 shadow-sm`,
+                        placeholder: "e.g. +91 9876543210",
+                      }}
+                      containerStyle={{
+                        width: "100%",
+                        borderRadius: "0.75rem",
+                        border: "none",
+                      }}
+                      buttonStyle={{
+                        borderRadius: "0.75rem 0 0 0.75rem",
+                        backgroundColor: "#f9fafb",
+                        borderRight: formErrors.contact_number
+                          ? "1px solid #ef4444"
+                          : "1px solid #d1d5db",
+                      }}
+                      dropdownStyle={{
+                        borderRadius: "0.75rem",
+                      }}
+                    />
+                    {formErrors.contact_number && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {formErrors.contact_number}
+                      </p>
+                    )}
+                  </div>
 
-            {/* Personal Email Input */}
-            <div className="relative group">
-              <label
-                htmlFor="personal_email"
-                className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                ✉️ Personal Email
-              </label>
-              <input
-                type="email"
-                id="personal_email"
-                name="personal_email"
-                value={formData.personal_email || ""}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.personal_email
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
-                placeholder="e.g. john.doe@example.com"
-                autoComplete="email"
-              />
-              {formErrors.personal_email && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.personal_email}
-                </p>
-              )}
-            </div>
+                  {/* Company Email Input */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="company_email"
+                      className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      🏢 Company Email
+                    </label>
+                    <input
+                      type="email"
+                      id="company_email"
+                      name="company_email"
+                      value={formData.company_email || ""}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.company_email
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
+                      placeholder="e.g. john.doe@company.com"
+                      autoComplete="organization-email"
+                    />
+                    {formErrors.company_email && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.company_email}
+                      </p>
+                    )}
+                  </div>
 
-            {/* Date of Birth Input */}
-            <div className="relative group">
-              <label
-                htmlFor="date_of_birth"
-                className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                🎂 Date of Birth
-              </label>
-              <input
-                type="date"
-                id="date_of_birth"
-                name="date_of_birth"
-                value={formData.date_of_birth || ""}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.date_of_birth
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200`}
-              />
-              {formErrors.date_of_birth && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.date_of_birth}
-                </p>
-              )}
-            </div>
+                  {/* Personal Email Input */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="personal_email"
+                      className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      ✉️ Personal Email
+                    </label>
+                    <input
+                      type="email"
+                      id="personal_email"
+                      name="personal_email"
+                      value={formData.personal_email || ""}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.personal_email
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200 placeholder-gray-400`}
+                      placeholder="e.g. john.doe@example.com"
+                      autoComplete="email"
+                    />
+                    {formErrors.personal_email && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.personal_email}
+                      </p>
+                    )}
+                  </div>
 
-            {/* Gender Select */}
-            <div className="relative group">
-              <label
-                htmlFor="gender"
-                className="block text-sm font-medium text-gray-700 mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                🚻 Gender
-              </label>
-              <select
-                id="gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.gender ? "border-red-500" : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none appearance-none transition-all duration-200`}
-              >
-                <option value="">-- Select --</option>
-                {["Male", "Female", "Other"].map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700 top-7">
-                <svg
-                  className="fill-current h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                </svg>
-              </div>
-              {formErrors.gender && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.gender}
-                </p>
-              )}
-            </div>
+                  {/* Date of Birth Input */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="date_of_birth"
+                      className="block text-sm text-gray-700 font-medium mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      🎂 Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      id="date_of_birth"
+                      name="date_of_birth"
+                      value={formData.date_of_birth || ""}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.date_of_birth
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all duration-200`}
+                    />
+                    {formErrors.date_of_birth && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.date_of_birth}
+                      </p>
+                    )}
+                  </div>
 
-            {/* Job Role Select */}
-            <div className="relative group">
-              <label
-                htmlFor="job_role"
-                className="block text-sm font-medium text-gray-700 mb-1 transition-all duration-200 group-focus-within:text-blue-600"
-              >
-                💼 Job Role
-              </label>
-              <select
-                id="job_role"
-                name="job_role"
-                value={formData.job_role}
-                onChange={handleChange}
-                className={`w-full px-4 py-2 bg-white border ${
-                  formErrors.job_role ? "border-red-500" : "border-gray-300"
-                } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none appearance-none transition-all duration-200`}
-              >
-                <option value="">-- Select --</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.role_name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700 top-7">
-                <svg
-                  className="fill-current h-4 w-4"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                </svg>
-              </div>
-              {formErrors.job_role && (
-                <p className="text-red-500 text-xs mt-1 italic">
-                  {formErrors.job_role}
-                </p>
-              )}
-            </div>
-          </div>
+                  {/* Gender Select */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="gender"
+                      className="block text-sm font-medium text-gray-700 mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      🚻 Gender
+                    </label>
+                    <select
+                      id="gender"
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.gender ? "border-red-500" : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none appearance-none transition-all duration-200`}
+                    >
+                      <option value="">-- Select --</option>
+                      {["Male", "Female", "Other"].map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700 top-7">
+                      <svg
+                        className="fill-current h-4 w-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                      </svg>
+                    </div>
+                    {formErrors.gender && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.gender}
+                      </p>
+                    )}
+                  </div>
 
-          {apiError && (
-            <p className="text-red-600 font-semibold text-center mt-8 p-3 bg-red-50 rounded-lg border border-red-200 animate-shake">
-              {apiError}
-            </p>
-          )}
-
-          <div className="flex mt-12 justify-center">
-            <button
-              type="submit"
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 px-12 rounded-full text-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out transform disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  {id ? "UPDATING..." : "ADDING..."}
+                  {/* Job Role Select */}
+                  <div className="relative group">
+                    <label
+                      htmlFor="job_role"
+                      className="block text-sm font-medium text-gray-700 mb-1 transition-all duration-200 group-focus-within:text-blue-600"
+                    >
+                      💼 Job Role
+                    </label>
+                    <select
+                      id="job_role"
+                      name="job_role"
+                      value={formData.job_role}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 bg-white border ${
+                        formErrors.job_role
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none appearance-none transition-all duration-200`}
+                    >
+                      <option value="">-- Select --</option>
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.role_name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700 top-7">
+                      <svg
+                        className="fill-current h-4 w-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                      </svg>
+                    </div>
+                    {formErrors.job_role && (
+                      <p className="text-red-500 text-xs mt-1 italic">
+                        {formErrors.job_role}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                buttonText
-              )}
-            </button>
-          </div>
-        </form>
+
+                {apiError && (
+                  <p className="text-red-600 font-semibold text-center mt-8 p-3 bg-red-50 rounded-lg border border-red-200 animate-shake">
+                    {apiError}
+                  </p>
+                )}
+
+                <div className="flex mt-12 justify-center">
+                  <button
+                    type="submit"
+                    onClick={handleSubmit}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 px-12 rounded-full text-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out transform disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        {id ? "UPDATING..." : "ADDING..."}
+                      </div>
+                    ) : (
+                      buttonText
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+        </main>
       </div>
     </div>
   );

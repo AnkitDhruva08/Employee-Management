@@ -41,21 +41,20 @@ const Dashboard = () => {
   const HeaderTitle = isSuperUser
     ? "Superuser Dashboard"
     : isCompany
-    ? "Company Dashboard"
-    : roleId === 3
-    ? "Employee Dashboard"
-    : roleId === 2
-    ? "HR Dashboard"
-    : roleId === 1
-    ? "Admin Dashboard"
-    : "Dashboard";
+      ? "Company Dashboard"
+      : roleId === 3
+        ? "Employee Dashboard"
+        : roleId === 2
+          ? "HR Dashboard"
+          : roleId === 1
+            ? "Admin Dashboard"
+            : "Dashboard";
 
   const getColorByIndex = (index, saturation = 70, lightness = 60) => {
     const hue = (index * 137.508) % 360;
     const startColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    const endColor = `hsl(${(hue + 30) % 360}, ${saturation}%, ${
-      lightness - 10
-    }%)`;
+    const endColor = `hsl(${(hue + 30) % 360}, ${saturation}%, ${lightness - 10
+      }%)`;
     return `linear-gradient(135deg, ${startColor} 0%, ${endColor} 100%)`;
   };
 
@@ -127,43 +126,73 @@ const Dashboard = () => {
       </div>
     );
   }
-
   // Conditional rendering for incomplete profile message for employees
-  if (roleId === 3 && dashboardData && !dashboardData.is_profile_complete) {
-    return (
-      <div className="flex h-screen bg-gray-100">
-        <div className="bg-gray-800 text-white w-64 p-6 flex flex-col shadow-lg">
-          {dashboardData && (
-            <CompanyLogo logoPath={dashboardData.company_logo} />
-          )}
-          <Sidebar quickLinks={quickLinks} />
-        </div>
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <Header title={HeaderTitle} />
-          <div className="p-6 overflow-y-auto flex-1 bg-gradient-to-br from-gray-50 to-indigo-50 flex items-center justify-center">
-            <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md mx-auto transform transition-transform duration-300 hover:scale-[1.02]">
-              <FaIcons.FaExclamationTriangle className="text-yellow-500 text-6xl mb-6 mx-auto animate-bounce" />
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">
-                Profile Incomplete!
-              </h2>
-              <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                To access all data for this organization, please{" "}
-                <Link
-                  to="/profile-page"
-                  className="text-indigo-600 hover:text-indigo-800 font-semibold underline transition-colors duration-200"
-                >
-                  update your profile
-                </Link>
-                .
-              </p>
-              <p className="text-sm text-gray-500">
-                Your profile is essential for a complete experience.
-              </p>
-            </div>
+  if (roleId === 3 && quickLinks) {
+    if (!quickLinks.is_complete) {
+      return (
+        <div className="flex h-screen bg-gray-100">
+          <div className="bg-gray-800 text-white w-64 p-6 flex flex-col shadow-lg">
+            {dashboardData && (
+              <CompanyLogo logoPath={dashboardData.company_logo} />
+            )}
+            <Sidebar quickLinks={quickLinks} />
           </div>
-        </main>
-      </div>
-    );
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <Header title={HeaderTitle} />
+            <div className="p-6 overflow-y-auto flex-1 bg-gradient-to-br from-gray-50 to-indigo-50 flex items-center justify-center">
+              <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md mx-auto transform transition-transform duration-300 hover:scale-[1.02]">
+                <FaIcons.FaExclamationTriangle className="text-yellow-500 text-6xl mb-6 mx-auto animate-bounce" />
+                <h2 className="text-3xl font-bold text-gray-800 mb-4">
+                  Profile Incomplete!
+                </h2>
+                <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                  To access all data for this organization, please{" "}
+                  <Link
+                    to="/profile-page"
+                    className="text-indigo-600 hover:text-indigo-800 font-semibold underline transition-colors duration-200"
+                  >
+                    update your profile
+                  </Link>
+                  .
+                </p>
+                <p className="text-sm text-gray-500">
+                  Your profile is essential for a complete experience.
+                </p>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    else {
+      return (
+        <div className="flex h-screen bg-gray-100">
+          <div className="bg-gray-800 text-white w-64 p-6 flex flex-col shadow-lg">
+            {dashboardData && (
+              <CompanyLogo logoPath={dashboardData.company_logo} />
+            )}
+            <Sidebar quickLinks={quickLinks} />
+          </div>
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <Header title={HeaderTitle} />
+            <div className="p-6 overflow-y-auto flex-1 bg-gradient-to-br from-gray-50 to-indigo-50 flex items-center justify-center">
+              <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md mx-auto transform transition-transform duration-300 hover:scale-[1.02]">
+                <FaIcons.FaCheckCircle className="text-green-500 text-6xl mb-6 mx-auto animate-bounce" />
+                <h2 className="text-3xl font-bold text-gray-800 mb-4">
+                  Profile Complete!
+                </h2>
+                <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                  You can now access all your role-based data and features.
+                </p>
+
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
   }
 
   let statCards = [];
@@ -239,7 +268,7 @@ const Dashboard = () => {
         value: dashboardData.total_tasks,
         icon: <FaIcons.FaTasks className="text-white text-3xl" />,
         gradient: getColorByIndex(4),
-        url: "/task-dashboard",
+        url: "//create-task",
       },
       {
         id: "departments",

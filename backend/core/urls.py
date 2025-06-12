@@ -2,6 +2,7 @@ from django.conf import settings
 from django.urls import path, include, re_path
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
+from core.views.common_views import TagListCreateView
 from core.utils.drop_down_utils import EmployeeDropDownView, ProjectDropDownView
 from core.views.role_views import RoleViews
 from core.views.employee_views import CurrentEmployeeView, EmployeeViewSet, EmployeeProfileViewSet, EmployeeFormViews, EmployeeBankDetailsView, NomineeDetailsView, EmployeeDocumentUploadView, EmployeeEmergencyContactView, EmployeeOfficeDetailsView, ProfileImageUploadView
@@ -144,6 +145,10 @@ urlpatterns = [
     path('project-dropdown/', ProjectDropDownView.as_view(), name='project-dropdown'),
     path('employee-dropdown/', EmployeeDropDownView.as_view(), name='employee-dropdown'),
 
+
+    # task tags
+    path("task-tags/<int:pk>/", TagListCreateView.as_view(), name="tag-list"),
+    path("task-tags/", TagListCreateView.as_view(), name="tag-list-create"),
 
 ]
 

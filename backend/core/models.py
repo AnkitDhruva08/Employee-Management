@@ -489,3 +489,23 @@ class Notification(models.Model):
     def __str__(self):
             return f"{self.user.username}: {self.message[:40]}"
 
+
+
+
+# modal for task tag
+
+
+
+
+
+class TaskStatusTags(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='task_tags')
+    name = models.CharField(max_length=100)
+    color = models.CharField(max_length=100)  
+    icon = models.TextField()
+    active = models.BooleanField(default=True)
+    
+
+    def __str__(self):
+        return self.name
+

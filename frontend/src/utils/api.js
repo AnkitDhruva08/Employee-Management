@@ -306,3 +306,15 @@ export const loadNotifications = async (token) => {
   const data = await handleResponse(res);
   return data;
 };
+
+//  function for laod tags
+export const loadTaskTags = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/task-tags/`, {
+    method: "GET",
+    headers: getAuthHeaders(token),
+  });
+  const data = await handleResponse(res);
+  return data;
+};
+
+
