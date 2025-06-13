@@ -48,6 +48,7 @@ const EmployeeTable = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+      console.log('data ==<<>>', data)
       if (Array.isArray(data)) {
         setEmployees(data);
       } else {
@@ -91,6 +92,44 @@ const EmployeeTable = () => {
       }
     }
   };
+
+
+  const toggleEmployeeStatus = async (id, currentStatus) => {
+    const action = currentStatus ? "Activate" : "Deactivate";
+    const result = await Swal.fire({
+      title: `Are you sure you want to ${action}?`,
+      text: `This will ${currentStatus ? "activate" : "deactivate"} the employee.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: `Yes, ${action.toLowerCase()}!`,
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+    });
+  
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`http://localhost:8000/api/employees/${id}/`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ active: !currentStatus }),
+        });
+  
+        if (res.ok) {
+          fetchEmployees();
+          Swal.fire("Success!", `Employee has been ${action.toLowerCase()}d.`, "success");
+        } else {
+          throw new Error("Failed to update status");
+        }
+      } catch (err) {
+        console.error("Toggle error:", err);
+        Swal.fire("Error!", "Failed to update employee status.", "error");
+      }
+    }
+  };
+  
 
   const currentEmployees = employees.slice(
     (currentPage - 1) * employeesPerPage,
@@ -284,80 +323,83 @@ const EmployeeTable = () => {
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto p-4 bg-white mx-4 rounded-b-xl shadow-lg">
-          {loading ? (
-            <div className="p-6 text-center text-gray-500">
-              Loading employees...
-            </div>
-          ) : (
-            <table className="min-w-full text-sm text-left">
-              <thead className="bg-blue-700 text-white text-sm">
-                <tr>
-                  <th className="p-3 border-b">Sr no.</th>
-                  <th className="p-3 border-b">Employees Name</th>
-                  <th className="p-3 border-b">Company Name</th>
-                  <th className="p-3 border-b">Company Email</th>
-                  <th className="p-3 border-b">Personal Email</th>
-                  <th className="p-3 border-b">Contact Number</th>
-                  <th className="p-3 border-b">Role</th>
-                  <th className="p-3 border-b">Date Of Birth</th>
-                  <th className="p-3 border-b">Gender</th>
-                  <th className="p-3 border-b">Actions</th>
-                </tr>
-              </thead>
+       {/* Table */}
+<div className="overflow-x-auto p-4 bg-white mx-4 rounded-b-xl shadow-lg">
+  {loading ? (
+    <div className="p-6 text-center text-gray-500">
+      Loading employees...
+    </div>
+  ) : (
+    <table className="min-w-full text-sm text-left">
+      <thead className="bg-blue-700 text-white text-sm">
+        <tr>
+          <th className="p-3 border-b">Sr no.</th>
+          <th className="p-3 border-b">Employees Name</th>
+          <th className="p-3 border-b">Company Name</th>
+          <th className="p-3 border-b">Company Email</th>
+          <th className="p-3 border-b">Personal Email</th>
+          <th className="p-3 border-b">Contact Number</th>
+          <th className="p-3 border-b">Role</th>
+          <th className="p-3 border-b">Date Of Birth</th>
+          <th className="p-3 border-b">Gender</th>
+          <th className="p-3 border-b">Actions</th>
+        </tr>
+      </thead>
 
-              <tbody>
-                {currentEmployees.map((emp, index) => (
-                  <tr
-                    key={emp.id}
-                    className="hover:bg-gray-50 even:bg-gray-50 border-b"
-                  >
-                    <td className="p-3 border">{index + 1}</td>
-                    <td className="p-3 border">{emp.username}</td>
-                    <td className="p-3 border">{emp.company_name}</td>
-                    <td className="p-3 border">{emp.company_email}</td>
-                    <td className="p-3 border">{emp.personal_email}</td>
-                    <td className="p-3 border">{emp.contact_number}</td>
-                    <td className="p-3 border">{emp.role_name}</td>
-                    <td className="p-3 border">{emp.date_of_birth}</td>
-                    <td className="p-3 border">{emp.gender}</td>
-                    <td className="p-3 border">
-                      <div className="flex space-x-3">
-                        {/* View is always allowed */}
-                        <button className="text-blue-600 hover:text-blue-800">
-                          <Link
-                            to={`/employee-views/${emp.id}`}
-                            className="text-green-500 hover:text-yellow-600"
-                          >
-                            <Eye size={18} />
-                          </Link>
-                        </button>
+      <tbody>
+        {currentEmployees.map((emp, index) => (
+          <tr
+            key={emp.id}
+            className="hover:bg-gray-50 even:bg-gray-50 border-b"
+          >
+            <td className="p-3 border">{index + 1}</td>
+            <td className="p-3 border">{emp.username}</td>
+            <td className="p-3 border">{emp.company_name}</td>
+            <td className="p-3 border">{emp.company_email}</td>
+            <td className="p-3 border">{emp.personal_email}</td>
+            <td className="p-3 border">{emp.contact_number}</td>
+            <td className="p-3 border">{emp.role_name}</td>
+            <td className="p-3 border">{emp.date_of_birth}</td>
+            <td className="p-3 border">{emp.gender}</td>
+            <td className="p-3 border">
+              <div className="flex space-x-3">
+                {/* View is always allowed */}
+                <Link
+                  to={`/employee-views/${emp.id}`}
+                  className="text-green-500 hover:text-yellow-600"
+                >
+                  <Eye size={18} />
+                </Link>
 
-                        {/* Only show edit & delete if not role_id 2 */}
-                        {roleId !== 2 && (
-                          <>
-                            {/* <Link
-                              to={`/employee-form/${emp.id}`}
-                              className="text-yellow-500 hover:text-yellow-600"
-                            >
-                              <Pencil size={18} />
-                            </Link> */}
-                            <button
-                              onClick={() => deleteEmployee(emp.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                {/* Only show edit & toggle if not role_id 2 */}
+                {roleId !== 2 && (
+                  <>
+                    {/* <Link
+                      to={`/employee-form/${emp.id}`}
+                      className="text-yellow-500 hover:text-yellow-600"
+                    >
+                      <Pencil size={18} />
+                    </Link> */}
+                    <button
+                      onClick={() => toggleEmployeeStatus(emp.id, emp.active)}
+                      className={`px-3 py-1 rounded-full text-white font-semibold text-xs transition-colors duration-200 shadow-md
+                        ${emp.active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}
+                      `}
+                      title={emp.active ? "Deactivate Employee" : "Activate Employee"}
+                    >
+                      {emp.active ? "Deactivate" : "Activate"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )}
+</div>
+
 
         {/* Pagination */}
         {!loading && employees.length > 0 && (

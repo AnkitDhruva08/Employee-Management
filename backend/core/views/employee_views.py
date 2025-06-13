@@ -67,7 +67,7 @@ class EmployeeViewSet(APIView):
             if is_company or role_id in [1, 2]:
 
                 employees = Employee.objects.filter(
-                    company_id=company_id, active=True
+                    company_id=company_id
                 ).select_related('role', 'company') \
                 .annotate(
                     username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
@@ -76,7 +76,7 @@ class EmployeeViewSet(APIView):
                     team_size=F('company__team_size')         
                 ).values(
                     'id', 'username', 'contact_number', 'company_email', 'personal_email',
-                    'date_of_birth', 'gender', 'company_name', 'team_size', 'role_name'
+                    'date_of_birth', 'gender', 'company_name', 'team_size', 'role_name', 'active'
                 ).order_by('-id')
 
                 employees_list = list(employees) 
@@ -172,6 +172,7 @@ class EmployeeViewSet(APIView):
                 )
 
             # Create employee
+            print('user ==<<>>', user)
             employee = Employee.objects.create(
                 first_name=data.get('first_name'),
                 middle_name=data.get('middle_name'),
@@ -183,6 +184,7 @@ class EmployeeViewSet(APIView):
                 gender=data.get('gender'),
                 role_id=role.id,
                 company_id=company.id,
+                user_id=user.id,
             )
 
             # Send onboarding email
@@ -224,11 +226,35 @@ class EmployeeViewSet(APIView):
     def delete(self, request, pk=None):
         try:
             employee = get_object_or_404(Employee, pk=pk)
+            user_data = User.objects.get(id=employee.user_id)
+            user_data.is_active = False
             employee.active = False
             employee.save()
             return Response({'success': 'Employee deactivated.'}, status=200)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
+        
+
+    def patch(self, request, pk=None):
+        try:
+            employee = get_object_or_404(Employee, pk=pk)
+            user = get_object_or_404(User, id=employee.user_id)
+
+            # Get 'active' from request body
+            new_status = request.data.get('active')
+            if new_status is None:
+                return Response({'error': 'Missing active status'}, status=status.HTTP_400_BAD_REQUEST)
+
+            employee.active = new_status
+            user.is_active = new_status
+
+            employee.save()
+            user.save()
+
+            return Response({'success': f"Employee {'activated' if new_status else 'deactivated'}."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Employee Bank Details CRUD operations
 class EmployeeBankDetailsView(APIView):

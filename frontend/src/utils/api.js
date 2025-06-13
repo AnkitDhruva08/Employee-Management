@@ -180,16 +180,29 @@ export const fetchBugDetails = async (token, bugId) => {
 
 
 //  function for fetch the bugs reports 
-export const fecthTasks = async (token) => {
-  const res = await fetch(`${API_BASE_URL}/task-management/`, {
+export const fecthTasks = async (token, tag = "", employee = "",
+  startDate = "",
+  endDate = "",
+  month = ""
+) => {
+  const url = new URL(`${API_BASE_URL}/task-management/`);
+  console.log('employee ==<>>', employee)
+  console.log('tag ==<<>', tag);
+  console.log('month ==<<>>', month)
+
+  if (tag) url.searchParams.append("tag", tag);
+  if (employee) url.searchParams.append("employee", employee);
+  if (startDate) url.searchParams.append("start_date", startDate);
+  if (endDate) url.searchParams.append("end_date", endDate);
+  if (month) url.searchParams.append("month", month);
+
+  const res = await fetch(url.toString(), {
     method: "GET",
     headers: getAuthHeaders(token),
   });
-  const data = await handleResponse(res);
-  return data
+
+  return await handleResponse(res);
 };
-
-
 //  function for fetch the bugs reports 
 export const fetchProjectSidebar = async (token) => {
   const res = await fetch(`${API_BASE_URL}/project-sidebar/`, {
@@ -316,5 +329,76 @@ export const loadTaskTags = async (token) => {
   const data = await handleResponse(res);
   return data;
 };
+
+
+
+
+
+
+// Helper to get the avatar URL
+const getAvatarUrl = async (memberId) => {
+  const url = `http://localhost:8000/api/get_user_avatar/${memberId}/`;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.warn(`⚠️ Avatar not found for member ${memberId}. Status: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+
+    const avatarUrl = data.profile_image
+      ? `http://localhost:8000/${data.profile_image}`
+      : "";
+
+    return avatarUrl;
+  } catch (error) {
+    console.error(`Error fetching avatar for member ${memberId}:`, error);
+    return null;
+  }
+};
+
+// Main function to generate task cards
+export const generateTaskCards = async (taskData, tagList, filterEmployeeId) => {
+  const allCards = [];
+
+  for (const task of taskData) {
+    const memberNames = task.member_names.split(',').map(name => name.trim());
+
+    for (let i = 0; i < task.members.length; i++) {
+      const memberId = task.members[i];
+
+      // ✅ Skip if filtering and this memberId doesn't match
+      if (filterEmployeeId && parseInt(filterEmployeeId) !== memberId) {
+        continue;
+      }
+
+      const name = memberNames[i] || `Member ${memberId}`;
+      const avatar = await getAvatarUrl(memberId);
+
+      const matchedTag = tagList.find(tag => tag.id === task.status);
+      const tagName = matchedTag ? matchedTag.name : "Unknown";
+
+      const card = {
+        id: task.id,
+        employee: name,
+        memberId,
+        avatar,
+        title: task.task_name,
+        description: task.description.replace(/<\/?[^>]+(>|$)/g, ""),
+        date: new Date(task.created_at).toISOString().split('T')[0],
+        tags: [tagName],
+      };
+
+      allCards.push(card);
+    }
+  }
+
+  return allCards;
+};
+
+
 
 

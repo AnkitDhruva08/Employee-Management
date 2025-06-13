@@ -6,6 +6,7 @@ from core.models import Company, Project, Employee, Bug, Task
 from core.serializers import ProjectSerializer, BugSerializer, TaskSerializer
 from django.contrib.auth import get_user_model 
 from datetime import date
+from core.utils.filter_utils import apply_common_filters
 
 # User Model
 User = get_user_model()
@@ -13,6 +14,7 @@ User = get_user_model()
 class TaskManagementViews(APIView):
     permission_classes = [IsAuthenticated]
 
+        
     def get(self, request, *args, **kwargs):
         user = request.user
         user_data = User.objects.get(email=user.email)
@@ -25,26 +27,34 @@ class TaskManagementViews(APIView):
                 role_id = employee_data.role_id
                 company_id = employee_data.company_id
 
-                if role_id != 1:
+                if role_id != 1: # Assuming role_id 1 is admin
                     return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
 
         elif user_data.is_company:
-            company_id = user_data.id
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
+        # Ensure 'company_id' is correctly retrieved and used.
         tasks = Task.objects.filter(company_id=company_id, active=True).order_by('-id')
-        serializer = TaskSerializer(tasks, many=True)
+
+        # Apply filters using your helper function
+        tasks_data = apply_common_filters(tasks, request)
+
+        serializer = TaskSerializer(tasks_data, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
     
 
     def post(self, request, *args, **kwargs):
         user = request.user
-
         # Get user data
+        print('data is commig from frontend ==<<>>', request.data)
         try:
             user_data = User.objects.get(email=user.email)
         except User.DoesNotExist:
@@ -60,7 +70,8 @@ class TaskManagementViews(APIView):
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
         elif user_data.is_company:
-            company_id = user_data.id
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -77,31 +88,46 @@ class TaskManagementViews(APIView):
         # Convert project object to ID
         if 'project' in data and isinstance(data['project'], dict):
             data['project'] = data['project'].get('value')
-        else:
-            data['project'] = None
 
-        #  Convert status object to status key (e.g. 'New')
-        if 'status' in data and isinstance(data['status'], dict):
-            data['status'] = data['status'].get('key')
+
+        task_status = data['status']
+        data['status'] = task_status
 
         # Convert members list of objects to list of IDs
         if 'members' in data:
-            data['members'] = [item['value'] for item in data.get('members', [])]
-        else:
-            data['members'] = []
+            members = data.get('members', [])
+
+            if all(isinstance(item, dict) and 'value' in item for item in members):
+                members_list = [item['value'] for item in members]
+                data['members'] = members_list
+            elif all(isinstance(item, int) for item in members):
+                # Case: members is a list of integers
+                print('Members are already raw integers:', members)
+
+            else:
+                # Invalid format
+                return Response({"detail": "Invalid format for members."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Final check
+            if not data['members']:
+                return Response({"detail": "At least one member is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Final serializer call
         serializer = TaskSerializer(data=data)
+        
 
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
+            print('error ==<<>', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     #  function update 
     def put(self, request, pk):
         user = request.user
+        print('data comming from frontend ==<<>>', request.data)
+
 
         # Get user data
         try:
@@ -119,7 +145,8 @@ class TaskManagementViews(APIView):
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
         elif user_data.is_company:
-            company_id = user_data.id
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
@@ -138,20 +165,29 @@ class TaskManagementViews(APIView):
         if 'teamLead' in data and isinstance(data['teamLead'], dict):
             data['team_lead'] = data['teamLead'].get('value')
         data.pop('teamLead', None)
+        if 'project' in data:
+            if isinstance(data['project'], dict):
+                data['project'] = data['project'].get('value')
 
-        if 'project' in data and isinstance(data['project'], dict):
-            data['project'] = data['project'].get('value')
-        else:
-            data['project'] = None
-
-        if 'status' in data and isinstance(data['status'], dict):
-            data['status'] = data['status'].get('value') or data['status'].get('key')
-
+        task_status = data['status']
+        data['status'] = task_status
         if 'members' in data:
-            members_list = [item['value'] for item in data.get('members', []) if isinstance(item, dict) and 'value' in item]
-            if not members_list:
+            members = data.get('members', [])
+
+            if all(isinstance(item, dict) and 'value' in item for item in members):
+                members_list = [item['value'] for item in members]
+                data['members'] = members_list
+            elif all(isinstance(item, int) for item in members):
+                # Case: members is a list of integers
+                print('Members are already raw integers:', members)
+
+            else:
+                # Invalid format
+                return Response({"detail": "Invalid format for members."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Final check
+            if not data['members']:
                 return Response({"detail": "At least one member is required."}, status=status.HTTP_400_BAD_REQUEST)
-            data['members'] = members_list
 
         # Update the task
         serializer = TaskSerializer(task, data=data, partial=True)
@@ -160,7 +196,7 @@ class TaskManagementViews(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            print(serializer.errors) 
+            print('serializer.errors ==<>>', serializer.errors) 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
 

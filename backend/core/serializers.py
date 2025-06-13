@@ -306,6 +306,7 @@ class BugSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(source='project.project_name', read_only=True)
+    # status = serializers.CharField(source='TaskStatusTags.name', read_only=True)
     team_lead_name = serializers.SerializerMethodField()
     member_names = serializers.SerializerMethodField()
 

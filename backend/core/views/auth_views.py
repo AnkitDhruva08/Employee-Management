@@ -153,8 +153,11 @@ class LoginLogoutView(APIView):
 
         try:
             user = User.objects.get(email=email)
+            if not user.is_active:
+                return Response({"error": "User account is inactive"}, status=status.HTTP_403_FORBIDDEN)
         except User.DoesNotExist:
             return Response({"error": "Invalid email or user does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
 
         # Authenticate using email
         user = authenticate(request, email=email, password=password)

@@ -6,6 +6,10 @@ from core.models import TaskStatusTags, Company, Employee
 from core.serializers import TagStatusSerializer
 from django.contrib.auth import get_user_model
 
+import os
+from django.conf import settings
+from django.http import JsonResponse
+
 # User Modek
 User = get_user_model()
 
@@ -62,3 +66,24 @@ class TagListCreateView(APIView):
 
         tag.delete()
         return Response({"message": "Tag deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+
+
+def get_user_avatar(request, pk):
+    folder_path = os.path.join(settings.MEDIA_ROOT, 'profile_images', f'user_{pk}')
+    try:
+        files = os.listdir(folder_path)
+        image_file = next((f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))), None)
+        if image_file:
+            return JsonResponse({
+                'profile_image': f'media/profile_images/user_{pk}/{image_file}'
+            })
+        
+    except FileNotFoundError:
+        pass
+    return JsonResponse({'profile_image': None})
