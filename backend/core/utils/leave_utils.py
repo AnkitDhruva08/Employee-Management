@@ -40,6 +40,7 @@ def get_leave_requests(is_company, role_id, emp_id, company_id):
             'applied_at',
             'leave_type',
             'leave_document',
+            'comment',
             'employee_id',
             'employee__company_id',
             'employee__role_id'
@@ -81,6 +82,7 @@ def get_leave_requests(is_company, role_id, emp_id, company_id):
             'status',
             'applied_at',
             'leave_type',
+            'comment',
             'leave_document',
             'employee_id',
             'employee__company_id'

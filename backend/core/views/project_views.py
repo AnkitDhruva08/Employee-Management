@@ -461,8 +461,11 @@ class BugsReportsA(APIView):
                 active=True,
                 company__active=True,
                 project__active=True,
-                assigned_to=employee_data
+            ).filter(
+                Q(assigned_to=employee_data) | Q(created_by=user_data)
             ).select_related('project', 'company').order_by('-id')
+
+            print('bugs ==<<>>', bugs)
 
         else:
             bugs = Bug.objects.filter(
@@ -486,8 +489,8 @@ class BugsReportsA(APIView):
         if user_data.is_employee:
             try:
                 employee_data = Employee.objects.get(company_email=user.email)
-                if employee_data.role_id != 1:
-                    return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                # if employee_data.role_id != 1:
+                #     return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
                 company_id = employee_data.company_id
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -522,6 +525,8 @@ class BugsReportsA(APIView):
 
         # Serialize and save
         data['active'] = True
+        data['created_by'] = user_data.id
+        
         serializer = BugSerializer(data=data)
         if serializer.is_valid():
             bug = serializer.save()
@@ -593,7 +598,7 @@ class BugsReportsA(APIView):
         if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
             data['bug_attachment'] = request.FILES['bug_attachment']
 
-
+        data['updated_by'] = user_data.id
         serializer = BugSerializer(bug, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()

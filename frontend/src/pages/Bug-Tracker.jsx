@@ -95,6 +95,7 @@ const BugTracker = () => {
       setProjects(projects.results);
 
       const employeesData = await fetchEmployees(token);
+      console.log('employeesData ==<<>', employeesData)
       setEmployees(
         Array.isArray(employeesData) ? employeesData : [employeesData]
       );
@@ -109,6 +110,8 @@ const BugTracker = () => {
           priorityFilter?.value || "",
           selectedProjectId || ""
         );
+
+        console.log('bugsData ==<<>.', bugsData)
         setBugs(bugsData);
       }
     } catch (err) {
@@ -738,8 +741,7 @@ const BugTracker = () => {
 
               {/* Helpers */}
               {(() => {
-                const isReadOnly = modalMode === "view" || Number(roleId) === 3;
-                const isDevRestricted = Number(roleId) === 3;
+                const isReadOnly = modalMode === "view" ;
 
                 return (
                   <>
@@ -797,7 +799,7 @@ const BugTracker = () => {
                         onChange={(opt) =>
                           setFormData({ ...formData, status: opt?.value || "" })
                         }
-                        isDisabled={modalMode === "view"} // dev can edit
+                        isDisabled={modalMode === "view"} 
                         placeholder="Select Status"
                       />
                     </div>
@@ -906,7 +908,7 @@ const BugTracker = () => {
                         </button>
 
                         {/* Role 3 (Dev) can only update, not add */}
-                        {(modalMode === "add" && roleId !== 3) ||
+                        {(modalMode === "add" ) ||
                         modalMode === "edit" ? (
                           <button
                             onClick={

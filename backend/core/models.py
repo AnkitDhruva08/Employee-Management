@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
@@ -240,6 +241,7 @@ class LeaveRequest(models.Model):
     from_date = models.DateField()
     to_date = models.DateField(null=True, blank=True)
     reason = models.TextField()
+    comment = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('HR Approved', 'HR Approved'), ('HR Rejected', 'HR Rejected'), ('Admin Approved', 'Admin Approved'), ('Admin Rejected', 'Admin Rejected')], default='Pending')
     hr_reviewed = models.BooleanField(default=False)
     admin_reviewed = models.BooleanField(default=False)
@@ -330,24 +332,50 @@ class AdminDashboardLink(models.Model):
 
 
 # Attendance model
-class Attendance(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
-    date = models.DateField(default=now)
-    login_time = models.DateTimeField(null=True, blank=True)
-    logout_time = models.DateTimeField(null=True, blank=True)
-    active = models.BooleanField(default=True) 
-    status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="attendance_created_by")
-    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="attendance_updated_by")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+# class Attendance(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+#     date = models.DateField(default=now)
+#     login_time = models.DateTimeField(null=True, blank=True)
+#     logout_time = models.DateTimeField(null=True, blank=True)
+#     active = models.BooleanField(default=True) 
+#     status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
+#     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="attendance_created_by")
+#     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="attendance_updated_by")
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    @property
+#     @property
+#     def duration(self):
+#         if self.login_time and self.logout_time:
+#             return self.logout_time - self.login_time
+#         return None
+
+
+
+class AttendanceSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(default=now)
+    login_time = models.DateTimeField()
+    logout_time = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)  
+
     def duration(self):
         if self.login_time and self.logout_time:
             return self.logout_time - self.login_time
         return None
+
+
+class Attendance(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(default=now)
+    check_in = models.DateTimeField(null=True, blank=True)
+    check_out = models.DateTimeField(null=True, blank=True)
+    total_duration = models.DurationField(default=timedelta)
+    status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
+
     
 
 

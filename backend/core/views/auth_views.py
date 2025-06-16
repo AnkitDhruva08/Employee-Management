@@ -147,14 +147,19 @@ class LoginLogoutView(APIView):
     def post(self, request):
         email = request.data.get("email")
         password = request.data.get("password")
+        company_id = None
 
         if not email or not password:
             return Response({"error": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = User.objects.get(email=email)
+            print('')
+            is_active = user.is_active
+            print('is_active ==<<>>', is_active)
             if not user.is_active:
-                return Response({"error": "User account is inactive"}, status=status.HTTP_403_FORBIDDEN)
+                return Response({"error": "This account has been deleted"}, status=status.HTTP_403_FORBIDDEN)
+
         except User.DoesNotExist:
             return Response({"error": "Invalid email or user does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -170,10 +175,38 @@ class LoginLogoutView(APIView):
 
         # Track attendance
         today = now().date()
-        attendance, _ = Attendance.objects.get_or_create(user=user, date=today)
-        if not attendance.login_time:
-            attendance.login_time = now()
+        print('user ==<<>>', user)
+
+        user_data = User.objects.get(email= email)
+        if user.is_company:
+            try:
+                company = Company.objects.get(user_id=user.id, active=True)
+                company_id = company.id
+            except Company.DoesNotExist:
+                return Response({'error': 'Company not found or inactive.'}, status=404)
+
+        elif user.is_employee:
+            try:
+                employee = Employee.objects.get(user_id=user.id, active=True)
+                company_id = employee.company_id
+            except Employee.DoesNotExist:
+                return Response({'error': 'Employee not found or inactive.'}, status=404)
+
+        if not company_id:
+            return Response({'error': 'Could not determine company.'}, status=400)
+
+        # Create or get attendance
+        attendance, created = Attendance.objects.get_or_create(
+            user=user,
+            company_id=company_id,
+            date=today
+        )
+
+        if (not attendance.check_in):
+            print('attendance ==<<>>', attendance)
+            attendance.check_in = now()
             attendance.save()
+
 
         # Fetch role and flags
         role_data = Employee.objects.filter(company_email=email).values('role_id').first()
@@ -193,24 +226,28 @@ class LoginLogoutView(APIView):
             },
             "session": "User session created successfully"
         }, status=status.HTTP_200_OK)
+
+
     def delete(self, request):
         user = request.user if request.user.is_authenticated else None
-        email = getattr(user, 'email', 'Anonymous')
+        
         if not user:
-            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "User  not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
+        today = now().date()  # Use timezone-aware datetime
         try:
-            today = datetime.now().date()
+            # Fetch the attendance record for the current user and today's date
             attendance = Attendance.objects.get(user=user, date=today)
 
-            if not attendance.logout_time:
-                attendance.logout_time = datetime.now()
-                attendance.save()
-           
+            # Update the checkout time
+            attendance.check_out = now()  # Use timezone-aware datetime
+            attendance.save()
 
         except Attendance.DoesNotExist:
-            print(f'[ATTENDANCE] No attendance found for {user.email} on {today}')
+            print("No attendance record found for today.")
+            # Optionally, you can return a message indicating that no record was found
+            return Response({"message": "No attendance record found for today."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Log the user out
         logout(request)
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK)
-

@@ -11,6 +11,7 @@ const LeaveTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const employeesPerPage = 5;
   const [quickLinks, setQuickLinks] = useState([]);
+  const [comment, setComment] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -72,10 +73,11 @@ const LeaveTable = () => {
 
   const totalPages = Math.ceil(filteredLeaveRequests.length / employeesPerPage);
 
-  const handleApproveLeave = async (leaveId, type) => {
+  const handleApproveLeave = async (leaveId, type, commentText) => {
     const data = {
       status: type,
       leave_id: leaveId,
+      comment: commentText,
     };
 
     const res = await fetch(
@@ -175,6 +177,7 @@ const LeaveTable = () => {
                 <th className="p-3 border text-left">To</th>
                 <th className="p-3 border text-left">Reason</th>
                 <th className="p-3 border text-left">Attached Documents</th>
+                <th className="p-3 border text-left">Comments </th>
                 <th className="p-3 border text-left">Status</th>
                 <th className="p-3 border text-left">Actions</th>
               </tr>
@@ -217,6 +220,7 @@ const LeaveTable = () => {
                       onDeletedFiles={() => {}}
                     />
                   </td>
+                  <td className="p-3 border">{leave.comment || "—"}</td>
                   <td className="p-3 border">
                     {renderStatusBadge(leave.status)}
                   </td>
@@ -278,53 +282,76 @@ const LeaveTable = () => {
 
         {/* Modal for Approval/Rejection */}
         {modalOpen && selectedLeave && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] sm:w-[400px] relative">
-              <h3 className="text-xl font-semibold mb-4">Leave Action</h3>
-              <p className="mb-2">
-                <strong>Name:</strong>{" "}
-                {selectedLeave.username ||
-                  `${selectedLeave.employee?.first_name} ${selectedLeave.employee?.last_name}`}
-              </p>
-              <p className="mb-2">
-                <strong>Leave Type:</strong> {selectedLeave.leave_type}
-              </p>
-              <p className="mb-4">
-                <strong>Reason:</strong> {selectedLeave.reason}
-              </p>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() =>
-                    handleApproveLeave(
-                      selectedLeave.id,
-                      roleId === "2" ? "HR Approved" : "Admin Approved"
-                    )
-                  }
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() =>
-                    handleApproveLeave(
-                      selectedLeave.id,
-                      roleId === "2" ? "HR Rejected" : "Admin Rejected"
-                    )
-                  }
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={() => setModalOpen(false)}
-                  className="ml-2 px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+  <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50">
+    <div className="bg-white rounded-xl shadow-xl p-6 w-[90%] sm:w-[400px] relative space-y-4">
+      <h3 className="text-xl font-semibold text-gray-800">Leave Action</h3>
+
+      <div className="space-y-2 text-sm text-gray-700">
+        <p>
+          <strong>Name:</strong>{" "}
+          {selectedLeave.username ||
+            `${selectedLeave.employee?.first_name} ${selectedLeave.employee?.last_name}`}
+        </p>
+        <p>
+          <strong>Leave Type:</strong> {selectedLeave.leave_type}
+        </p>
+        <p>
+          <strong>Reason:</strong> {selectedLeave.reason}
+        </p>
+      </div>
+
+      {/* Comments Field */}
+      <div>
+        <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-1">
+          Comments (Optional)
+        </label>
+        <textarea
+          id="comment"
+          rows={4}
+          className="w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+          placeholder="Write your comment here..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2 pt-2">
+        <button
+          onClick={() =>
+            handleApproveLeave(
+              selectedLeave.id,
+              roleId === "2" ? "HR Approved" : "Admin Approved",
+              comment
+            )
+          }
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow"
+        >
+          Approve
+        </button>
+        <button
+          onClick={() =>
+            handleApproveLeave(
+              selectedLeave.id,
+              roleId === "2" ? "HR Rejected" : "Admin Rejected",
+              comment
+            )
+          }
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded shadow"
+        >
+          Reject
+        </button>
+        <button
+          onClick={() => setModalOpen(false)}
+          className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       </div>
     </div>
   );

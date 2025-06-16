@@ -95,10 +95,15 @@ const EmployeeTable = () => {
 
 
   const toggleEmployeeStatus = async (id, currentStatus) => {
-    const action = currentStatus ? "Activate" : "Deactivate";
+    const newStatus = !currentStatus;
+    console.log('newStatus ==<<>>', newStatus);
+  
+    const action = newStatus === true ? "Activate"  : "Deactivate" ; 
+    console.log('action ==<<>', action);
+  
     const result = await Swal.fire({
       title: `Are you sure you want to ${action}?`,
-      text: `This will ${currentStatus ? "activate" : "deactivate"} the employee.`,
+      text: `This will ${action.toLowerCase()} the employee.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: `Yes, ${action.toLowerCase()}!`,
@@ -114,7 +119,7 @@ const EmployeeTable = () => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ active: !currentStatus }),
+          body: JSON.stringify({ active: newStatus }), 
         });
   
         if (res.ok) {
@@ -129,6 +134,7 @@ const EmployeeTable = () => {
       }
     }
   };
+  
   
 
   const currentEmployees = employees.slice(
@@ -323,7 +329,6 @@ const EmployeeTable = () => {
         )}
 
         {/* Table */}
-       {/* Table */}
 <div className="overflow-x-auto p-4 bg-white mx-4 rounded-b-xl shadow-lg">
   {loading ? (
     <div className="p-6 text-center text-gray-500">
@@ -383,11 +388,11 @@ const EmployeeTable = () => {
                     <button
                       onClick={() => toggleEmployeeStatus(emp.id, emp.active)}
                       className={`px-3 py-1 rounded-full text-white font-semibold text-xs transition-colors duration-200 shadow-md
-                        ${emp.active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}
+                        ${emp.active ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600' }
                       `}
-                      title={emp.active ? "Deactivate Employee" : "Activate Employee"}
+                      title={emp.active ? "Activate Employee" : "Deactivate Employee"}
                     >
-                      {emp.active ? "Deactivate" : "Activate"}
+                      {emp.active ? 'Activate' : 'Deactivate'}
                     </button>
                   </>
                 )}

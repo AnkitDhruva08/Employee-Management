@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, Employee, Notification, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, AdminDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar,TaskStatusTags
+from .models import AttendanceSession, Company, Employee, Notification, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, AdminDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar,TaskStatusTags
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -202,16 +202,39 @@ class HolidaysSerializer(serializers.ModelSerializer):
 
 
 # Serializer for the Attendance model
+class AttendanceSessionSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    duration_hours = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AttendanceSession
+        fields = '__all__'
+        read_only_fields = ['user', 'company', 'is_active', 'duration']
+
+    def get_duration_hours(self, obj):
+        if obj.duration():
+            total_seconds = obj.duration().total_seconds()
+            hours = total_seconds / 3600
+            return round(hours, 2)
+        return None
 
 class AttendanceSerializer(serializers.ModelSerializer):
-    duration = serializers.SerializerMethodField()
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    company_name = serializers.CharField(source='company.name', read_only=True)
+    total_duration_hours = serializers.SerializerMethodField()
 
     class Meta:
         model = Attendance
-        fields = ['date', 'login_time', 'logout_time', 'duration']
+        fields = '__all__'
+        read_only_fields = ['user', 'company', 'total_duration']
 
-    def get_duration(self, obj):
-        return str(obj.duration) if obj.duration else None
+    def get_total_duration_hours(self, obj):
+        if obj.total_duration:
+            total_seconds = obj.total_duration.total_seconds()
+            hours = total_seconds / 3600
+            return round(hours, 2)
+        return None
 
 
 

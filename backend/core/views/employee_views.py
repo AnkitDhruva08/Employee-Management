@@ -1,3 +1,4 @@
+import json
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -64,7 +65,7 @@ class EmployeeViewSet(APIView):
                 return Response(data, status=200)
 
             # --- CASE 2: Company/HR/Admin fetching all employees ---
-            if is_company or role_id in [1, 2]:
+            if is_company or role_id in [1, 2, 3]:
 
                 employees = Employee.objects.filter(
                     company_id=company_id
@@ -237,11 +238,16 @@ class EmployeeViewSet(APIView):
 
     def patch(self, request, pk=None):
         try:
-            employee = get_object_or_404(Employee, pk=pk)
+            print('data comming form frontend ==<<>', request.data)
+            employee = Employee.objects.get(id=pk)
             user = get_object_or_404(User, id=employee.user_id)
+            user = get_object_or_404(User, id=employee.user_id)
+            print('ankit')
+            
 
             # Get 'active' from request body
             new_status = request.data.get('active')
+            print('new_status ==<>>>', new_status)
             if new_status is None:
                 return Response({'error': 'Missing active status'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -481,7 +487,14 @@ class EmployeeDocumentUploadView(APIView):
                 serializer.save()
                 return Response({'success': 'Employee document uploaded successfully.'}, status=status.HTTP_201_CREATED)
             else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                first_field = next(iter(serializer.errors))
+                # Get the first error message for that field
+                first_error = serializer.errors[first_field][0]
+
+                # Log (optional)
+                print("Validation Error:", first_error)
+
+                return Response({'error' : first_error}, status=status.HTTP_400_BAD_REQUEST)
 
         except Employee.DoesNotExist:
             return Response({'error': 'Employee not found'}, status=status.HTTP_404_NOT_FOUND)

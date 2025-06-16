@@ -278,6 +278,7 @@ export default function OfficeDocumentsForm({ onNext, onPrev }) {
 
       if (!response.ok) {
         const errData = await response.json();
+        
         const detailedError = errData?.error;
         Swal.fire({
           icon: 'error',

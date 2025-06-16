@@ -446,6 +446,7 @@ const LeaveRequest = () => {
           <th className="px-4 py-2 border">Duration</th>
           <th className="px-4 py-2 border">Reason</th>
           <th className="px-4 py-2 border">Attached Documents</th>
+          <th className="px-4 py-2 border">Comments</th>
           <th className="px-4 py-2 border">Status</th>
         </tr>
       </thead>
@@ -486,6 +487,7 @@ const LeaveRequest = () => {
                       onDeletedFiles={() => {}}
                     />
                   </td>
+                  <td className="px-4 py-2 border">{leave.comment}</td>
                   <td
                     className={`px-4 py-2 border text-center font-medium ${getStatusColor(
                       getStatusText(leave)

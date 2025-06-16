@@ -23,6 +23,7 @@ import EmployeeTasksToday from './pages/EmployeeTasksToday';
 import ProjectCreationModal from './components/modal/ProjectCreationModal';
 import Notification from './pages/Notification';
 import CreateTask from './pages/Create-Task';
+import Messaging from './pages/Messaging';
 function App() {
   return (
     <Router>
@@ -57,6 +58,7 @@ function App() {
         <Route path="/project-modal" element={<ProjectCreationModal />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/notification/:id" element={<Notification />} />
+        <Route path="/messaging" element={<Messaging />} />
 
       </Routes>
     </Router>
