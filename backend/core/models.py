@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.utils.timezone import now
 from django.core.validators import FileExtensionValidator
+from django.contrib.postgres.fields import JSONField  
 
 # Custom user model to differentiate companies and employees
 
@@ -369,19 +370,53 @@ class AttendanceSession(models.Model):
         return None
 
 
+# class Attendance(models.Model):
+#     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
+#     company = models.ForeignKey(Company, on_delete=models.CASCADE)
+#     date = models.DateField(default=now)
+#     check_in = models.DateTimeField(null=True, blank=True)
+#     check_out = models.DateTimeField(null=True, blank=True)
+#     total_duration = models.DurationField(default=timedelta)
+#     status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
+#     active = models.BooleanField(default=True) 
+#     created_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="attendance_created_by")
+#     updated_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="attendance_updated_by")
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+
+
+
 class Attendance(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     date = models.DateField(default=now)
-    check_in = models.DateTimeField(null=True, blank=True)
-    check_out = models.DateTimeField(null=True, blank=True)
+
+    # JSON log for storing multiple check-in/out
+    time_logs = models.JSONField(default=list) 
+
     total_duration = models.DurationField(default=timedelta)
     status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
-    active = models.BooleanField(default=True) 
+    active = models.BooleanField(default=True)
     created_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="attendance_created_by")
     updated_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="attendance_updated_by")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def calculate_total_duration(self):
+        total = timedelta()
+        for entry in self.time_logs:
+            try:
+                check_in = models.DateTimeField().to_python(entry.get("check_in"))
+                check_out = models.DateTimeField().to_python(entry.get("check_out"))
+                if check_in and check_out:
+                    total += (check_out - check_in)
+            except Exception:
+                continue
+        return total
+
+    def save(self, *args, **kwargs):
+        self.total_duration = self.calculate_total_duration()
+        super().save(*args, **kwargs)
 
     
 

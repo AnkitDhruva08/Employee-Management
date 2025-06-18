@@ -113,7 +113,6 @@ const Projects = () => {
       if (id) {
         // If ID is present in the URL, fetch only that specific project
         const projectData = await fetchProjectById(token, id);
-        console.log('projectData ==>>', projectData) 
         setProjects([projectData]);
         setTotalCount(1);
         setSelectedProjectId(projectData.id);

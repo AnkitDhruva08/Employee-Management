@@ -17,6 +17,8 @@ from django.core.mail import send_mail
 from django.conf import settings
 import traceback
 from django.utils.timezone import now
+from datetime import timedelta
+import json
 # User Model
 User = get_user_model() 
 
@@ -141,7 +143,7 @@ class CompanyRegisterView(APIView):
 
 class LoginLogoutView(APIView):
     """
-    Handles login (POST) and logout (DELETE), and tracks attendance.
+    Handles login (POST) and logout (DELETE), and tracks attendance using time_logs.
     """
 
     def post(self, request):
@@ -155,39 +157,26 @@ class LoginLogoutView(APIView):
 
         try:
             user = User.objects.get(email=email)
-            print('')
-            is_active = user.is_active
-            print('is_active ==<<>>', is_active)
             if not user.is_active:
                 return Response({"error": "This account has been deleted"}, status=status.HTTP_403_FORBIDDEN)
-
         except User.DoesNotExist:
             return Response({"error": "Invalid email or user does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-
-        # Authenticate using email
         user = authenticate(request, email=email, password=password)
-        print('')
         if not user:
             return Response({"error": "Invalid password"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # Login and generate JWT
         login(request, user)
         refresh = RefreshToken.for_user(user)
 
-        # Track attendance
         today = now().date()
-        print('user ==<<>>', user)
 
-
-        user_data = User.objects.get(email= email)
         if user.is_company:
             try:
                 company = Company.objects.get(user_id=user.id, active=True)
                 company_id = company.id
             except Company.DoesNotExist:
                 return Response({'error': 'Company not found or inactive.'}, status=404)
-
         elif user.is_employee:
             try:
                 employee = Employee.objects.get(user_id=user.id, active=True)
@@ -196,41 +185,30 @@ class LoginLogoutView(APIView):
             except Employee.DoesNotExist:
                 return Response({'error': 'Employee not found or inactive.'}, status=404)
 
-        if not company_id:
-            return Response({'error': 'Could not determine company.'}, status=400)
-
-     
-
         if not user.is_company:
-            try:
-                employee = Employee.objects.get(user_id=user.id, active=True)
-                company = Company.objects.get(id=employee.company_id, active=True)
+            employee = Employee.objects.get(user_id=user.id, active=True)
+            company = Company.objects.get(id=employee.company_id, active=True)
 
-                attendance, created = Attendance.objects.get_or_create(
-                    employee=employee,
-                    company=company, 
-                    date=today
-                )
+            attendance, created = Attendance.objects.get_or_create(
+                employee=employee,
+                company=company,
+                date=today
+            )
 
-                if not attendance.check_in:
-                    attendance.check_in = now()
-                    attendance.save()
+            logs = attendance.time_logs or []
+            logs.append({"check_in": now().isoformat()})
+            attendance.time_logs = logs
+            attendance.save()
 
-            except (Employee.DoesNotExist, Company.DoesNotExist):
-                return Response({'error': 'Employee or company not found or inactive.'}, status=404)
-
-        # Fetch role and flags
         role_data = Employee.objects.filter(company_email=email).values('role_id').first()
         role_id = role_data['role_id'] if role_data else None
-        is_company = user.is_company
-        is_superuser = user.is_superuser
 
         return Response({
             "message": "Login successful!",
             "status": 200,
             "role_id": role_id,
-            "is_company": is_company,
-            "is_superuser": is_superuser,
+            "is_company": user.is_company,
+            "is_superuser": user.is_superuser,
             "tokens": {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh)
@@ -238,31 +216,44 @@ class LoginLogoutView(APIView):
             "session": "User session created successfully"
         }, status=status.HTTP_200_OK)
 
-
     def delete(self, request):
-        user = request.user if request.user.is_authenticated else None 
-
-        email = request.user.email
-        user_data = User.objects.get(email=email)
+        user = request.user if request.user.is_authenticated else None
 
         if not user:
             return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
         today = now().date()
 
-  
-            # Get today's attendance for the logged-in user
-        if(not user_data.is_company):
-                try:
-                    emp_data = Employee.objects.get(user_id=user_data.id)
-                    empployee_id = emp_data.id
-                    attendance = Attendance.objects.get(employee=empployee_id, date=today)
-                    attendance.check_out = now()
-                    attendance.save()
+        if not user.is_company:
+            try:
+                emp_data = Employee.objects.get(user_id=user.id, active=True)
+                attendance = Attendance.objects.get(employee=emp_data, date=today)
 
-                except Attendance.DoesNotExist:
-                    return Response({"message": "No attendance record found for today."}, status=status.HTTP_404_NOT_FOUND)
+                logs = attendance.time_logs or []
+                # Find last log with no check_out
+                for entry in reversed(logs):
+                    if "check_in" in entry and "check_out" not in entry:
+                        entry["check_out"] = now().isoformat()
+                        break
+                else:
+                    logs.append({"check_out": now().isoformat()})
 
-        # Logout the user regardless of check_out state
+                attendance.time_logs = logs
+
+                # Calculate total_duration from all complete sessions
+                total = timedelta()
+                for entry in logs:
+                    if "check_in" in entry and "check_out" in entry:
+                        check_in = now().fromisoformat(entry["check_in"])
+                        check_out = now().fromisoformat(entry["check_out"])
+                        total += check_out - check_in
+
+                attendance.total_duration = total
+                attendance.save()
+
+            except (Employee.DoesNotExist, Attendance.DoesNotExist):
+                return Response({"message": "No attendance record found for today."}, status=status.HTTP_404_NOT_FOUND)
+
         logout(request)
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK)
+

@@ -95,7 +95,6 @@ const BugTracker = () => {
       setProjects(projects.results);
 
       const employeesData = await fetchEmployees(token);
-      console.log('employeesData ==<<>', employeesData)
       setEmployees(
         Array.isArray(employeesData) ? employeesData : [employeesData]
       );
@@ -111,7 +110,6 @@ const BugTracker = () => {
           selectedProjectId || ""
         );
 
-        console.log('bugsData ==<<>.', bugsData)
         setBugs(bugsData);
       }
     } catch (err) {
@@ -526,12 +524,11 @@ const BugTracker = () => {
         status: bug.status,
         priority: bug.priority,
         description: bug.description,
-        resolutionComments: bug.resolution_comments || "", // Populate comments
+        resolutionComments: bug.resolution_comments || "",
         bugAttachment: bug.bug_attachment || null,
         assignedTo: bug.assigned_to
           ? bug.assigned_to
               .map((id) => {
-                console.log("employees ==<<<>", employees);
                 const emp = (
                   Array.isArray(employees) ? employees : [employees]
                 ).find((e) => e.id === id);

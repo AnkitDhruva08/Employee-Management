@@ -2,8 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_datetime
+from datetime import timedelta
+
 from core.models import Attendance, AttendanceSession, User, Company, Employee
-from core.serializers import AttendanceSerializer, AttendanceSessionSerializer
 from core.utils.filter_utils import apply_common_filters
 
 
@@ -12,8 +14,6 @@ class AttendanceView(APIView):
 
     def get(self, request, *args, **kwargs):
         email = request.user.email
-        print('Requesting user email:', email)
-        user_name = ''
         role_id = None
         employee_id = None
 
@@ -22,7 +22,7 @@ class AttendanceView(APIView):
         except User.DoesNotExist:
             return Response({'error': 'User not found or inactive.'}, status=404)
 
-        # Determine company_id and employee details
+        # Determine company_id
         company_id = None
         if user_data.is_company:
             try:
@@ -30,7 +30,6 @@ class AttendanceView(APIView):
                 company_id = company.id
             except Company.DoesNotExist:
                 return Response({'error': 'Company not found or inactive.'}, status=404)
-
         elif user_data.is_employee:
             try:
                 employee = Employee.objects.get(user_id=user_data.id, active=True)
@@ -43,35 +42,49 @@ class AttendanceView(APIView):
         if not company_id:
             return Response({'error': 'Company ID could not be determined.'}, status=400)
 
-        print('Resolved company_id:', company_id)
-        print('role_id ==<<>', role_id)
-
-        # Build the base queryset
         attendance_queryset = Attendance.objects.filter(company_id=company_id).select_related('employee')
 
-        # If not company user and not admin/manager, restrict to own attendance only
+        # Restrict to personal records for normal employees
         if not user_data.is_company and role_id not in [1, 2]:
             attendance_queryset = attendance_queryset.filter(employee_id=employee_id)
 
-        # Apply additional filters (like month/year from request)
+        # Apply date filters
         attendance_queryset = apply_common_filters(attendance_queryset, request)
 
-        # Build attendance data response
         attendance_data = []
         for record in attendance_queryset:
             employee = record.employee
-            if employee and employee.active:
-                user_name = f"{employee.first_name} {employee.last_name}"
-                attendance_data.append({
-                    "attendance_id": record.id,
-                    "employee_id": employee.id,
-                    "user_name": user_name,
-                    "date": record.date,
-                    "check_in": record.check_in,
-                    "check_out": record.check_out,
-                    "status": record.status,
-                })
-                print(f"User: {user_name}, Date: {record.date}, Status: {record.status}")
+            if not employee or not employee.active:
+                continue
+
+            logs = record.time_logs or []
+            first_check_in = None
+            last_check_out = None
+            total_duration = timedelta()
+
+            for log in logs:
+                check_in = parse_datetime(log.get("check_in")) if "check_in" in log else None
+                check_out = parse_datetime(log.get("check_out")) if "check_out" in log else None
+
+                if check_in and not first_check_in:
+                    first_check_in = check_in
+                if check_out:
+                    last_check_out = check_out
+                if check_in and check_out:
+                    total_duration += (check_out - check_in)
+
+            user_name = f"{employee.first_name} {employee.last_name}"
+            attendance_data.append({
+                "attendance_id": record.id,
+                "employee_id": employee.id,
+                "user_name": user_name,
+                "date": record.date,
+                "first_check_in": first_check_in,
+                "last_check_out": last_check_out,
+                "time_logs": logs,
+                "total_duration_hours": round(total_duration.total_seconds() / 3600, 2),
+                "status": record.status,
+            })
 
         if not attendance_data:
             return Response({'message': 'No attendance data found.'}, status=200)

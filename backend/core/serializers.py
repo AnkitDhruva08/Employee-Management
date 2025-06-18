@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import AttendanceSession, Company, Employee, Notification, Role, Event, Holiday, LeaveRequest, BankDetails,NomineeDetails,EmployeeDocument, EmergencyContact, OfficeDetails, CompanyDashboardLink, EmployeeDashboardLink, HrDashboardLink, AdminDashboardLink, Attendance, Project, Bug,Task, TaskSideBar, ProjectSideBar,TaskStatusTags
 from django.contrib.auth import get_user_model
+import json
+from datetime import timedelta
+
 
 User = get_user_model()
 
@@ -219,22 +222,52 @@ class AttendanceSessionSerializer(serializers.ModelSerializer):
             return round(hours, 2)
         return None
 
+# class AttendanceSerializer(serializers.ModelSerializer):
+#     user_name = serializers.CharField(source='user.username', read_only=True)
+#     company_name = serializers.CharField(source='company.name', read_only=True)
+#     total_duration_hours = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = Attendance
+#         fields = '__all__'
+#         read_only_fields = ['user', 'company', 'total_duration']
+
+#     def get_total_duration_hours(self, obj):
+#         if obj.total_duration:
+#             total_seconds = obj.total_duration.total_seconds()
+#             hours = total_seconds / 3600
+#             return round(hours, 2)
+#         return None
+
+
+
 class AttendanceSerializer(serializers.ModelSerializer):
-    user_name = serializers.CharField(source='user.username', read_only=True)
+    user_name = serializers.CharField(source='employee.user.username', read_only=True)
     company_name = serializers.CharField(source='company.name', read_only=True)
     total_duration_hours = serializers.SerializerMethodField()
+    time_logs = serializers.JSONField()  # Read/write JSON logs
 
     class Meta:
         model = Attendance
         fields = '__all__'
-        read_only_fields = ['user', 'company', 'total_duration']
+        read_only_fields = ['employee', 'company', 'total_duration']
 
     def get_total_duration_hours(self, obj):
         if obj.total_duration:
             total_seconds = obj.total_duration.total_seconds()
             hours = total_seconds / 3600
             return round(hours, 2)
-        return None
+        return 0.0
+
+    def to_representation(self, instance):
+        """Ensure time_logs are parsed as JSON (if stored as string in fallback DBs)."""
+        representation = super().to_representation(instance)
+        if isinstance(instance.time_logs, str):
+            try:
+                representation['time_logs'] = json.loads(instance.time_logs)
+            except json.JSONDecodeError:
+                representation['time_logs'] = []
+        return representation
 
 
 

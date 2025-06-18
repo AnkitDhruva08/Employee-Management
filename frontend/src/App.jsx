@@ -53,8 +53,9 @@ function App() {
         <Route path="/bugs-reportes" element={<BugTracker />} />
         <Route path="/bugs-reportes/:id" element={<BugTracker />} />
         <Route path="/employee-task-today" element={<EmployeeTasksToday />} />
+        <Route path="/task-dashboard/:id" element={<TaskDahboard />} />
         <Route path="/task-dashboard" element={<TaskDahboard />} />
-        <Route path="//create-task" element={<CreateTask />} />
+        <Route path="/create-task" element={<CreateTask />} />
         <Route path="/project-modal" element={<ProjectCreationModal />} />
         <Route path="/notifications" element={<Notification />} />
         <Route path="/notification/:id" element={<Notification />} />

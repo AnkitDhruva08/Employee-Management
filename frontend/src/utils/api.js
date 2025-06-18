@@ -200,6 +200,17 @@ export const fecthTasks = async (token, tag = "", employee = "",
 
   return await handleResponse(res);
 };
+
+
+// fecth task based on id
+export const fetchTaskById = async (token, task_id) => {
+  const res = await fetch(`${API_BASE_URL}/task-management/${task_id}/`, {
+    method: "GET",
+    headers: getAuthHeaders(token),
+  });
+  const data = await handleResponse(res);
+  return data;
+};
 //  function for fetch the bugs reports 
 export const fetchProjectSidebar = async (token) => {
   const res = await fetch(`${API_BASE_URL}/project-sidebar/`, {
@@ -358,19 +369,61 @@ const getAvatarUrl = async (memberId) => {
 };
 
 // Main function to generate task cards
+// export const generateTaskCards = async (taskData, tagList, filterEmployeeId) => {
+//   const allCards = [];
+
+//   for (const task of taskData) {
+//     const memberNames = task.member_names.split(',').map(name => name.trim());
+
+//     for (let i = 0; i < task.members.length; i++) {
+//       const memberId = task.members[i];
+
+//       // ✅ Skip if filtering and this memberId doesn't match
+//       if (filterEmployeeId && parseInt(filterEmployeeId) !== memberId) {
+//         continue;
+//       }
+
+//       const name = memberNames[i] || `Member ${memberId}`;
+//       const avatar = await getAvatarUrl(memberId);
+
+//       const matchedTag = tagList.find(tag => tag.id === task.status);
+//       const tagName = matchedTag ? matchedTag.name : "Unknown";
+
+//       const card = {
+//         id: task.id,
+//         employee: name,
+//         memberId,
+//         avatar,
+//         title: task.task_name,
+//         description: task.description.replace(/<\/?[^>]+(>|$)/g, ""),
+//         date: new Date(task.created_at).toISOString().split('T')[0],
+//         tags: [tagName],
+//       };
+
+//       allCards.push(card);
+//     }
+//   }
+
+//   return allCards;
+// };
+
 export const generateTaskCards = async (taskData, tagList, filterEmployeeId) => {
   const allCards = [];
 
-  for (const task of taskData) {
-    const memberNames = task.member_names.split(',').map(name => name.trim());
+  // 🔒 Handle null/undefined or non-array data
+  if (!taskData) return allCards;
+
+  // 👇 Normalize to array if it's a single task object
+  const tasks = Array.isArray(taskData) ? taskData : [taskData];
+
+  for (const task of tasks) {
+    const memberNames = task.member_names?.split(',').map(name => name.trim()) || [];
 
     for (let i = 0; i < task.members.length; i++) {
       const memberId = task.members[i];
 
-      // ✅ Skip if filtering and this memberId doesn't match
-      if (filterEmployeeId && parseInt(filterEmployeeId) !== memberId) {
-        continue;
-      }
+      // ✅ Skip if filter is applied and this member doesn't match
+      if (filterEmployeeId && parseInt(filterEmployeeId) !== memberId) continue;
 
       const name = memberNames[i] || `Member ${memberId}`;
       const avatar = await getAvatarUrl(memberId);
@@ -384,7 +437,7 @@ export const generateTaskCards = async (taskData, tagList, filterEmployeeId) => 
         memberId,
         avatar,
         title: task.task_name,
-        description: task.description.replace(/<\/?[^>]+(>|$)/g, ""),
+        description: task.description?.replace(/<\/?[^>]+(>|$)/g, "") || "",
         date: new Date(task.created_at).toISOString().split('T')[0],
         tags: [tagName],
       };
@@ -395,6 +448,7 @@ export const generateTaskCards = async (taskData, tagList, filterEmployeeId) => 
 
   return allCards;
 };
+
 
 
 
@@ -419,8 +473,6 @@ export const fetchEmployeesAttendance = async (
   if (specificDate) url.searchParams.append("specific_date", specificDate);
   if (startDate) url.searchParams.append("start_date", startDate);
   if (endDate) url.searchParams.append("end_date", endDate);
-
-  console.log("Fetching attendance from URL:", url.toString());
 
   const res = await fetch(url.toString(), {
     method: "GET",

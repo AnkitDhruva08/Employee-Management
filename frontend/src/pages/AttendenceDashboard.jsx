@@ -40,6 +40,7 @@ const Attendance = () => {
   const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [dateFilter, setDateFilter] = useState({ type: "", date: "", start: "", end: "" });
   const [loading, setLoading] = useState(false);
+  const [expandedRowId, setExpandedRowId] = useState(null);
 
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
@@ -89,12 +90,15 @@ const Attendance = () => {
       if (attData && attData.data) {
         const processedAttendance = attData.data.map(record => ({
           ...record,
-          totalHours: calculateDuration(record.check_in, record.check_out)
+          totalHours: record.total_duration_hours || 0,
+          check_in: record.first_check_in,
+          check_out: record.last_check_out,
+          timeLogs: record.time_logs || [],
         }));
         setAttendanceRecords(processedAttendance);
       } else {
         setAttendanceRecords([]);
-        Swal.fire("message", attData.message);
+        Swal.fire("Message", attData.message || "No records found.");
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -113,6 +117,12 @@ const Attendance = () => {
     return employees.find(emp => String(emp.id) === String(id));
   };
 
+  const formatTime = (datetime) => {
+    return datetime
+      ? new Date(datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+      : 'N/A';
+  };
+
   const handleExportExcel = () => {
     const formattedData = attendanceRecords.map((record, index) => ({
       "Sr No.": index + 1,
@@ -121,6 +131,7 @@ const Attendance = () => {
       "Check-In": record.check_in ? new Date(record.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
       "Check-Out": record.check_out ? new Date(record.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
       "Hours Spent": record.totalHours || "0.00",
+      "Total Sessions": record.timeLogs.length,
       Status: record.status || "",
     }));
 
@@ -133,25 +144,7 @@ const Attendance = () => {
     saveAs(blob, "Attendance.xlsx");
   };
 
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
-    doc.text("Attendance Report", 14, 10);
-    const tableData = attendanceRecords.map((record, index) => [
-      index + 1,
-      record.user_name,
-      record.date,
-      record.check_in ? new Date(record.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
-      record.check_out ? new Date(record.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
-      `${record.totalHours} hrs`,
-      record.status,
-    ]);
 
-    doc.autoTable({
-      head: [["#", "Employee", "Date", "Check-In", "Check-Out", "Hours", "Status"]],
-      body: tableData,
-    });
-    doc.save("Attendance.pdf");
-  };
 
   const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
@@ -170,14 +163,6 @@ const Attendance = () => {
       label: emp.username,
       value: emp.id,
     })),
-  ];
-
-  const statusOptions = [
-    { label: "All Status", value: "all" },
-    { label: "Present", value: "present" },
-    { label: "Absent", value: "absent" },
-    { label: "Holiday", value: "holiday" },
-    { label: "Leave", value: "leave" },
   ];
 
   const getAttendanceChartData = () => {
@@ -232,6 +217,10 @@ const Attendance = () => {
     };
   };
 
+  const toggleRow = (id) => {
+    setExpandedRowId(expandedRowId === id ? null : id);
+  };
+
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <aside className="bg-gray-800 text-white w-64 p-6">
@@ -248,26 +237,26 @@ const Attendance = () => {
 
       <div className="flex-1 flex flex-col">
         <Header title="Employee Attendance" />
-        <div className="flex flex-col h-screen  text-blue-500 p-4">
+        <div className="flex flex-col h-screen text-blue-500 p-4">
           <header className="bg-white p-4 rounded-lg shadow-xl mb-4 flex justify-between items-center text-blue-500 border-gray-200">
             <nav className="flex space-x-4">
               <button
                 className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
-      ${activeTab === "attendance" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
+                  ${activeTab === "attendance" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
                 onClick={() => setActiveTab("attendance")}
               >
                 Attendance
               </button>
               <button
                 className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
-      ${activeTab === "salary" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
+                  ${activeTab === "salary" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
                 onClick={() => setActiveTab("salary")}
               >
                 Salary Calculation
               </button>
               <button
                 className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
-      ${activeTab === "report" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
+                  ${activeTab === "report" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
                 onClick={() => setActiveTab("report")}
               >
                 Employee Reports
@@ -381,15 +370,7 @@ const Attendance = () => {
                         </svg>
                         Export Excel
                       </button>
-                      <button
-                        onClick={handleExportPDF}
-                        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                          <path d="M19 11H5m14 0a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 012-2m7 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6a2 2 0 00-2 2v2z" />
-                        </svg>
-                        Export PDF
-                      </button>
+                
                     </div>
                   </div>
 
@@ -421,11 +402,21 @@ const Attendance = () => {
                         <table className="min-w-full text-sm text-gray-700">
                           <thead className="bg-blue-50 text-gray-600 uppercase text-xs tracking-wider">
                             <tr>
-                              {["Employee", "Date", "Check-In", "Check-Out", "Hours Spent", "Status"].map((head, i) => (
+                              {[
+                                "Employee",
+                                "Date",
+                                "First Check-In",
+                                "Last Check-Out",
+                                "Hours Spent",
+                                "Sessions",
+                                "Status",
+                                "Details",
+                              ].map((head, i) => (
                                 <th
                                   key={i}
-                                  className={`px-6 py-4 text-left  ${i === 0 ? "rounded-tl-lg" : i === 5 ? "rounded-tr-lg" : ""
-                                    }`}
+                                  className={`px-6 py-4 text-left ${
+                                    i === 0 ? "rounded-tl-lg" : i === 7 ? "rounded-tr-lg" : ""
+                                  }`}
                                 >
                                   {head}
                                 </th>
@@ -435,64 +426,112 @@ const Attendance = () => {
                           <tbody className="divide-y divide-gray-100">
                             {[...attendanceRecords]
                               .sort((a, b) => new Date(a.date) - new Date(b.date))
-                              .map(record => {
-                                const employee = getEmployeeById(record.employeeId);
+                              .map((record) => {
+                                const employee = getEmployeeById(record.employee_id);
                                 return (
-                                  <tr
-                                    key={`${record.attendance_id}-${record.date}`}
-                                    className="hover:bg-blue-50 transition-all duration-150"
-                                  >
-                                    <td className="px-6 py-4">
-                                      <div className="flex items-center">
-                                        <img
-                                          className="h-9 w-9 rounded-full object-cover mr-3"
-                                          src={
-                                            employee?.avatar ||
-                                            `https://placehold.co/40x40/6366F1/FFFFFF?text=${record.user_name?.substring(0, 2)}`
-                                          }
-                                          alt={record.user_name}
-                                        />
-                                        <span className="px-6 py-4">{record.user_name}</span>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4">{record.date}</td>
-                                    <td className="px-6 py-4">
-                                      {record.check_in
-                                        ? new Date(record.check_in).toLocaleTimeString([], {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                          hour12: true,
-                                        })
-                                        : "N/A"}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                      {record.check_out
-                                        ? new Date(record.check_out).toLocaleTimeString([], {
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                          hour12: true,
-                                        })
-                                        : "N/A"}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                      <span className="bg-purple-700 text-purple-100 px-2 py-1 rounded-full text-xs font-semibold">
-                                        {record.totalHours} hrs
-                                      </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${record.status === 'present' ? 'bg-green-100 text-green-800' :
-                                          record.status === 'absent' ? 'bg-red-100 text-red-800' :
-                                            'bg-gray-100 text-gray-800'
-                                        }`}>
-                                        {record.status}
-                                      </span>
-                                    </td>
-                                  </tr>
+                                  <React.Fragment key={`${record.attendance_id}-${record.date}`}>
+                                    <tr
+                                      className="hover:bg-blue-50 transition-all duration-150"
+                                    >
+                                      <td className="px-6 py-4">
+                                        <div className="flex items-center">
+                                          <img
+                                            className="h-9 w-9 rounded-full object-cover mr-3"
+                                            src={
+                                              employee?.avatar ||
+                                              `https://placehold.co/40x40/6366F1/FFFFFF?text=${record.user_name?.substring(
+                                                0,
+                                                2
+                                              )}`
+                                            }
+                                            alt={record.user_name}
+                                          />
+                                          <span>{record.user_name}</span>
+                                        </div>
+                                      </td>
+                                      <td className="px-6 py-4">{record.date}</td>
+                                      <td className="px-6 py-4">{formatTime(record.check_in)}</td>
+                                      <td className="px-6 py-4">{formatTime(record.check_out)}</td>
+                                      <td className="px-6 py-4">
+                                        <span className="bg-purple-700 text-purple-100 px-2 py-1 rounded-full text-xs font-semibold">
+                                          {record.totalHours} hrs
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4">
+                                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                          {record.timeLogs.length}
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4">
+                                        <span
+                                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                            record.status === "Present"
+                                              ? "bg-green-100 text-green-800"
+                                              : record.status === "Absent"
+                                              ? "bg-red-100 text-red-800"
+                                              : "bg-gray-100 text-gray-800"
+                                          }`}
+                                        >
+                                          {record.status}
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 text-center">
+                                        {record.timeLogs.length > 0 && (
+                                          <button
+                                            onClick={() => toggleRow(record.attendance_id)}
+                                            className="text-indigo-600 hover:text-indigo-900 focus:outline-none"
+                                          >
+                                            {expandedRowId === record.attendance_id ? (
+                                              <svg className="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path></svg>
+                                            ) : (
+                                              <svg className="w-5 h-5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            )}
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                    {expandedRowId === record.attendance_id && (
+                                      <tr>
+                                        <td colSpan="8" className="p-4 bg-gray-50">
+                                          <div className="p-4 rounded-lg border border-gray-200">
+                                            <h4 className="font-semibold text-gray-800 mb-3">Individual Check-Ins & Check-Outs:</h4>
+                                            <div className="overflow-x-auto">
+                                              <table className="min-w-full text-xs text-gray-600 border border-gray-200 rounded-md">
+                                                <thead className="bg-gray-100">
+                                                  <tr>
+                                                    <th className="px-4 py-2 text-left">Session #</th>
+                                                    <th className="px-4 py-2 text-left">Check-In</th>
+                                                    <th className="px-4 py-2 text-left">Check-Out</th>
+                                                    <th className="px-4 py-2 text-left">Duration</th>
+                                                  </tr>
+                                                </thead>
+                                                <tbody>
+                                                  {record.timeLogs.map((log, index) => (
+                                                    <tr key={index} className="border-t border-gray-100">
+                                                      <td className="px-4 py-2">{index + 1}</td>
+                                                      <td className="px-4 py-2">{formatTime(log.check_in)}</td>
+                                                      <td className="px-4 py-2">{log.check_out ? formatTime(log.check_out) : 'N/A (Ongoing)'}</td>
+                                                      <td className="px-4 py-2">
+                                                        {log.check_in && log.check_out
+                                                          ? `${calculateDuration(log.check_in, log.check_out)} hrs`
+                                                          : 'N/A'}
+                                                      </td>
+                                                    </tr>
+                                                  ))}
+                                                </tbody>
+                                              </table>
+                                            </div>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </React.Fragment>
                                 );
                               })}
                           </tbody>
                         </table>
                       </div>
+
                     </>
                   )}
                 </div>

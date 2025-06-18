@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/header/Header";
 import CompanyLogo from "../components/CompanyLogo";
 import {
@@ -9,6 +9,8 @@ import {
   fecthTasks, 
   loadTaskTags,
   generateTaskCards,
+  fetchTaskById,
+  
 } from "../utils/api";
 import Swal from "sweetalert2";
 import Sidebar from "../components/sidebar/Sidebar";
@@ -41,6 +43,7 @@ const PIE_COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#e34a4a", "#4a8ee3", "#e34
 const BAR_COLORS = ["#4A90E2", "#50E3C2", "#F5A623", "#BD10E0"];
 
 export default function TaskDashboard() {
+  const {id:taskId} = useParams();
   const [filterTagId, setFilterTagId] = useState("");
   const [filterEmployeeId, setFilterEmployeeId] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
@@ -55,7 +58,10 @@ export default function TaskDashboard() {
   const [tasks, setTasks] = useState([]);
 
   const token = localStorage.getItem("token");
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company");
   const navigate = useNavigate();
+
 
   const fetchData = async () => {
     try {
@@ -69,20 +75,30 @@ export default function TaskDashboard() {
       setEmployees(emp);
 
       const tagList = await loadTaskTags(token);
-      console.log('tagList ==<<<>>', tagList)
       setTaskTags(tagList);
+      if (!taskId) {
+        const taskData = await fecthTasks(
+          token,
+          filterTagId,
+          filterEmployeeId,
+          filterStartDate,
+          filterEndDate,
+          filterMonth
+        );
+      
+      
+        const taskCards = await generateTaskCards(taskData, tagList, filterEmployeeId);
+        setTasks(taskCards);
+      } else {
+        const taskData = await fetchTaskById(token, taskId);
+      
+        // 👇 Wrap in array if fetchTaskById returns a single task object
+        const formattedData = Array.isArray(taskData) ? taskData : [taskData];
+      
+        const taskCards = await generateTaskCards(formattedData, tagList, filterEmployeeId);
+        setTasks(taskCards);
+      }
 
-      // This part is crucial, ensure fecthTasks is called with the correct parameters
-      const taskData = await fecthTasks(
-        token,
-        filterTagId,
-        filterEmployeeId,
-        filterStartDate,
-        filterEndDate,
-        filterMonth
-      );
-      const taskCards = await generateTaskCards(taskData, tagList, filterEmployeeId);
-      setTasks(taskCards);
     } catch (err) {
       console.error("Error:", err);
       localStorage.removeItem("token");
@@ -275,7 +291,6 @@ export default function TaskDashboard() {
   }, []);
 
 
-  console.log('taskTags ankit ==<>', taskTags)
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -286,6 +301,7 @@ export default function TaskDashboard() {
       <div className="flex flex-col flex-1 bg-gray-500">
         <Header title="Employee Task Dashboard" />
         <main className="p-6 space-y-4">
+        {(roleId === 1 || roleId === 2 || isCompany) && (
           <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8">
             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
               <svg className="w-6 h-6 text-purple-500" fill="currentColor" viewBox="0 0 24 24"></svg>
@@ -373,8 +389,8 @@ export default function TaskDashboard() {
               ))}
             </div>
           </div>
-
-          ---
+         )}
+          
 
           <div className="bg-white p-6 rounded-2xl shadow-xl mb-8 border border-gray-200">
             <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -388,7 +404,7 @@ export default function TaskDashboard() {
               </svg>
               Filter Tasks
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               <div className="flex flex-col">
                 <label
                   htmlFor="tagFilter"
@@ -410,7 +426,7 @@ export default function TaskDashboard() {
                   ))}
                 </select>
               </div>
-
+              {(roleId === 1 || roleId === 2 || isCompany) && (
               <div className="flex flex-col">
                 <label
                   htmlFor="employee"
@@ -432,6 +448,7 @@ export default function TaskDashboard() {
                   ))}
                 </select>
               </div>
+              )}
               <div className="flex flex-col">
                 <label
                   htmlFor="startDate"

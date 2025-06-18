@@ -381,16 +381,6 @@ class ProjectManagement(APIView):
 
         return Response({"detail": "Project deleted successfully."}, status=status.HTTP_200_OK)
 
-            
-
-
-
-
-        
-
-
-
-
 
 # For Bugs Report
 class BugsReportsA(APIView):

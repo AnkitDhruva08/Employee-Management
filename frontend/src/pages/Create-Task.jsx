@@ -40,6 +40,8 @@ const CreateTask = () => {
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company");
 
   const fetchData = async () => {
     try {
@@ -395,7 +397,6 @@ const CreateTask = () => {
       }${rawLogoPath}`;
   }
 
-  console.log('logoUrl ==<<>>', logoUrl)
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 font-sans">
       <aside className="bg-gray-800 text-white w-full lg:w-64 p-6 flex flex-col shadow-2xl relative z-20">
@@ -418,6 +419,7 @@ const CreateTask = () => {
             <h1 className="text-3xl font-extrabold text-gray-900 flex items-center gap-3">
               <ClipboardList size={32} className="text-indigo-600" /> Task Board
             </h1>
+            {(roleId === 1 || roleId === 2 || isCompany) && (
             <button
               onClick={() => openModal("add")}
               className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300"
@@ -425,6 +427,7 @@ const CreateTask = () => {
               <PlusCircle size={20} />
               <span className="text-lg font-medium hidden sm:inline-block">Add New Task</span>
             </button>
+            )}
           </div>
 
           <DragDropContext onDragEnd={onDragEnd}>
@@ -546,7 +549,9 @@ const CreateTask = () => {
                 className="bg-white rounded-xl p-8 min-h-[400px] max-h-[95vh] overflow-y-auto w-full max-w-3xl shadow-2xl transform transition-all duration-300 scale-95 animate-scale-in border border-gray-100"
                 onClick={(e) => e.stopPropagation()}
               >
+              
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  
                   <h2 className="text-3xl font-bold text-gray-900">
                     {modalMode === "add"
                       ? "Create New Task"
