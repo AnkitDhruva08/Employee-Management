@@ -408,7 +408,3 @@ class TaskTrackingViews(APIView):
 
 
 
-# class TaskList(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, *kwargs, **args):
