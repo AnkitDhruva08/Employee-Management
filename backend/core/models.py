@@ -354,12 +354,14 @@ class AdminDashboardLink(models.Model):
 
 
 class AttendanceSession(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     date = models.DateField(default=now)
     login_time = models.DateTimeField()
     logout_time = models.DateTimeField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)  
+    is_active = models.BooleanField(default=True) 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True) 
 
     def duration(self):
         if self.login_time and self.logout_time:
@@ -368,13 +370,18 @@ class AttendanceSession(models.Model):
 
 
 class Attendance(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     company = models.ForeignKey(Company, on_delete=models.CASCADE)
     date = models.DateField(default=now)
     check_in = models.DateTimeField(null=True, blank=True)
     check_out = models.DateTimeField(null=True, blank=True)
     total_duration = models.DurationField(default=timedelta)
     status = models.CharField(max_length=20, choices=[('Present', 'Present'), ('Absent', 'Absent')], default='Present')
+    active = models.BooleanField(default=True) 
+    created_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="attendance_created_by")
+    updated_by = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, related_name="attendance_updated_by")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     
 

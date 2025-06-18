@@ -186,9 +186,6 @@ export const fecthTasks = async (token, tag = "", employee = "",
   month = ""
 ) => {
   const url = new URL(`${API_BASE_URL}/task-management/`);
-  console.log('employee ==<>>', employee)
-  console.log('tag ==<<>', tag);
-  console.log('month ==<<>>', month)
 
   if (tag) url.searchParams.append("tag", tag);
   if (employee) url.searchParams.append("employee", employee);
@@ -400,5 +397,37 @@ export const generateTaskCards = async (taskData, tagList, filterEmployeeId) => 
 };
 
 
+
+//  fetch attendance data 
+
+export const fetchEmployeesAttendance = async (
+  token,
+  {
+    employeeId = "",
+    month = "",
+    year = "",
+    specificDate = "",
+    startDate = "",
+    endDate = "",
+  } = {}
+) => {
+  const url = new URL(`${API_BASE_URL}/attendance/`);
+
+  if (employeeId && employeeId !== "all") url.searchParams.append("employee_id", employeeId);
+  if (month) url.searchParams.append("month", month);
+  if (year) url.searchParams.append("year", year);
+  if (specificDate) url.searchParams.append("specific_date", specificDate);
+  if (startDate) url.searchParams.append("start_date", startDate);
+  if (endDate) url.searchParams.append("end_date", endDate);
+
+  console.log("Fetching attendance from URL:", url.toString());
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: getAuthHeaders(token),
+  });
+
+  return await handleResponse(res);
+};
 
 

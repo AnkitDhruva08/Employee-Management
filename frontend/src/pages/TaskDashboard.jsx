@@ -126,9 +126,7 @@ export default function TaskDashboard() {
   }, [tasks]);
 
   const monthlyEmployeeSummary = useMemo(() => {
-    // Assuming filterEmployeeId is set to an employee's ID and filterMonth is set
     if (filterEmployeeId && filterMonth) {
-      // Find the employee's username from the employees list for display
       const selectedEmployee = employees.find(emp => emp.id === parseInt(filterEmployeeId));
       const employeeName = selectedEmployee ? selectedEmployee.username : 'Unknown Employee';
 

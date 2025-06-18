@@ -1,289 +1,126 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  fetchEmployees,
-  fetchDashboardLink,
-  fetchDashboard,
-} from "../utils/api";
-import CompanyLogo from "../components/CompanyLogo";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import Select from "react-select";
+import {
+  fetchEmployees,
+  fetchDashboardLink,
+  fetchDashboard,
+  fetchEmployeesAttendance
+} from "../utils/api";
+import CompanyLogo from "../components/CompanyLogo";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/header/Header";
 import Sidebar from "../components/sidebar/Sidebar";
+import EmployeeReport from "../components/attendance/EmployeeReport";
+import SalaryCalculator from "../components/attendance/SalaryCalculator";
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 
-// --- Utility: Dummy Data Generation ---
-const generateDummyData = () => {
-  const employees = [
-    { id: 'emp1', name: 'Alice Smith', hourlyRate: 25, avatar: 'https://placehold.co/40x40/6366F1/FFFFFF?text=AS' },
-    { id: 'emp2', name: 'Bob Johnson', hourlyRate: 30, avatar: 'https://placehold.co/40x40/EF4444/FFFFFF?text=BJ' },
-    { id: 'emp3', name: 'Charlie Brown', hourlyRate: 20, avatar: 'https://placehold.co/40x40/10B981/FFFFFF?text=CB' },
-    { id: 'emp4', name: 'Diana Prince', hourlyRate: 28, avatar: 'https://placehold.co/40x40/F59E0B/FFFFFF?text=DP' },
-    { id: 'emp5', name: 'Eve Adams', hourlyRate: 35, avatar: 'https://placehold.co/40x40/8B5CF6/FFFFFF?text=EA' },
-  ];
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
-  const attendanceRecords = [];
-  const today = new Date();
-
-  // Generate data for the last 3 months
-  for (let m = 0; m < 3; m++) {
-    const currentMonth = today.getMonth() - m;
-    const currentYear = today.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    employees.forEach(emp => {
-      for (let day = 1; day <= daysInMonth; day++) {
-        const recordDate = new Date(currentYear, currentMonth, day);
-        // Only generate attendance for weekdays (Monday to Friday)
-        if (recordDate.getDay() !== 0 && recordDate.getDay() !== 6) {
-          // Simulate check-in between 8:00 and 9:30 AM
-          const checkInHour = Math.floor(Math.random() * 2) + 8; // 8 or 9
-          const checkInMinute = Math.floor(Math.random() * 60);
-          const checkInTime = `${checkInHour.toString().padStart(2, '0')}:${checkInMinute.toString().padStart(2, '0')}`;
-
-          // Simulate check-out between 5:00 and 6:30 PM (after at least 8 hours)
-          const checkOutHour = Math.floor(Math.random() * 2) + 17; // 17 or 18
-          const checkOutMinute = Math.floor(Math.random() * 60);
-          const checkOutTime = `${checkOutHour.toString().padStart(2, '0')}:${checkOutMinute.toString().padStart(2, '0')}`;
-
-          // Calculate total hours spent
-          const inTime = new Date(`2000/01/01 ${checkInTime}`);
-          const outTime = new Date(`2000/01/01 ${checkOutTime}`);
-          const diffMs = outTime.getTime() - inTime.getTime();
-          const totalHours = Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10; // Round to 1 decimal place
-
-          attendanceRecords.push({
-            id: `${emp.id}-${recordDate.toISOString().split('T')[0]}`,
-            employeeId: emp.id,
-            date: recordDate.toISOString().split('T')[0], // YYYY-MM-DD
-            checkIn: checkInTime,
-            checkOut: checkOutTime,
-            totalHours: totalHours > 0 ? totalHours : 0, // Ensure non-negative hours
-          });
-        }
-      }
-    });
-  }
-
-  return { employees, attendanceRecords };
-};
-
-// --- Main Attendance Component ---
-const Attendance = () => { 
-  const [data, setData] = useState({ employees: [], attendanceRecords: [] });
-  const [activeTab, setActiveTab] = useState('attendance'); 
-
-  const navigate = useNavigate();
+const Attendance = () => {
+  const [activeTab, setActiveTab] = useState("attendance");
   const [employees, setEmployees] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
-  const [filteredRecords, setFilteredRecords] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
   const [quickLinks, setQuickLinks] = useState([]);
-  const [attendance, setAttendance] = useState([])
-  // const [attendanceData, setAttendanceData] = useState({
-  //   employee: "",
-  //   date: "",
-  //   status: "",
-  // });
-  const [filters, setFilters] = useState({
-    employee: "",
-    status: "",
-    fromDate: "",
-    toDate: "",
-    search: "",
-    month: "",
-  });
-  const [summary, setSummary] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedEmployee, setSelectedEmployee] = useState("all");
+  const [dateFilter, setDateFilter] = useState({ type: "", date: "", start: "", end: "" });
+  const [loading, setLoading] = useState(false);
+
   const token = localStorage.getItem("token");
   const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company");
+  const navigate = useNavigate();
 
-  const HeaderTitle = "Employee Attendance";
-  const attendanceStatusOptions = ["Present", "Absent", "Leave"];
+  const calculateDuration = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return "0.00";
 
-  const generateSummary = (records) => {
-    const summaryMap = {};
-    records?.forEach((record) => {
-      const month = new Date(record.date).toLocaleString("default", {
-        month: "short",
-      });
-      if (!summaryMap[month]) {
-        summaryMap[month] = { Present: 0, Absent: 0, Leave: 0 };
-      }
-      summaryMap[month][record.status]++;
-    });
+    const inTime = new Date(checkIn).getTime();
+    const outTime = new Date(checkOut).getTime();
+    const durationMs = outTime - inTime;
 
-    const data = Object.entries(summaryMap).map(([month, counts]) => ({
-      month,
-      ...counts,
-    }));
-    setSummary(data);
+    if (durationMs < 0) return "0.00";
+
+    const hours = durationMs / (1000 * 60 * 60);
+    return hours.toFixed(2);
   };
-  const fetchEmployeesAttendance = async (token) => {
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/api/attendance/", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const empData = await fetchEmployees(token);
+      setEmployees(empData);
 
-      const result = await response.json();
-      console.log("Attendance data:", result);
-      setAttendance(result.data);
+      const links = await fetchDashboardLink(token);
+      setQuickLinks(links);
 
-      // Block if profile is incomplete
-      if (result.is_complete === false) {
-        Swal.fire({
-          icon: "warning",
-          title: "Profile Incomplete",
-          text:
-            data.message ||
-            "Please complete your profile before accessing attendance features.",
-          footer: `Missing: ${data.missing_sections || "Required Sections"}`,
-        });
-        navigate("/dashboard");
-        return;
+      const dashboardInfo = await fetchDashboard(token);
+      setDashboardData(dashboardInfo);
+
+      const filters = {
+        employeeId: selectedEmployee,
+        month: selectedMonth,
+        year: selectedYear,
+      };
+
+      if (dateFilter.type === "date" && dateFilter.date) {
+        filters.specificDate = dateFilter.date;
+      } else if (dateFilter.type === "range" && dateFilter.start && dateFilter.end) {
+        filters.startDate = dateFilter.start;
+        filters.endDate = dateFilter.end;
       }
 
-      // Everything is fine
-      return result.data || [];
+      const attData = await fetchEmployeesAttendance(token, filters);
+
+      if (attData && attData.data) {
+        const processedAttendance = attData.data.map(record => ({
+          ...record,
+          totalHours: calculateDuration(record.check_in, record.check_out)
+        }));
+        setAttendanceRecords(processedAttendance);
+      } else {
+        setAttendanceRecords([]);
+        Swal.fire("message", attData.message);
+      }
     } catch (error) {
-      console.error("Failed to fetch attendance:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Something went wrong while loading attendance records.",
-      });
-      return null;
+      console.error("Error fetching data:", error);
+      Swal.fire("Error", "Failed to fetch attendance data.", "error");
+      setAttendanceRecords([]);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const fetchData = async () => {
-    let empData = [];
-    if (roleId !== 3) {
-      empData = await fetchEmployees(token);
-    }
-    const attData = await fetchEmployeesAttendance(token);
-    const links = await fetchDashboardLink(token);
-    const dashboardData = await fetchDashboard(token);
-
-    setQuickLinks(links);
-    setDashboardData(dashboardData);
-    setEmployees(empData);
-    setAttendanceRecords(attData);
-
-    if (roleId === 3) {
-      const employeeData = attData?.filter(
-        (record) => String(record.id) === String(roleId)
-      );
-      setFilteredRecords(employeeData);
-      generateSummary(employeeData);
-    } else {
-      setFilteredRecords(attData);
-      generateSummary(attData);
-    }
-  };
+  }, [token, selectedMonth, selectedYear, selectedEmployee, dateFilter, roleId]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setAttendanceData({ ...attendanceData, [name]: value });
+  const getEmployeeById = (id) => {
+    return employees.find(emp => String(emp.id) === String(id));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const dataToSend = {
-      ...attendanceData,
-      employee: roleId === 3 ? roleId : attendanceData.employee,
-    };
-
-    try {
-      const response = await fetch("http://localhost:8000/api/attendance/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(dataToSend),
-      });
-
-      if (response.ok) {
-        const newRecord = await response.json();
-        const updatedRecords = [...attendanceRecords, newRecord];
-        setAttendanceRecords(updatedRecords);
-
-        const newFiltered =
-          roleId === 3
-            ? updatedRecords.filter((record) => String(record.id))
-            : updatedRecords;
-
-        setFilteredRecords(newFiltered);
-        generateSummary(newFiltered);
-        setAttendanceData({ employee: "", date: "", status: "" });
-
-        Swal.fire("Success", "Attendance recorded successfully", "success");
-      } else {
-        Swal.fire("Error", "Failed to record attendance", "error");
-      }
-    } catch {
-      Swal.fire("Error", "Something went wrong", "error");
-    }
-  };
-
-  const applyFilters = () => {
-    const { employee, status, fromDate, toDate, search, month } = filters;
-
-    const filtered = attendanceRecords.filter((record) => {
-      const recordDate = new Date(record.date);
-      const matchesEmployee = employee ? String(record.id) === employee : true;
-      const matchesStatus = status ? record.status === status : true;
-      const matchesFrom = fromDate ? recordDate >= new Date(fromDate) : true;
-      const matchesTo = toDate ? recordDate <= new Date(toDate) : true;
-      const matchesMonth =
-        month !== "" ? recordDate.getMonth() === Number(month) : true;
-      const matchesSearch =
-        !search ||
-        record.username?.toLowerCase().includes(search.toLowerCase()) ||
-        record.email?.toLowerCase().includes(search.toLowerCase());
-
-      return (
-        matchesEmployee &&
-        matchesStatus &&
-        matchesFrom &&
-        matchesTo &&
-        matchesSearch &&
-        matchesMonth
-      );
-    });
-
-    setFilteredRecords(filtered);
-    generateSummary(filtered);
-  };
-
-  const exportToExcel = () => {
-    const formattedData = filteredRecords?.map((record, index) => ({
+  const handleExportExcel = () => {
+    const formattedData = attendanceRecords.map((record, index) => ({
       "Sr No.": index + 1,
-      Employee: record.username || "",
+      Employee: record.user_name || "",
       Date: record.date || "",
-      "Login Time": record.login_time
-        ? new Date(record.login_time).toLocaleTimeString()
-        : "",
-      "Logout Time": record.logout_time
-        ? new Date(record.logout_time).toLocaleTimeString()
-        : "",
-      "Duration (hrs)": record.duration_hours?.toFixed(2) || "0.00",
+      "Check-In": record.check_in ? new Date(record.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
+      "Check-Out": record.check_out ? new Date(record.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
+      "Hours Spent": record.totalHours || "0.00",
       Status: record.status || "",
     }));
 
@@ -291,79 +128,113 @@ const Attendance = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, "Attendance.xlsx");
   };
 
-  const exportToPDF = () => {
+  const handleExportPDF = () => {
     const doc = new jsPDF();
     doc.text("Attendance Report", 14, 10);
-    const tableData = filteredRecords?.map((record, index) => [
+    const tableData = attendanceRecords.map((record, index) => [
       index + 1,
-      record.username,
+      record.user_name,
       record.date,
-      new Date(record.login_time).toLocaleTimeString(),
-      new Date(record.logout_time).toLocaleTimeString(),
-      `${record.duration_hours?.toFixed(2)} hrs`,
+      record.check_in ? new Date(record.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
+      record.check_out ? new Date(record.check_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : "",
+      `${record.totalHours} hrs`,
       record.status,
     ]);
 
     doc.autoTable({
-      head: [
-        ["#", "Employee", "Date", "Login", "Logout", "Duration", "Status"],
-      ],
+      head: [["#", "Employee", "Date", "Check-In", "Check-Out", "Hours", "Status"]],
       body: tableData,
     });
     doc.save("Attendance.pdf");
   };
 
-  const today = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // 1-indexed
-  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
-
-  useEffect(() => {
-    setData(generateDummyData());
-  }, []);
-
-  const getEmployeeById = (id) => data.employees.find(emp => emp.id === id);
-
-  const filterAttendanceByMonth = (records, month, year) => {
-    return records.filter(record => {
-      const recordDate = new Date(record.date);
-      return recordDate.getMonth() + 1 === month && recordDate.getFullYear() === year;
-    });
-  };
-
-  const years = Array.from({ length: 5 }, (_, i) => today.getFullYear() - 2 + i); // Current year +/- 2
-  const months = Array.from({ length: 12 }, (_, i) => ({
+  const monthOptions = Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
-    name: new Date(2000, i, 1).toLocaleString('en-US', { month: 'long' }),
+    label: new Date(2000, i, 1).toLocaleString("en-US", { month: "long" }),
   }));
 
-  const getHeaderTitle = () => {
-    switch (activeTab) {
-      case 'attendance':
-        return 'Employee Attendance';
-      case 'salary':
-        return 'Salary Calculation';
-      case 'report':
-        return 'Employee Reports';
-      default:
-        return 'HR Connect';
-    }
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
+  const yearOptions = years.map(year => ({
+    label: year.toString(),
+    value: year,
+  }));
+
+  const employeeOptions = [
+    { label: "All Employees", value: "all" },
+    ...employees.map(emp => ({
+      label: emp.username,
+      value: emp.id,
+    })),
+  ];
+
+  const statusOptions = [
+    { label: "All Status", value: "all" },
+    { label: "Present", value: "present" },
+    { label: "Absent", value: "absent" },
+    { label: "Holiday", value: "holiday" },
+    { label: "Leave", value: "leave" },
+  ];
+
+  const getAttendanceChartData = () => {
+    const statusCounts = attendanceRecords.reduce((acc, record) => {
+      acc[record.status] = (acc[record.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      labels: Object.keys(statusCounts),
+      datasets: [
+        {
+          label: 'Number of Days',
+          data: Object.values(statusCounts),
+          backgroundColor: [
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(255, 99, 132, 0.6)',
+            'rgba(255, 206, 86, 0.6)',
+            'rgba(153, 102, 255, 0.6)',
+          ],
+          borderColor: [
+            'rgba(75, 192, 192, 1)',
+            'rgba(255, 99, 132, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(153, 102, 255, 1)',
+          ],
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
+
+  const getHoursSpentChartData = () => {
+    const employeeHours = attendanceRecords.reduce((acc, record) => {
+      if (record.user_name && record.totalHours) {
+        acc[record.user_name] = (acc[record.user_name] || 0) + parseFloat(record.totalHours);
+      }
+      return acc;
+    }, {});
+
+    return {
+      labels: Object.keys(employeeHours),
+      datasets: [
+        {
+          label: 'Total Hours Spent',
+          data: Object.values(employeeHours),
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1,
+        },
+      ],
+    };
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <div className="bg-gray-800 text-white w-64 p-6 flex flex-col">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      <aside className="bg-gray-800 text-white w-64 p-6">
         {dashboardData && (
           <CompanyLogo
             companyName={dashboardData.company}
@@ -373,420 +244,278 @@ const Attendance = () => {
         <div className="flex justify-center mt-8">
           <Sidebar quickLinks={quickLinks} />
         </div>
-      </div>
+      </aside>
 
       <div className="flex-1 flex flex-col">
-        <Header title={HeaderTitle} />
-        <div className="flex min-h-screen bg-gray-900 text-gray-200 font-sans">
-      {/* Sidebar Component */}
-      
+        <Header title="Employee Attendance" />
+        <div className="flex flex-col h-screen  text-blue-500 p-4">
+          <header className="bg-white p-4 rounded-lg shadow-xl mb-4 flex justify-between items-center text-blue-500 border-gray-200">
+            <nav className="flex space-x-4">
+              <button
+                className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
+      ${activeTab === "attendance" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
+                onClick={() => setActiveTab("attendance")}
+              >
+                Attendance
+              </button>
+              <button
+                className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
+      ${activeTab === "salary" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
+                onClick={() => setActiveTab("salary")}
+              >
+                Salary Calculation
+              </button>
+              <button
+                className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
+      ${activeTab === "report" ? 'bg-purple-700 text-white shadow-lg' : 'text-blue-600 hover:bg-gray-200 hover:text-black'}`}
+                onClick={() => setActiveTab("report")}
+              >
+                Employee Reports
+              </button>
+            </nav>
+          </header>
 
-      <div className="flex-1 flex flex-col">
-      <div className="flex flex-col h-screen bg-gray-900 text-gray-200 font-sans p-4">
-      {/* Header */}
-      <header className="bg-gray-800 p-4 rounded-lg shadow-xl mb-4 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-purple-400">HR Connect</h1>
-        <nav className="flex space-x-4">
-          <TabButton name="Attendance" activeTab={activeTab} onClick={() => setActiveTab('attendance')} />
-          <TabButton name="Salary Calculation" activeTab={activeTab} onClick={() => setActiveTab('salary')} />
-          <TabButton name="Employee Reports" activeTab={activeTab} onClick={() => setActiveTab('report')} />
-        </nav>
-      </header>
+          <div className="bg-white p-6 rounded-2xl shadow-xl mb-8 border border-gray-100">
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              <svg className="w-6 h-6 text-indigo-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+              </svg>
+              <span>Filter Attendance</span>
+            </h2>
 
-      {/* Main Content Area */}
-      <main className="flex-1 bg-gray-800 rounded-lg shadow-xl p-6 overflow-hidden flex flex-col">
-        {/* Month/Year Filter */}
-        <div className="flex items-center space-x-4 mb-6">
-          <label htmlFor="month-select" className="text-gray-300 font-medium">Select Month:</label>
-          <select
-            id="month-select"
-            className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-          >
-            {months.map(month => (
-              <option key={month.value} value={month.value}>{month.name}</option>
-            ))}
-          </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Select Month</label>
+                <Select
+                  options={monthOptions}
+                  value={monthOptions.find(option => option.value === selectedMonth)}
+                  onChange={option => setSelectedMonth(option.value)}
+                />
+              </div>
 
-          <label htmlFor="year-select" className="text-gray-300 font-medium">Select Year:</label>
-          <select
-            id="year-select"
-            className="bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          >
-            {years.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-        </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Select Year</label>
+                <Select
+                  options={yearOptions}
+                  value={yearOptions.find(option => option.value === selectedYear)}
+                  onChange={option => setSelectedYear(option.value)}
+                />
+              </div>
 
-        {/* Content based on activeTab */}
-        <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-800 pr-2 -mr-2">
-          {activeTab === 'attendance' && (
-            <AttendanceTracker
-              attendanceRecords={filterAttendanceByMonth(attendance, selectedMonth, selectedYear)}
-              employees={data.employees}
-              getEmployeeById={getEmployeeById}
-            />
-          )}
-          {activeTab === 'salary' && (
-            <SalaryCalculator
-              attendanceRecords={filterAttendanceByMonth(data.attendanceRecords, selectedMonth, selectedYear)}
-              employees={data.employees}
-            />
-          )}
-          {activeTab === 'report' && (
-            <EmployeeReport
-              employees={data.employees}
-              attendanceRecords={data.attendanceRecords} 
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-            />
-          )}
-        </div>
-      </main>
-    </div>
+              {(roleId === 1 || roleId === 2 || isCompany) && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">Select Employee</label>
+                  <Select
+                    options={employeeOptions}
+                    value={employeeOptions.find(option => option.value === selectedEmployee)}
+                    onChange={option => setSelectedEmployee(option.value)}
+                  />
+                </div>
+              )}
 
-      </div>
-    </div>
-      </div>
-   
-    
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Specific Date</label>
+                <input
+                  type="date"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  value={dateFilter.type === "date" ? dateFilter.date : ""}
+                  onChange={(e) =>
+                    setDateFilter({ type: "date", date: e.target.value, start: "", end: "" })
+                  }
+                />
+              </div>
 
-    </div>
-  );
-};
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">Start Date (Range)</label>
+                <input
+                  type="date"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  value={dateFilter.type === "range" ? dateFilter.start : ""}
+                  onChange={(e) =>
+                    setDateFilter(prev => ({ ...prev, type: "range", start: e.target.value }))
+                  }
+                />
+              </div>
 
-// --- Tab Button Component ---
-const TabButton = ({ name, activeTab, onClick }) => {
-  const isActive = activeTab === name.toLowerCase().replace(' ', '');
-  return (
-    <button
-      className={`py-2 px-4 rounded-md font-medium transition-colors duration-200
-        ${isActive ? 'bg-purple-600 text-white shadow-md' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
-      onClick={onClick}
-    >
-      {name}
-    </button>
-  );
-};
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">End Date (Range)</label>
+                <input
+                  type="date"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  value={dateFilter.type === "range" ? dateFilter.end : ""}
+                  onChange={(e) =>
+                    setDateFilter(prev => ({ ...prev, type: "range", end: e.target.value }))
+                  }
+                />
+              </div>
 
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setSelectedMonth(new Date().getMonth() + 1);
+                    setSelectedYear(new Date().getFullYear());
+                    setSelectedEmployee("all");
+                    setDateFilter({ type: "", date: "", start: "", end: "" });
+                  }}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-2 px-4 rounded-lg transition duration-200"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
 
-
-
-
-// --- Attendance Tracker Component ---
-const AttendanceTracker = ({ attendanceRecords, employees, getEmployeeById }) => {
-  if (attendanceRecords.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <span className="text-6xl mb-4">🗓️</span>
-        <p className="text-lg">No attendance records found for this month.</p>
-        <p className="text-sm">Please select a different month or year.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-700 p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-semibold text-gray-100 mb-4">Attendance Records</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-600">
-          <thead className="bg-gray-600">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider rounded-tl-lg">
-                Employee
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Date
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Check-In
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Check-Out
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider rounded-tr-lg">
-                Hours Spent
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-700 divide-y divide-gray-600">
-            {attendanceRecords
-              .sort((a, b) => new Date(a.date) - new Date(b.date)) 
-              .map(record => {
-                const employee = getEmployeeById(record.employeeId);
-                return (
-                  <tr key={record.id} className="hover:bg-gray-600 transition-colors duration-150">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          className="h-9 w-9 rounded-full object-cover mr-3"
-                          src={employee?.avatar}
-                          alt={record.user_name?.name}
-                          onError={(e) => { e.target.onerror = null; e.target.src=`https://placehold.co/40x40/6366F1/FFFFFF?text=${record?.user_name.substring(0,2)}` }}
-                        />
-                        <div className="text-sm font-medium text-gray-100">{record.user_name}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{record.date}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-  {new Date(record.check_in).toLocaleTimeString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  })}
-</td>
-<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-  {new Date(record.check_out).toLocaleTimeString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  })}
-</td>
-
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      <span className="bg-purple-800 text-purple-200 px-2.5 py-0.5 rounded-full text-xs font-medium">
-                        {record.totalHours} hrs
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-// --- Salary Calculator Component ---
-const SalaryCalculator = ({ attendanceRecords, employees }) => {
-  const calculateSalaries = () => {
-    const monthlyHours = {};
-    employees.forEach(emp => {
-      monthlyHours[emp.id] = { totalHours: 0, employee: emp };
-    });
-
-    attendanceRecords.forEach(record => {
-      if (monthlyHours[record.employeeId]) {
-        monthlyHours[record.employeeId].totalHours += record.totalHours;
-      }
-    });
-
-    return Object.values(monthlyHours).map(data => ({
-      ...data.employee,
-      totalMonthlyHours: Math.round(data.totalHours * 10) / 10,
-      monthlySalary: (data.totalHours * data.employee.hourlyRate).toFixed(2),
-    }));
-  };
-
-  const calculatedSalaries = calculateSalaries();
-
-  if (calculatedSalaries.length === 0 || calculatedSalaries.every(s => s.totalMonthlyHours === 0)) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <span className="text-6xl mb-4">💰</span>
-        <p className="text-lg">No salary data available for this month.</p>
-        <p className="text-sm">Ensure attendance records exist for the selected period.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-gray-700 p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-semibold text-gray-100 mb-4">Monthly Salary Overview</h2>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-600">
-          <thead className="bg-gray-600">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider rounded-tl-lg">
-                Employee
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Hourly Rate
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                Total Hours (Month)
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider rounded-tr-lg">
-                Calculated Salary
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-gray-700 divide-y divide-gray-600">
-            {calculatedSalaries.map(salary => (
-              <tr key={salary.id} className="hover:bg-gray-600 transition-colors duration-150">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <img
-                      className="h-9 w-9 rounded-full object-cover mr-3"
-                      src={salary.avatar}
-                      alt={salary.name}
-                      onError={(e) => { e.target.onerror = null; e.target.src=`https://placehold.co/40x40/6366F1/FFFFFF?text=${salary.name.substring(0,2)}` }}
-                    />
-                    <div className="text-sm font-medium text-gray-100">{salary.name}</div>
+          <main className="flex-1 overflow-auto">
+            <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8">
+              {activeTab === "attendance" && (
+                <div className=" bg-white-200 p-6 rounded-xl shadow-lg">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-black">Attendance Records</h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleExportExcel}
+                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M12 10v6m0 0l-3-3m3 3l3-3M5 4h5.586a1 1 0 01.707.293l6.414 6.414A1 1 0 0118 11v7a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                        </svg>
+                        Export Excel
+                      </button>
+                      <button
+                        onClick={handleExportPDF}
+                        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition duration-200"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path d="M19 11H5m14 0a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 012-2m7 0V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6a2 2 0 00-2 2v2z" />
+                        </svg>
+                        Export PDF
+                      </button>
+                    </div>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">${salary.hourlyRate}/hr</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                  <span className="bg-blue-800 text-blue-200 px-2.5 py-0.5 rounded-full text-xs font-medium">
-                    {salary.totalMonthlyHours} hrs
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-lg font-bold text-green-400">${salary.monthlySalary}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
 
-// --- Employee Report Component ---
-const EmployeeReport = ({ employees, attendanceRecords, selectedMonth, selectedYear }) => {
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+                  {loading ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500 py-16">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+                      <p className="mt-4 text-lg">Loading attendance data...</p>
+                    </div>
+                  ) : attendanceRecords.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 py-16">
+                      <span className="text-6xl mb-4">📅</span>
+                      <p className="text-lg font-medium">No attendance records found.</p>
+                      <p className="text-sm">Try adjusting the filters to see data.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-4">Attendance Status Distribution</h3>
+                          <Bar data={getAttendanceChartData()} />
+                        </div>
+                        <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-4">Total Hours Spent by Employee</h3>
+                          <Bar data={getHoursSpentChartData()} />
+                        </div>
+                      </div>
 
-  useEffect(() => {
-    if (employees.length > 0 && !selectedEmployeeId) {
-      setSelectedEmployeeId(employees[0].id); // Select first employee by default
-    }
-  }, [employees, selectedEmployeeId]);
+                      <div className="overflow-x-auto rounded-lg border border-white-600">
+                        <table className="min-w-full text-sm text-gray-700">
+                          <thead className="bg-blue-50 text-gray-600 uppercase text-xs tracking-wider">
+                            <tr>
+                              {["Employee", "Date", "Check-In", "Check-Out", "Hours Spent", "Status"].map((head, i) => (
+                                <th
+                                  key={i}
+                                  className={`px-6 py-4 text-left  ${i === 0 ? "rounded-tl-lg" : i === 5 ? "rounded-tr-lg" : ""
+                                    }`}
+                                >
+                                  {head}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {[...attendanceRecords]
+                              .sort((a, b) => new Date(a.date) - new Date(b.date))
+                              .map(record => {
+                                const employee = getEmployeeById(record.employeeId);
+                                return (
+                                  <tr
+                                    key={`${record.attendance_id}-${record.date}`}
+                                    className="hover:bg-blue-50 transition-all duration-150"
+                                  >
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center">
+                                        <img
+                                          className="h-9 w-9 rounded-full object-cover mr-3"
+                                          src={
+                                            employee?.avatar ||
+                                            `https://placehold.co/40x40/6366F1/FFFFFF?text=${record.user_name?.substring(0, 2)}`
+                                          }
+                                          alt={record.user_name}
+                                        />
+                                        <span className="px-6 py-4">{record.user_name}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4">{record.date}</td>
+                                    <td className="px-6 py-4">
+                                      {record.check_in
+                                        ? new Date(record.check_in).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          hour12: true,
+                                        })
+                                        : "N/A"}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      {record.check_out
+                                        ? new Date(record.check_out).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          hour12: true,
+                                        })
+                                        : "N/A"}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <span className="bg-purple-700 text-purple-100 px-2 py-1 rounded-full text-xs font-semibold">
+                                        {record.totalHours} hrs
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${record.status === 'present' ? 'bg-green-100 text-green-800' :
+                                          record.status === 'absent' ? 'bg-red-100 text-red-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }`}>
+                                        {record.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
 
-  if (employees.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-        <span className="text-6xl mb-4">📋</span>
-        <p className="text-lg">No employee data to generate reports.</p>
-      </div>
-    );
-  }
-
-  const employee = employees.find(emp => emp.id === selectedEmployeeId);
-  const filteredRecords = attendanceRecords.filter(record =>
-    record.employeeId === selectedEmployeeId &&
-    new Date(record.date).getMonth() + 1 === selectedMonth &&
-    new Date(record.date).getFullYear() === selectedYear
-  );
-
-  const totalMonthlyHours = filteredRecords.reduce((sum, record) => sum + record.totalHours, 0);
-  const monthlySalary = employee ? (totalMonthlyHours * employee.hourlyRate).toFixed(2) : '0.00';
-  const totalWorkingDays = filteredRecords.length;
-  const avgDailyHours = totalWorkingDays > 0 ? (totalMonthlyHours / totalWorkingDays).toFixed(1) : '0.0';
-
-  return (
-    <div className="bg-gray-700 p-6 rounded-lg shadow-lg flex flex-col items-center">
-      <h2 className="text-2xl font-semibold text-gray-100 mb-6">Employee Performance Report</h2>
-
-      <div className="flex items-center space-x-4 mb-8">
-        <label htmlFor="employee-select" className="text-gray-300 font-medium">Select Employee:</label>
-        <select
-          id="employee-select"
-          className="bg-gray-800 border border-gray-600 text-gray-200 text-sm rounded-md px-4 py-2 focus:outline-none focus:ring-1 focus:ring-purple-500"
-          value={selectedEmployeeId}
-          onChange={(e) => setSelectedEmployeeId(e.target.value)}
-        >
-          {employees.map(emp => (
-            <option key={emp.id} value={emp.id}>{emp.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {employee ? (
-        <div className="w-full max-w-2xl bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700">
-          <div className="flex items-center justify-between border-b border-gray-600 pb-4 mb-4">
-            <div className="flex items-center">
-              <img
-                className="h-16 w-16 rounded-full object-cover border-2 border-purple-500 mr-4"
-                src={employee.avatar}
-                alt={employee.name}
-                onError={(e) => { e.target.onerror = null; e.target.src=`https://placehold.co/60x60/6366F1/FFFFFF?text=${employee.name.substring(0,2)}` }}
+            {activeTab === "salary" && (
+              <SalaryCalculator
+                attendanceRecords={attendanceRecords}
+                employees={employees}
               />
-              <div>
-                <h3 className="text-2xl font-bold text-gray-100">{employee.name}</h3>
-                <p className="text-purple-400 text-sm">Hourly Rate: ${employee.hourlyRate}/hr</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-lg font-semibold text-gray-300">
-                {new Date(selectedYear, selectedMonth - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300 mb-6">
-            <div className="bg-gray-700 p-4 rounded-lg shadow-inner flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Working Days</p>
-                <p className="text-2xl font-bold text-green-400">{totalWorkingDays}</p>
-              </div>
-              <span className="text-4xl">🗓️</span>
-            </div>
-            <div className="bg-gray-700 p-4 rounded-lg shadow-inner flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Hours Spent</p>
-                <p className="text-2xl font-bold text-blue-400">{totalMonthlyHours} hrs</p>
-              </div>
-              <span className="text-4xl">⏱️</span>
-            </div>
-            <div className="bg-gray-700 p-4 rounded-lg shadow-inner flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Average Daily Hours</p>
-                <p className="text-2xl font-bold text-yellow-400">{avgDailyHours} hrs</p>
-              </div>
-              <span className="text-4xl">☀️</span>
-            </div>
-            <div className="bg-gray-700 p-4 rounded-lg shadow-inner flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Calculated Monthly Salary</p>
-                <p className="text-3xl font-bold text-purple-400">${monthlySalary}</p>
-              </div>
-              <span className="text-4xl">💵</span>
-            </div>
-          </div>
-
-          <h4 className="text-xl font-semibold text-gray-100 mt-6 mb-4 border-b border-gray-600 pb-2">Daily Attendance Details</h4>
-          {filteredRecords.length > 0 ? (
-            <div className="overflow-x-auto max-h-60 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-700 pr-2">
-              <table className="min-w-full divide-y divide-gray-600">
-                <thead className="bg-gray-600">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase rounded-tl-lg">Date</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase">Check-In</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase">Check-Out</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase rounded-tr-lg">Hours</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-gray-700 divide-y divide-gray-600">
-                  {filteredRecords
-                    .sort((a, b) => new Date(a.date) - new Date(b.date))
-                    .map(record => (
-                      <tr key={record.id} className="hover:bg-gray-600 transition-colors duration-150">
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{record.date}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{record.checkIn}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{record.checkOut}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-300">{record.totalHours}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-4">No detailed attendance records for this month.</p>
-          )}
+            )}
+            {activeTab === "report" && (
+              <EmployeeReport
+                employees={employees}
+                attendanceRecords={attendanceRecords}
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+              />
+            )}
+          </main>
         </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-full text-gray-500">
-          <span className="text-6xl mb-4">⚠️</span>
-          <p className="text-lg">Please select an employee to view their report.</p>
-        </div>
-      )}
+      </div>
     </div>
   );
 };

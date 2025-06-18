@@ -148,6 +148,7 @@ class LoginLogoutView(APIView):
         email = request.data.get("email")
         password = request.data.get("password")
         company_id = None
+        employee_id = None
 
         if not email or not password:
             return Response({"error": "Email and password required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -166,6 +167,7 @@ class LoginLogoutView(APIView):
 
         # Authenticate using email
         user = authenticate(request, email=email, password=password)
+        print('')
         if not user:
             return Response({"error": "Invalid password"}, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -176,6 +178,7 @@ class LoginLogoutView(APIView):
         # Track attendance
         today = now().date()
         print('user ==<<>>', user)
+
 
         user_data = User.objects.get(email= email)
         if user.is_company:
@@ -189,24 +192,32 @@ class LoginLogoutView(APIView):
             try:
                 employee = Employee.objects.get(user_id=user.id, active=True)
                 company_id = employee.company_id
+                employee_id = employee.id
             except Employee.DoesNotExist:
                 return Response({'error': 'Employee not found or inactive.'}, status=404)
 
         if not company_id:
             return Response({'error': 'Could not determine company.'}, status=400)
 
-        # Create or get attendance
-        attendance, created = Attendance.objects.get_or_create(
-            user=user,
-            company_id=company_id,
-            date=today
-        )
+     
 
-        if (not attendance.check_in):
-            print('attendance ==<<>>', attendance)
-            attendance.check_in = now()
-            attendance.save()
+        if not user.is_company:
+            try:
+                employee = Employee.objects.get(user_id=user.id, active=True)
+                company = Company.objects.get(id=employee.company_id, active=True)
 
+                attendance, created = Attendance.objects.get_or_create(
+                    employee=employee,
+                    company=company, 
+                    date=today
+                )
+
+                if not attendance.check_in:
+                    attendance.check_in = now()
+                    attendance.save()
+
+            except (Employee.DoesNotExist, Company.DoesNotExist):
+                return Response({'error': 'Employee or company not found or inactive.'}, status=404)
 
         # Fetch role and flags
         role_data = Employee.objects.filter(company_email=email).values('role_id').first()
@@ -229,25 +240,29 @@ class LoginLogoutView(APIView):
 
 
     def delete(self, request):
-        user = request.user if request.user.is_authenticated else None
-        
+        user = request.user if request.user.is_authenticated else None 
+
+        email = request.user.email
+        user_data = User.objects.get(email=email)
+
         if not user:
-            return Response({"error": "User  not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({"error": "User not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        today = now().date()  # Use timezone-aware datetime
-        try:
-            # Fetch the attendance record for the current user and today's date
-            attendance = Attendance.objects.get(user=user, date=today)
+        today = now().date()
 
-            # Update the checkout time
-            attendance.check_out = now()  # Use timezone-aware datetime
-            attendance.save()
+  
+            # Get today's attendance for the logged-in user
+        if(not user_data.is_company):
+                try:
+                    emp_data = Employee.objects.get(user_id=user_data.id)
+                    empployee_id = emp_data.id
+                    attendance = Attendance.objects.get(employee=empployee_id, date=today)
+                    attendance.check_out = now()
+                    attendance.save()
 
-        except Attendance.DoesNotExist:
-            print("No attendance record found for today.")
-            # Optionally, you can return a message indicating that no record was found
-            return Response({"message": "No attendance record found for today."}, status=status.HTTP_404_NOT_FOUND)
+                except Attendance.DoesNotExist:
+                    return Response({"message": "No attendance record found for today."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Log the user out
+        # Logout the user regardless of check_out state
         logout(request)
         return Response({"message": "Logout successful!"}, status=status.HTTP_200_OK)
