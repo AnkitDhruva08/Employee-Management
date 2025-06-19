@@ -84,38 +84,14 @@ Run:
 docker-compose down -v
 docker-compose up -d --build
 
-
-
- Check Kafka container logs 
- docker-compose logs kafka
-
+Check Kafka container logs 
+docker-compose logs kafka
 
 
 
 atlantick-solutions@atlantick-solutions-Vostro-3030S:~/Desktop/Ankit Mishra/Employee-Management$ python backend/manage.py run_kafka_consumer
 📡 Running Kafka notification consumer...
-❌ Kafka error: KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available: notifications: Broker: Unknown topic or partition"}
-^C^CTraceback (most recent call last):
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/manage.py", line 22, in <module>
-    main()
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/manage.py", line 18, in main
-    execute_from_command_line(sys.argv)
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
-    utility.execute()
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 436, in execute
-    self.fetch_command(subcommand).run_from_argv(self.argv)
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/base.py", line 416, in run_from_argv
-    self.execute(*args, **cmd_options)
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/base.py", line 460, in execute
-    output = self.handle(*args, **options)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/core/management/commands/run_kafka_consumer.py", line 9, in handle
-    run_notification_consumer()
-  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/core/consumers/notification_consumer.py", line 18, in run_notification_consumer
-    msg = consumer.poll(1.0)
-          ^^^^^^^^^^^^^^^^^^
-KeyboardInterrupt
-^C
+
 atlantick-solutions@atlantick-solutions-Vostro-3030S:~/Desktop/Ankit Mishra/Employee-Management$ docker exec -it employee-management_kafka_1 bash
 [appuser@6b38ccfb5107 ~]$ kafka-topics --create \
 >   --topic notifications \
@@ -234,9 +210,9 @@ It should now connect and stay running. ✅
 
 ✅ Step 1: Re-download and extract Kafka
 Run this in your terminal:
-
+ open two terminal one kafka and another one is for zookeepar 
 cd ~
-wget https://archive.apache.org/dist/kafka/3.7.0/kafka_2.13-3.7.0.tgz
+this command for download kafka ===::::: wget https://archive.apache.org/dist/kafka/3.7.0/kafka_2.13-3.7.0.tgz
 tar -xzf kafka_2.13-3.7.0.tgz
 cd kafka_2.13-3.7.0 
 
@@ -332,6 +308,9 @@ Let me know if you want to clean/reset topics or automate testing messages via s
 
 
 
+
+run celery 
+celery -A backend worker -l info
 
 
 

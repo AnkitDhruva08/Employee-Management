@@ -20,3 +20,12 @@ def send_to_kafka(topic, message: dict):
         producer.flush()
     except Exception as e:
         print(f"❌ Error sending message: {e}")
+
+
+def send_employee_event(event_type, employee_id, user_email):
+    message = {
+        "event": event_type,  
+        "employee_id": employee_id,
+        "user_email": user_email,
+    }
+    send_to_kafka("employee-events", message)

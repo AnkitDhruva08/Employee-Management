@@ -29,12 +29,33 @@ export default function EmployeeForm() {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+
   const token = localStorage.getItem("token");
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company");
+
+  const canOnlyEditPersonalInfo = roleId === 1 || roleId === 2 || isCompany;
+
+  // const stepProps = {
+  //   onNext: () => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1)),
+  //   onPrev: () => setCurrentStep((prev) => Math.max(prev - 1, 0)),
+  //   employeeId: id,
+  // };
+
 
   const stepProps = {
-    onNext: () => setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1)),
+    onNext: () => {
+      if (canOnlyEditPersonalInfo && currentStep === 0) {
+        navigate("/employee-table");
+      } else {
+        setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+      }
+    },
     onPrev: () => setCurrentStep((prev) => Math.max(prev - 1, 0)),
     employeeId: id,
+    hideNavigation: canOnlyEditPersonalInfo,
+    redirectAfterSubmit: canOnlyEditPersonalInfo,
   };
 
   const renderStep = () => {
@@ -71,6 +92,8 @@ export default function EmployeeForm() {
   useEffect(() => {
     fetchData();
   }, [token]);
+
+
 
   const percentage = ((currentStep + 1) / steps.length) * 100;
 

@@ -379,12 +379,12 @@ const EmployeeTable = () => {
                 {/* Only show edit & toggle if not role_id 2 */}
                 {roleId !== 2 && (
                   <>
-                    {/* <Link
+                    <Link
                       to={`/employee-form/${emp.id}`}
                       className="text-yellow-500 hover:text-yellow-600"
                     >
                       <Pencil size={18} />
-                    </Link> */}
+                    </Link> 
                     <button
                       onClick={() => toggleEmployeeStatus(emp.id, emp.active)}
                       className={`px-3 py-1 rounded-full text-white font-semibold text-xs transition-colors duration-200 shadow-md

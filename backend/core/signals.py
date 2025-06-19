@@ -1,7 +1,8 @@
-from django.db.models.signals import post_save, m2m_changed
+from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
-from core.models import Project, Task, Bug, Notification
+from core.models import Project, Task, Bug, Notification, Employee
 from django.contrib.auth import get_user_model
+from core.utils.kafka_producer import send_employee_event
 
 User = get_user_model()
 def notify_users(users, message, notif_type, url):
@@ -55,3 +56,16 @@ def notify_on_project_assigned_to_changed(sender, instance, action, pk_set, **kw
             "project",
             f"/projects/{instance.id}/"
         )
+
+
+
+
+
+# @receiver(post_save, sender=Employee)
+# def handle_employee_save(sender, instance, created, **kwargs):
+#     event_type = 'create' if created else 'update'
+#     send_employee_event(event_type, instance.id, instance.user.email)
+
+# @receiver(post_delete, sender=Employee)
+# def handle_employee_delete(sender, instance, **kwargs):
+#     send_employee_event('delete', instance.id, instance.user.email)

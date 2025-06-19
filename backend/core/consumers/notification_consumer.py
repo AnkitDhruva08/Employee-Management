@@ -1,3 +1,4 @@
+# backend/core/consumers/notification_consumer.py
 import os
 import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")

@@ -33,6 +33,8 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
   const [isRestricted, setIsRestricted] = useState(false);
 
   const role_id = localStorage.getItem("role_id");
+  const roleId = parseInt(localStorage.getItem("role_id"));
+  const isCompany = localStorage.getItem("is_company");
   const headerTitle = "Employee Personal Details";
 
   const token = localStorage.getItem("token");
@@ -118,17 +120,17 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
     e.preventDefault();
     setError("");
     setSuccess("");
-
-    const token = localStorage.getItem("token");
+  
     if (!token) {
       setError("Unauthorized. Please login again.");
       return;
     }
-
+  
     const method = id ? "PUT" : "POST";
-    const url = id ? `http://localhost:8000/api/employees/${id}/` : "http://localhost:8000/api/employees/";
-    console.log('url ===>', url)
-
+    const url = id
+      ? `http://localhost:8000/api/employees/${id}/`
+      : "http://localhost:8000/api/employees/";
+  
     try {
       const response = await fetch(url, {
         method,
@@ -138,13 +140,23 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
         },
         body: JSON.stringify(formData),
       });
+  
       if (response.ok) {
-        if (onNext) onNext();
-      
+        const result = await response.json();
+  
+        Swal.fire({
+          title: "Success!",
+          text: id ? "Employee record updated successfully." : "Employee created successfully.",
+          icon: "success",
+          confirmButtonText: "OK",
+        }).then(() => {
+          Navigate("/employee-details");
+        });
+  
+        // Optional: Reset form if creating new
         if (!id) {
           setFormData({
             first_name: "",
-            // middle_name: "",
             last_name: "",
             contact_number: "",
             company_email: "",
@@ -154,18 +166,25 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
             job_role: "",
           });
         }
-
+      } else {
+        const errorData = await response.json();
+        const message = errorData?.message || "Something went wrong.";
+        throw new Error(message);
       }
     } catch (err) {
-      setError("Server error");
+      console.error(err);
+      setError(err.message || "Server error");
+  
       Swal.fire({
         title: "Error!",
-        text: "There was a problem connecting to the server.",
+        text: err.message || "There was a problem connecting to the server.",
         icon: "error",
         confirmButtonText: "OK",
       });
     }
   };
+
+
   return (
     <div className="max-w-7xl mx-auto">
   

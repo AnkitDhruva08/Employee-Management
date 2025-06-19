@@ -14,14 +14,33 @@ from django.shortcuts import get_object_or_404
 from django.core.mail import send_mail
 from django.conf import settings
 from core.utils.utils import get_user_by_email, get_employee_by_email, get_company_by_email
-
+from core.utils.kafka_producer import send_to_kafka  
+from datetime import datetime
+from core.async_task.tasks import send_welcome_email_task, send_generic_email_task
 User = get_user_model()
 
 def to_bool(value):
     return str(value).lower() == 'true'
 
 
+
+
+
+
+
 # Employee ModelViewSet for Employee CRUD operations
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from django.db.models import F, Value, CharField
+from django.db.models.functions import Concat
+from django.utils.timezone import now as datetime
+from django.conf import settings
+
+
+
+
 class EmployeeViewSet(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -51,45 +70,35 @@ class EmployeeViewSet(APIView):
                 role_id = employee_instance.role_id
                 company_id = employee_instance.company_id
 
-            # --- CASE 1: Specific Employee ---
             if pk:
                 employee = Employee.objects.filter(
                     id=pk, company_id=company_id, active=True
                 ).select_related('role', 'company').first()
 
                 if not employee:
-                    print(f"ERROR: Employee with ID={pk} not found for company ID={company_id}")
                     return Response({'error': 'Employee not found'}, status=404)
 
                 data = EmployeeSerializer(employee).data
                 return Response(data, status=200)
 
-            # --- CASE 2: Company/HR/Admin fetching all employees ---
             if is_company or role_id in [1, 2, 3]:
-
                 employees = Employee.objects.filter(
                     company_id=company_id
-                ).select_related('role', 'company') \
-                .annotate(
+                ).select_related('role', 'company').annotate(
                     username=Concat(F('first_name'), Value(' '), F('last_name'), output_field=CharField()),
                     role_name=F('role__role_name'),
-                    company_name=F('company__company_name'), 
-                    team_size=F('company__team_size')         
+                    company_name=F('company__company_name'),
+                    team_size=F('company__team_size')
                 ).values(
                     'id', 'username', 'contact_number', 'company_email', 'personal_email',
                     'date_of_birth', 'gender', 'company_name', 'team_size', 'role_name', 'active'
                 ).order_by('-id')
 
-                employees_list = list(employees) 
-                return Response(employees_list, status=200)
+                return Response(list(employees), status=200)
 
-            # --- CASE 3: Regular Employee accessing own data ---
             if is_employee:
-                employee_data = EmployeeSerializer(employee_instance).data
-                return Response(employee_data, status=200)
+                return Response(EmployeeSerializer(employee_instance).data, status=200)
 
-            # Unauthorized fallback
-            print("ERROR: Unauthorized access by user:", user_email)
             return Response({'error': 'Unauthorized'}, status=401)
 
         except Exception as e:
@@ -99,40 +108,26 @@ class EmployeeViewSet(APIView):
     def post(self, request):
         try:
             data = request.data.copy()
-            # Flags
-            is_company = False
-            is_employee = False 
-
-            # Get current user
             user_data = User.objects.get(email=request.user.email)
             is_company = user_data.is_company
             is_employee = user_data.is_employee
 
-            # Required fields check
-            required_fields = [
-                'first_name', 'last_name', 'company_email', 'personal_email',
-                'contact_number', 'date_of_birth', 'gender'
-            ]
+            required_fields = ['first_name', 'last_name', 'company_email', 'personal_email',
+                               'contact_number', 'date_of_birth', 'gender']
             missing_fields = [f for f in required_fields if not data.get(f)]
             if missing_fields:
                 return Response({'error': f'Missing required fields: {", ".join(missing_fields)}'}, status=400)
 
-            # Determine company
-            user_email = request.user.email
-            company = None
-            company_id = None
-
             if is_company:
-                company = get_company_by_email(user_email)
-                company_id = company.id
+                company = get_company_by_email(request.user.email)
             elif is_employee:
-                emp_data = get_employee_by_email(user_email)
-                company = emp_data.company   
-                company_id = company.id
+                emp_data = get_employee_by_email(request.user.email)
+                company = emp_data.company
             else:
                 return Response({'error': 'Unauthorized to create employees.'}, status=403)
 
-            # Role validation
+            company_id = company.id
+
             role_input = data.get('job_role') or data.get('designation') or data.get('role')
             if not role_input:
                 return Response({'error': 'Role is required.'}, status=400)
@@ -142,25 +137,21 @@ class EmployeeViewSet(APIView):
             except Role.DoesNotExist:
                 return Response({'error': f'Role "{role_input}" does not exist.'}, status=400)
 
-            # Optional: Team size limit
-            if hasattr(role, 'team_size') and isinstance(role.team_size, int):
-                current_count = Employee.objects.filter(role_id=role.id, company_id=company_id).count()
-                if current_count >= role.team_size:
-                    return Response({'error': f'Team size limit ({role.team_size}) reached for this role.'}, status=400)
+            # Check if company has reached team size limit
+            if company.team_size and str(company.team_size).isdigit():
+                current_team_size = Employee.objects.filter(company_id=company.id, active=True).count()
+                if current_team_size >= int(company.team_size):
+                    return Response({'error': f'Team size limit ({company.team_size}) reached for this company.'}, status=400)
+
 
             email = data.get('company_email')
             default_password = "Pass@123"
 
-        
-            # Prevent duplicate employee
             if User.objects.filter(email=email).exists():
                 return Response({'error': 'Employee with this email already exists.'}, status=400)
-            
             if Employee.objects.filter(contact_number=data.get('contact_number')).exists():
                 return Response({'error': 'Employee with this contact number already exists.'}, status=400)
-            
 
-            # Check if user already exists
             user = get_user_by_email(email)
             if not user:
                 user = User.objects.create_user(
@@ -172,7 +163,6 @@ class EmployeeViewSet(APIView):
                     is_employee=True
                 )
 
-            # Create employee
             employee = Employee.objects.create(
                 first_name=data.get('first_name'),
                 middle_name=data.get('middle_name'),
@@ -187,7 +177,6 @@ class EmployeeViewSet(APIView):
                 user_id=user.id,
             )
 
-            # Send onboarding email
             subject = f"Welcome to {company.company_name} Employee Management System"
             message = (
                 f"Hi {employee.first_name} {employee.last_name},\n\n"
@@ -197,7 +186,7 @@ class EmployeeViewSet(APIView):
                 f"Please change your password after logging in.\n\n"
                 f"- {company.company_name} HR Team"
             )
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+            send_welcome_email_task.delay(subject, message, email)
 
             return Response({'success': 'Employee created and email sent.'}, status=201)
 
@@ -207,21 +196,63 @@ class EmployeeViewSet(APIView):
     def put(self, request, pk=None):
         try:
             employee = get_object_or_404(Employee, id=pk)
+            updatable_fields = [
+                'first_name', 'middle_name', 'last_name', 'contact_number',
+                'company_email', 'personal_email', 'date_of_birth', 'gender', 'job_role'
+            ]
 
-            updatable_fields = ['first_name', 'middle_name', 'last_name', 'contact_number',
-                                'company_email', 'personal_email', 'date_of_birth', 'gender', 'job_role']
+            updated_fields = {}
+            changes_summary = []
+
             for field in updatable_fields:
                 value = request.data.get(field)
                 if value:
-                    setattr(employee, 'role_id' if field == 'job_role' else field, value)
+                    old_value = getattr(employee, field if field != 'job_role' else 'role_id', None)
+
+                    if field == 'job_role':
+                        role = Role.objects.get(id=int(value))
+                        if employee.role_id != role.id:
+                            employee.role_id = role.id
+                            updated_fields['role'] = role.role_name
+                            changes_summary.append(f"Role changed to: {role.role_name}")
+                    else:
+                        if str(old_value) != str(value):  # Compare string values to avoid false positives
+                            setattr(employee, field, value)
+                            updated_fields[field] = value
+                            changes_summary.append(f"{field.replace('_', ' ').title()} changed to: {value}")
+
+            if not updated_fields:
+                return Response({'message': 'No changes detected.'}, status=200)
 
             employee.save()
+
+            # Compose the email
+            subject = f"Profile Update Notification - {employee.first_name} {employee.last_name}"
+            message = (
+                f"Hi {employee.first_name},\n\n"
+                f"Your profile was updated .\n\n"
+                f"The following changes were made:\n"
+                f"{chr(10).join(['- ' + change for change in changes_summary])}\n\n"
+                f"If you did not request these changes, please contact HR immediately.\n\n"
+                f"- HR Team"
+            )
+
+            # Send update email via Celery
+            print('subject ==<<>>>', subject)
+            print('message ==<<<>>', message)
+            print('employee.company_email ==<<>>', employee.company_email)
+            send_welcome_email_task.delay(subject, message, employee.company_email)
+
             return Response({'message': 'Employee updated successfully!', 'id': employee.id}, status=200)
 
+        except Role.DoesNotExist:
+            return Response({'error': 'Invalid role specified.'}, status=400)
         except Employee.DoesNotExist:
-            return Response({'error': 'Employee not found'}, status=404)
+            return Response({'error': 'Employee not found.'}, status=404)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
+    
+
 
     def delete(self, request, pk=None):
         try:
@@ -230,36 +261,76 @@ class EmployeeViewSet(APIView):
             user_data.is_active = False
             employee.active = False
             employee.save()
+            user_data.save()
+
+            print('employee.company_email', employee.company_email)
+            # Send deactivation email
+            subject = f"Your account has been deactivated"
+            message = (
+                f"Hi {employee.first_name},\n\n"
+                f"Your employee account has been deactivated as of {datetime().strftime('%Y-%m-%d %H:%M:%S')}.\n"
+                f"Please contact HR for more information.\n\n"
+                f"- HR Team"
+            )
+            send_welcome_email_task.delay(subject, message, employee.company_email)
+
             return Response({'success': 'Employee deactivated.'}, status=200)
+
         except Exception as e:
             return Response({'error': str(e)}, status=500)
-        
 
     def patch(self, request, pk=None):
         try:
-            print('data comming form frontend ==<<>', request.data)
             employee = Employee.objects.get(id=pk)
             user = get_object_or_404(User, id=employee.user_id)
-            user = get_object_or_404(User, id=employee.user_id)
-            print('ankit')
-            
 
-            # Get 'active' from request body
             new_status = request.data.get('active')
-            print('new_status ==<>>>', new_status)
             if new_status is None:
-                return Response({'error': 'Missing active status'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Missing active status'}, status=400)
+
+            # Convert string "true"/"false" to boolean if needed
+            if isinstance(new_status, str):
+                new_status = new_status.lower() == 'true'
 
             employee.active = new_status
             user.is_active = new_status
-
             employee.save()
             user.save()
 
-            return Response({'success': f"Employee {'activated' if new_status else 'deactivated'}."}, status=status.HTTP_200_OK)
+            # Get company for email message
+            company = Company.objects.get(id=employee.company_id)
+            status_text = "activated" if new_status else "deactivated"
+            default_password = "Pass@123"  
+
+            subject = f"Your account has been {status_text}"
+
+            if new_status:
+                print('ankit ')
+                message = (
+                    f"Hi {employee.first_name} {employee.last_name},\n\n"
+                    f"Your account has been {status_text} .\n"
+                    f"🔗 Login: http://localhost:5173/login\n"
+                    f"📧 Email: {employee.company_email}\n🔐 Password: {default_password}\n\n"
+                    f"Please change your password after logging in.\n\n"
+                    f"If you have any questions, please contact HR.\n\n"
+                    f"- {company.company_name} HR Team"
+                )
+            else:
+                message = (
+                    f"Hi {employee.first_name} {employee.last_name},\n\n"
+                    f"Your account has been {status_text} .\n\n"
+                    f"If you have any questions, please contact HR.\n\n"
+                    f"- {company.company_name} HR Team"
+                )
+
+            # Send activation/deactivation email
+            email = employee.company_email
+            send_welcome_email_task.delay(subject, message, email)
+
+            return Response({'success': f"Employee {status_text}."}, status=200)
 
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': str(e)}, status=500)
 
 # Employee Bank Details CRUD operations
 class EmployeeBankDetailsView(APIView):
