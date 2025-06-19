@@ -1,0 +1,338 @@
+
+THIS IS FOR DOCURE FILE WHEN WE ARE USING KAFKA AND ZOOKEEPER
+
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"  # <- expose to host
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+
+
+
+
+COMMANDS FOR RUN THE RUN DOCKER AND KAFKA AND ZOOKEEPER
+
+
+✅ Great! Your Kafka and Zookeeper services are now up and running inside Docker containers:
+
+employee-management_zookeeper_1: ✅ started
+
+employee-management_kafka_1: ✅ started 
+
+
+
+CONTAINER ID   IMAGE                          ...   NAMES
+abc123456789   confluentinc/cp-kafka:latest   ...   employee-management_kafka_1
+xyz987654321   confluentinc/cp-zookeeper:latest ... employee-management_zookeeper_1
+
+
+Restart the containers:
+docker-compose down
+docker-compose up -d
+
+
+
+
+Now that Kafka is running, you should be able to start your Kafka consumer without seeing the previous Connection refused error.
+
+From your virtual environment (venv), run  Retry your consumer::
+python backend/manage.py run_kafka_consumer
+
+
+
+
+
+telnet localhost 9092
+
+
+
+1. Check Kafka container logs
+Run this to see if Kafka is starting up or encountering errors:
+docker-compose logs kafka
+
+
+
+
+You're looking for a line like:
+
+scss
+
+INFO [KafkaServer id=1] started (kafka.server.KafkaServer)
+If you don’t see that, the Kafka service may still be starting or may have failed.
+
+
+
+
+Save and use the cleaned docker-compose.yml.
+
+Run:
+
+docker-compose down -v
+docker-compose up -d --build
+
+
+
+ Check Kafka container logs 
+ docker-compose logs kafka
+
+
+
+
+atlantick-solutions@atlantick-solutions-Vostro-3030S:~/Desktop/Ankit Mishra/Employee-Management$ python backend/manage.py run_kafka_consumer
+📡 Running Kafka notification consumer...
+❌ Kafka error: KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available: notifications: Broker: Unknown topic or partition"}
+^C^CTraceback (most recent call last):
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/manage.py", line 22, in <module>
+    main()
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/base.py", line 416, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/venv/lib/python3.12/site-packages/django/core/management/base.py", line 460, in execute
+    output = self.handle(*args, **options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/core/management/commands/run_kafka_consumer.py", line 9, in handle
+    run_notification_consumer()
+  File "/home/atlantick-solutions/Desktop/Ankit Mishra/Employee-Management/backend/core/consumers/notification_consumer.py", line 18, in run_notification_consumer
+    msg = consumer.poll(1.0)
+          ^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+^C
+atlantick-solutions@atlantick-solutions-Vostro-3030S:~/Desktop/Ankit Mishra/Employee-Management$ docker exec -it employee-management_kafka_1 bash
+[appuser@6b38ccfb5107 ~]$ kafka-topics --create \
+>   --topic notifications \
+>   --bootstrap-server localhost:9092 \
+>   --replication-factor 1 \
+>   --partitions 1
+Created topic notifications.
+[appuser@6b38ccfb5107 ~]$ 
+
+
+
+
+
+for exit the terminal ===<<>>> exit
+
+
+after running success fullyy you will see 
+atlantick-solutions@atlantick-solutions-Vostro-3030S:~/Desktop/Ankit Mishra/Employee-Management$ python backend/manage.py run_kafka_consumer
+📡 Running Kafka notification consumer...
+📨 Subscribed to topic: notifications
+✅ Received message: Test message from producer
+
+
+
+
+
+
+
+The error you're getting:
+
+kotlin
+
+KafkaException: KafkaError{code=UNKNOWN_TOPIC_OR_PART,val=3,str="Subscribed topic not available: employee-events: Broker: Unknown topic or partition"}
+means that Kafka cannot find the topic named employee-events.
+
+✅ Here's how to resolve this:
+✅ 1. Verify Kafka is running
+Make sure your Kafka server and Zookeeper are running:
+
+
+# For Zookeeper (if required)
+bin/zookeeper-server-start.sh config/zookeeper.properties
+
+# For Kafka
+bin/kafka-server-start.sh config/server.properties
+✅ 2. Check existing topics
+Run this to see the list of available topics:
+
+
+bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+If you don’t see employee-events or notifications, that’s the issue.
+
+✅ 3. Create the missing topics
+Manually create the missing topics like so:
+
+
+# Create employee-events topic
+bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic employee-events --partitions 1 --replication-factor 1
+
+# Create notifications topic
+bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic notifications --partitions 1 --replication-factor 1
+Then try running your command again:
+
+
+python backend/manage.py run_kafka_consumer
+🔁 Optional: Auto-create topics
+If you want Kafka to auto-create topics when they don’t exist, make sure the Kafka config (server.properties) has:
+
+properties
+
+auto.create.topics.enable=true
+Then restart Kafka.
+
+
+
+
+
+✅ Here's how to fix it now:
+Step 1: Go to your Kafka directory
+Make sure you're in the Kafka folder you extracted (e.g., kafka_2.13-3.7.0):
+
+
+cd ~/kafka_2.13-3.7.0
+Step 2: Create the missing topics manually
+
+bin/kafka-topics.sh --create \
+  --topic employee-events \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+And the same for notifications:
+
+
+bin/kafka-topics.sh --create \
+  --topic notifications \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+Step 3: Confirm the topics were created
+
+bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+You should see:
+
+matlab
+
+employee-events
+notifications
+Step 4: Run your consumer again
+
+python backend/manage.py run_kafka_consumer
+It should now connect and stay running. ✅
+
+
+
+
+
+✅ Step 1: Re-download and extract Kafka
+Run this in your terminal:
+
+cd ~
+wget https://archive.apache.org/dist/kafka/3.7.0/kafka_2.13-3.7.0.tgz
+tar -xzf kafka_2.13-3.7.0.tgz
+cd kafka_2.13-3.7.0 
+
+
+✅ Step 2: Start Zookeeper and Kafka
+In two separate terminals:
+
+Terminal 1 – Zookeeper:
+
+bin/zookeeper-server-start.sh config/zookeeper.properties
+Terminal 2 – Kafka server:
+
+bin/kafka-server-start.sh config/server.properties
+
+
+
+
+✅ Step 3: Create the required Kafka topics
+Once Kafka is running, in a third terminal, run:
+
+first command : 1- cd ~
+first command : 2- tar -xzf kafka_2.13-3.7.0.tgz
+first command : 3- cd kafka_2.13-3.7.0
+first command : 4- bin/kafka-topics.sh --create \
+  --topic employee-events \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+Created topic employee-events.
+
+
+
+✅ Step 4: Verify the topics
+Check if the topics were created:
+
+
+bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+You should see:
+
+employee-events
+notifications
+
+
+
+✅ Final Step: Run Your Kafka Consumer
+Now, go back to your Django project terminal and run:
+
+python backend/manage.py run_kafka_consumer
+
+
+
+
+
+
+Great — your Kafka topics are all set! Here's a summary of useful Kafka commands you can use now for topic management and testing:
+
+✅ 1. List all topics
+
+bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+✅ 2. Create a topic
+
+bin/kafka-topics.sh --create \
+  --topic your-topic-name \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+✅ 3. Describe a topic (check config & partitions)
+
+bin/kafka-topics.sh --describe \
+  --topic employee-events \
+  --bootstrap-server localhost:9092
+✅ 4. Produce a test message to a topic
+
+bin/kafka-console-producer.sh \
+  --topic employee-events \
+  --bootstrap-server localhost:9092
+➡️ After running the above, type your JSON or string message and press Enter. Example:
+
+json
+
+{"type": "employee_created", "email": "test@example.com", "name": "Test User", "company": "Atlantick", "password": "Test@123"}
+✅ 5. Consume messages from a topic
+
+bin/kafka-console-consumer.sh \
+  --topic employee-events \
+  --bootstrap-server localhost:9092 \
+  --from-beginning
+This will let you watch all messages coming into the topic — great for testing.
+
+Let me know if you want to clean/reset topics or automate testing messages via script.
+
+
+
+
+
+
+
+
+

@@ -173,7 +173,6 @@ class EmployeeViewSet(APIView):
                 )
 
             # Create employee
-            print('user ==<<>>', user)
             employee = Employee.objects.create(
                 first_name=data.get('first_name'),
                 middle_name=data.get('middle_name'),

@@ -372,6 +372,7 @@ const CreateTask = () => {
       setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
       setSelectedTask(null);
       Swal.fire("Deleted!", "The task has been removed.", "success");
+      window.location.reload();
     } catch (error) {
       Swal.fire("Error", "Could not delete task.", "error");
     }

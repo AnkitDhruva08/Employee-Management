@@ -565,6 +565,9 @@ class Task(models.Model):
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, related_name='created_tasks', null=True, blank=True, on_delete=models.SET_NULL)
+    updated_by = models.ForeignKey(User, related_name='updated_tasks', null=True, blank=True, on_delete=models.SET_NULL)
+
     active = models.BooleanField(default=True) 
 
     def __str__(self):
