@@ -1,4 +1,5 @@
 from django.db.models.functions import ExtractMonth, ExtractYear
+from django.db import models
 
 def apply_common_filters(queryset, request):
     status_param = request.query_params.get("status")
@@ -32,7 +33,9 @@ def apply_common_filters(queryset, request):
         queryset = queryset.filter(priority=priority)
 
     if employee_id:
-        queryset = queryset.filter(members__id=employee_id)
+        queryset = queryset.filter(
+            models.Q(members__id=employee_id) | models.Q(team_lead__id=employee_id)
+        )
     if attendance_emp_id:
         queryset = queryset.filter(employee_id=attendance_emp_id)
 

@@ -62,38 +62,6 @@ const EmployeeTable = () => {
     }
   };
 
-  const deleteEmployee = async (id) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "You won't be able to revert this!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "Cancel",
-      reverseButtons: true,
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const res = await fetch(`http://localhost:8000/api/employees/${id}/`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-          fetchEmployees();
-          Swal.fire("Deleted!", "The employee has been deleted.", "success");
-        } else {
-          throw new Error("Failed to delete");
-        }
-      } catch (err) {
-        console.error("Delete error:", err);
-        Swal.fire("Error!", "Failed to delete the employee.", "error");
-      }
-    }
-  };
-
-
   const toggleEmployeeStatus = async (id, currentStatus) => {
     const newStatus = !currentStatus;
     console.log('newStatus ==<<>>', newStatus);

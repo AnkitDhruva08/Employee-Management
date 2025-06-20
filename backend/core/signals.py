@@ -2,7 +2,7 @@ from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
 from core.models import Project, Task, Bug, Notification, Employee
 from django.contrib.auth import get_user_model
-from core.utils.kafka_producer import send_employee_event
+# from core.utils.kafka_producer import send_employee_event
 
 User = get_user_model()
 def notify_users(users, message, notif_type, url):

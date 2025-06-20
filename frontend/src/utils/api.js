@@ -483,3 +483,15 @@ export const fetchEmployeesAttendance = async (
 };
 
 
+
+
+// function for fetch events 
+//  function for laod tags
+export const fecthevents = async (token) => {
+  const res = await fetch(`${API_BASE_URL}/events/`, {
+    method: "GET",
+    headers: getAuthHeaders(token),
+  });
+  const data = await handleResponse(res);
+  return data;
+};

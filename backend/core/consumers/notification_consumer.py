@@ -14,7 +14,7 @@ User = get_user_model()
 conf = {
     'bootstrap.servers': 'localhost:9092',
     'group.id': 'notification-group',
-    'auto.offset.reset': 'earliest'
+    'auto.offset.reset': 'earliest',
 }
 
 consumer = Consumer(conf)
@@ -38,30 +38,33 @@ def run_notification_consumer():
                 data = json.loads(raw_data)
 
                 user_id = data.get('user_id')
+                message = data.get('message', '')
+                url = data.get('url', '')
+                notification_type = data.get('type', 'task')
+
                 if not user_id:
                     print("⚠️ Missing user_id in message.")
                     continue
 
                 user = User.objects.get(id=user_id)
 
+                # ✅ Deduplication check
+
                 Notification.objects.create(
                     user=user,
-                    message=data.get('message', ''),
-                    notification_type=data.get('type', 'task'),
-                    url=data.get('url', ''),
+                    message=message,
+                    notification_type=notification_type,
+                    url=url,
                     is_read=False
                 )
-
-                print(f"✅ Notification created for {user.email}")
+                print(f"✅ Notification saved to DB for ankit {user.email}")
 
             except User.DoesNotExist:
-                print(f"❌ User with ID {data.get('user_id')} does not exist.")
+                print(f"❌ User with ID {user_id} does not exist.")
             except json.JSONDecodeError as e:
                 print(f"❗ JSON decode error: {e}")
-                print(f"🔍 Raw message: {msg.value()}")
             except Exception as e:
                 print(f"❗ Unexpected error: {e}")
-                print(f"🔍 Message data: {msg.value().decode('utf-8')}")
 
     except KeyboardInterrupt:
         print("🛑 Consumer stopped by user.")
@@ -69,6 +72,5 @@ def run_notification_consumer():
         consumer.close()
         print("🔌 Kafka consumer closed.")
 
-# Don't forget to call the function
 if __name__ == "__main__":
     run_notification_consumer()

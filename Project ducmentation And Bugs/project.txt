@@ -315,3 +315,77 @@ celery -A backend worker -l info
 
 
 
+
+✅ Fix Steps
+1. 🟢 Start Zookeeper (if you're not using KRaft mode)
+Run this in a new terminal:
+
+
+bin/zookeeper-server-start.sh config/zookeeper.properties
+Wait for it to say:
+INFO binding to port /0.0.0.0:2181
+Then open another terminal and proceed.
+
+2. 🟢 Start Kafka Server
+Once Zookeeper is running, start Kafka:
+
+
+bin/kafka-server-start.sh config/server.properties
+Wait until it says something like:
+INFO [KafkaServer id=0] started (kafka.server.KafkaServer)
+
+3. 🛠️ Create Your Topics
+Now you can safely create your topics:
+
+
+bin/kafka-topics.sh --create \
+  --topic employee-events \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+And:
+
+
+bin/kafka-topics.sh --create \
+  --topic notifications \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+4. 🏃‍♂️ Run Your Kafka Consumers
+With topics created and brokers running, now run:
+
+
+python backend/manage.py run_employee_consumer
+python backend/manage.py run_kafka_consumer
+They should subscribe successfully without errors.
+
+🧠 Optional: Are You Using Kafka 3.3+ with KRaft Mode?
+If you're using KRaft mode (Kafka without Zookeeper), then Zookeeper should not be started — but in that case, your Kafka config must point to a meta.properties file and have process.roles=broker,controller set. Let me know if you're using this mode, and I’ll guide you accordingly.
+
+
+
+3. 🛠️ Create Your Topics
+Now you can safely create your topics:
+
+
+bin/kafka-topics.sh --create \
+  --topic employee-events \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+And:
+
+
+bin/kafka-topics.sh --create \
+  --topic notifications \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
+4. 🏃‍♂️ Run Your Kafka Consumers
+With topics created and brokers running, now run:
+
+
+python backend/manage.py run_employee_consumer
+python backend/manage.py run_kafka_consumer
+They should subscribe successfully without errors.
+

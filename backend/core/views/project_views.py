@@ -10,7 +10,7 @@ from django.db.models import Q, Avg, Max, F, Value, CharField
 from core.utils.pagination import CustomPagination
 from core.utils.filter_utils import apply_common_filters
 from django.db import transaction
-
+from core.utils.kafka_producer import send_to_kafka  
 User = get_user_model()
 
 class ProjectManagement(APIView):
@@ -47,7 +47,7 @@ class ProjectManagement(APIView):
                 ).distinct().order_by('-start_date')
 
                 # Role 1: Company Admin - see all
-                elif role_id == 1 or is_company:
+                elif role_id in [1, 2] or is_company:
                     base_queryset = Project.objects.filter(
                         company_id=company_id,
                         active=True
@@ -123,6 +123,8 @@ class ProjectManagement(APIView):
 # function for creating project
     def post(self, request, *args, **kwargs):
         user_details = request.user
+        user_data = User.objects.get(email=user_details.email)
+        print('user_details user name ==<<>', user_details.username)
         company_id = None
 
         if hasattr(user_details, 'is_employee') and user_details.is_employee:
@@ -177,12 +179,12 @@ class ProjectManagement(APIView):
                 for emp in employees:
                     if emp.user:
                         print(f"✅ Sending notification to {emp.company_email} for project '{project.project_name}'")
-                        Notification.objects.create(
-                            user=emp.user,
-                            message=f"You have been assigned to the project '{project.project_name}'.",
-                            notification_type="project",
-                            url=f"/projects/{project.id}/"
-                        )
+                        send_to_kafka('notifications', {
+                        "user_id": emp.user.id,
+                        "message": f"You have been assigned to project: '{project.project_name}' by {user_data.username}",
+                        "type": "project",
+                        "url": f"/projects/{project.id}/"
+                    })
                         print(f"✅ Notification sent to {emp.company_email}")
                     else:
                         print(f"⚠️ Skipping {emp.company_email} — No linked User object.")
@@ -216,7 +218,7 @@ class ProjectManagement(APIView):
                 employee_data = Employee.objects.get(company_email=user.email)
                 role_id = employee_data.role_id
                 company_id = employee_data.company_id
-                if role_id not in [1, 3]:
+                if role_id not in [1, 2, 3]:
                     return Response({"detail": "Unauthorized role for this action."}, status=status.HTTP_403_FORBIDDEN)
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -282,15 +284,18 @@ class ProjectManagement(APIView):
 
                 # Notification to company/admin if updated by employee
                 if is_employee:
+                    print('ankit mishra')
                     try:
                         # Notify the company user
-                        company_user = User.objects.get(id=company_id)
-                        Notification.objects.create(
-                            user=company_user, 
-                            message=f"Employee '{user.get_full_name() or user.email}' made changes to the project '{project.project_name}'.",
-                            notification_type="project",
-                            url=f"/projects/{project.id}/"
-                        )
+                        company_user = Company.objects.get(id=company_id)
+                        company_notify = User.objects.get(id=company_user.user_id)
+                        # sending notification through kafka
+                        send_to_kafka('notifications', {
+                        "user_id": company_notify.id,
+                        "message": f"Employee '{user_data.username}' made changes to the project '{project.project_name}'.",
+                        "type": "project",
+                        "url": f"/projects/{project.id}/"
+                    })
 
                         # Notify all company admins (role_id=1)
                         admins = Employee.objects.filter(company_id=company_id, role_id=1)
@@ -298,12 +303,13 @@ class ProjectManagement(APIView):
                             if admin.company_email:
                                 try:
                                     admin_user = User.objects.get(email=admin.company_email)
-                                    Notification.objects.create(
-                                        user=admin_user,
-                                        message=f"Employee '{user.get_full_name() or user.email}' made changes to the project '{project.project_name}'.",
-                                        notification_type="project",
-                                        url=f"/projects/{project.id}/"
-                                    )
+
+                                    send_to_kafka('notifications', {
+                                        "user_id": admin_user.id,
+                                        "message": f"Employee '{user_data.username}' made changes to the project '{project.project_name}'.",
+                                        "type": "project",
+                                        "url": f"/projects/{project.id}/"
+                                    })
                                 except User.DoesNotExist:
                                     print(f"⚠️ User not found for admin with email: {admin.company_email}")
                    
@@ -321,12 +327,12 @@ class ProjectManagement(APIView):
 
                         for emp in employees_to_assign:
                             if emp.user:
-                                Notification.objects.create(
-                                    user=emp.user,
-                                    message=f"Project '{project.project_name}' has been updated and you're assigned to it.",
-                                    notification_type="project",
-                                    url=f"/projects/{project.id}/"
-                                )
+                                send_to_kafka('notifications', {
+                                    "user_id": emp.user.id,
+                                    "message": f"Project '{project.project_name}' has been updated and you're assigned  by {user_data.username}",
+                                    "type": "project",
+                                    "url": f"/projects/{project.id}/"
+                                })
                     else:
                         project.assigned_to.clear()
 
@@ -375,12 +381,56 @@ class ProjectManagement(APIView):
         except Project.DoesNotExist:
             return Response({"detail": "Project not found or already deleted."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Perform soft delete
+        # Soft delete
         project.active = False
         project.save()
 
-        return Response({"detail": "Project deleted successfully."}, status=status.HTTP_200_OK)
+        # Notification message and URL
+        notif_msg = f"Project '{project.project_name}' was deleted by '{user_data.username}'."
+        notif_url = f"/projects/{project.id}/"
 
+        try:
+            # Notify company user
+            company_user = Company.objects.get(id=company_id)
+            company_notify = User.objects.get(id=company_user.user_id)
+
+            send_to_kafka('notifications', {
+                "user_id": company_notify.id,
+                "message": notif_msg,
+                "type": "project",
+                "url": notif_url,
+            })
+
+            # Notify all company admins (role_id = 1)
+            admins = Employee.objects.filter(company_id=company_id, role_id=1)
+            for admin in admins:
+                if admin.company_email:
+                    try:
+                        admin_user = User.objects.get(email=admin.company_email)
+                        send_to_kafka('notifications', {
+                            "user_id": admin_user.id,
+                            "message": notif_msg,
+                            "type": "project",
+                            "url": notif_url,
+                        })
+                    except User.DoesNotExist:
+                        print(f"⚠️ Admin user not found for {admin.company_email}")
+
+            # Notify all assigned employees
+            assigned_employees = project.assigned_to.all()
+            for emp in assigned_employees:
+                if emp.user:
+                    send_to_kafka('notifications', {
+                        "user_id": emp.user.id,
+                        "message": notif_msg,
+                        "type": "project",
+                        "url": notif_url,
+                    })
+
+        except Exception as e:
+            print(f"⚠️ Error sending notifications: {e}")
+
+        return Response({"detail": "Project deleted successfully."}, status=status.HTTP_200_OK)
 
 # For Bugs Report
 class BugsReportsA(APIView):
@@ -467,7 +517,6 @@ class BugsReportsA(APIView):
         serializer = BugSerializer(bugs_filtered, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
     def post(self, request, *args, **kwargs):
         user = request.user
         try:
@@ -525,12 +574,18 @@ class BugsReportsA(APIView):
             employees = Employee.objects.filter(id__in=assigned_to_ids)
             for emp in employees:
                 if emp.user:
-                    Notification.objects.create(
-                        user=emp.user,
-                        message=f"You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'.",
-                        notification_type="bug",
-                        url=f"/bugs-reportes/{bug.id}/"
-                    )
+                    # Notification.objects.create(
+                    #     user=emp.user,
+                    #     message=f"You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'.",
+                    #     notification_type="bug",
+                    #     url=f"/bugs-reportes/{bug.id}/"
+                    # )
+
+                    send_to_kafka('notifications', {
+                        "user_id": emp.user.id,
+                        "message": f"You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'. you're assigned  by {user_data.username}",
+                        "type": "bug",
+                        "url": f"/bugs-reportes/{bug.id}/" })
                     print(f"✅ Notification sent to {emp.company_email}")
                 else:
                     print(f"⚠️ Skipping {emp.company_email} — No linked User object.")
@@ -539,24 +594,20 @@ class BugsReportsA(APIView):
         else:
             print('Validation Errors:', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
             
-
-
     def put(self, request, pk):
         user = request.user
+
         # Get user data
         try:
             user_data = User.objects.get(email=user.email)
         except User.DoesNotExist:
             return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Determine company ID and check permissions
         company_id = None
         if user_data.is_employee:
             try:
                 employee_data = Employee.objects.get(company_email=user.email)
-                # Allow role_id 1 and 3
                 if employee_data.role_id not in [1, 3]:
                     return Response({"detail": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
                 company_id = employee_data.company_id
@@ -568,73 +619,88 @@ class BugsReportsA(APIView):
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
-        # Fetch the bug and check company ownership
+        # Fetch the bug
         try:
             bug = Bug.objects.get(id=pk, company_id=company_id, active=True)
         except Bug.DoesNotExist:
             return Response({"detail": "Bug not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Prepare incoming data
         data = request.data.copy()
         data.pop('id', None)
         data['company'] = company_id
-         # Fix project ID (if sent as 'projectId')
+
         if 'projectId' in data:
             data['project'] = data.pop('projectId')
-         # Fix assigned_to
+
         assigned_to_ids = request.data.getlist('assigned_to')
         data.setlist('assigned_to', assigned_to_ids)
 
-          # Handle file
         if request.FILES.get('bug_attachment') and request.FILES['bug_attachment'].name != 'null':
             data['bug_attachment'] = request.FILES['bug_attachment']
 
         data['updated_by'] = user_data.id
+
         serializer = BugSerializer(bug, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            if user_data.is_employee:
-                try:
-                    # Notify the company user
-                    company_user = User.objects.get(id=company_id)
-                    Notification.objects.create(
-                        user=company_user,
-                        # You have been assigned to bug: '{bug.title}' in project '{bug.project.project_name}'
-                        message=(
-                            f"✅ Employee '{user.get_full_name() or user.email}' resolved the bug: "
-                            f"'{bug.title}' in project '{bug.project.project_name}'."
-                        ),
-                        notification_type="bug",
-                        url=f"/bugs/{bug.id}/"
-                    )
 
-                    # Notify all admins in the company
-                    admins = Employee.objects.filter(company_id=company_id, role_id=1)
-                    for admin in admins:
-                        if admin.company_email:
-                            try:
-                                admin_user = User.objects.get(email=admin.company_email)
-                                Notification.objects.create(
-                                    user=admin_user,
-                                   message=(
-                                    f"✅ Employee '{user.get_full_name() or user.email}' resolved the bug: "
-                                    f"'{bug.title}' in project '{bug.project.project_name}'."
-                                    ),
-                                    notification_type="bug",
-                                    url=f"/bugs-reportes/{bug.id}/"
-                                )
-                            except User.DoesNotExist:
-                                print(f"⚠️ Admin user not found for email: {admin.company_email}")
-                except Exception as e:
-                    print(f"❌ Notification error: {e}")
+            # ✅ Notification message
+            notif_msg = (
+                f"🛠️ '{user_data.username}' updated the bug: "
+                f"'{bug.title}' in project '{bug.project.project_name}'."
+            )
+            notif_url = f"/bugs-reportes/{bug.id}/"
+
+            try:
+                # Notify Company User
+                company_user = Company.objects.get(id=company_id)
+                user_details = User.objects.get(id=company_user.user_id)
+                send_to_kafka('notifications', {
+                    "user_id": user_details.id,
+                    "message": notif_msg,
+                    "type": "bug",
+                    "url": notif_url,
+                })
+
+                # Notify Admins (role_id = 1)
+                admins = Employee.objects.filter(company_id=company_id, role_id=1)
+                for admin in admins:
+                    if admin.company_email:
+                        try:
+                            admin_user = User.objects.get(email=admin.company_email)
+                            send_to_kafka('notifications', {
+                                "user_id": admin_user.id,
+                                "message": notif_msg,
+                                "type": "bug",
+                                "url": notif_url,
+                            })
+                        except User.DoesNotExist:
+                            print(f"⚠️ Admin user not found for {admin.company_email}")
+
+                # Notify all assigned employees
+                assigned_employees = Employee.objects.filter(id__in=assigned_to_ids)
+                for emp in assigned_employees:
+                    if emp.user:
+                        send_to_kafka('notifications', {
+                            "user_id": emp.user.id,
+                            "message": notif_msg,
+                            "type": "bug",
+                            "url": notif_url,
+                        })
+                    else:
+                        print(f"⚠️ Skipped {emp.company_email}: No linked User object.")
+
+            except Exception as e:
+                print(f"❌ Error sending notifications: {e}")
+
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            print('serializer errors', serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
     def delete(self, request, pk):
         user = request.user
-
+        print('pk for delete bugs ==<<<>>', pk)
         # Get user data
         try:
             user_data = User.objects.get(email=user.email)
@@ -642,6 +708,7 @@ class BugsReportsA(APIView):
             return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Determine company ID
+        company_id = None
         if user_data.is_employee:
             try:
                 employee_data = Employee.objects.get(company_email=user.email)
@@ -651,17 +718,71 @@ class BugsReportsA(APIView):
             except Employee.DoesNotExist:
                 return Response({"detail": "Employee data not found"}, status=status.HTTP_404_NOT_FOUND)
         elif user_data.is_company:
-            company_id = user_data.id
+            company_data = Company.objects.get(user_id=user_data.id)
+            company_id = company_data.id
         else:
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
+        # Get the bug
         try:
             bug = Bug.objects.get(id=pk, company_id=company_id, active=True)
         except Bug.DoesNotExist:
             return Response({"detail": "Bug not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        bug.active = False  # Soft delete
+        # Soft delete
+        bug.active = False
         bug.save()
+
+        # ✅ Notification message
+        notif_msg = (
+            f" '{user_data.username}' deleted the bug: "
+            f"'{bug.title}' from project '{bug.project.project_name}'."
+        )
+        notif_url = f"/bugs-reportes/{bug.id}/"
+
+        print('notif_msg ==<<>>', notif_msg)
+
+        try:
+            # Notify Company User
+            company_user = Company.objects.get(id=company_id)
+            user_details = User.objects.get(id=company_user.user_id)
+            send_to_kafka('notifications', {
+                "user_id": user_details.id,
+                "message": notif_msg,
+                "type": "bug",
+                "url": notif_url,
+            })
+
+            # Notify Admins (role_id = 1)
+            admins = Employee.objects.filter(company_id=company_id, role_id=1)
+            for admin in admins:
+                if admin.company_email:
+                    try:
+                        admin_user = User.objects.get(email=admin.company_email)
+                        send_to_kafka('notifications', {
+                            "user_id": admin_user.id,
+                            "message": notif_msg,
+                            "type": "bug",
+                            "url": notif_url,
+                        })
+                    except User.DoesNotExist:
+                        print(f"⚠️ Admin user not found for {admin.company_email}")
+
+            # Notify assigned employees
+            assigned_employees = bug.assigned_to.all()
+            for emp in assigned_employees:
+                if emp.user:
+                    send_to_kafka('notifications', {
+                        "user_id": emp.user.id,
+                        "message": notif_msg,
+                        "type": "bug",
+                        "url": notif_url,
+                    })
+
+        except Exception as e:
+            print(f"❌ Notification error: {e}")
+
         return Response({"detail": "Bug marked as inactive"}, status=status.HTTP_204_NO_CONTENT)
+
 
 

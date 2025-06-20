@@ -16,6 +16,7 @@ import {
 
 const Header = ({ title }) => {
   const [userData, setUserData] = useState(null);
+  const [showAll, setShowAll] = useState(false); 
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -106,19 +107,18 @@ const Header = ({ title }) => {
 
       <div className="flex items-center gap-6 cursor-pointer">
         {/* 🔔 Notification */}
-        {/* 🔔 Notification */}
         <div className="relative" ref={notifRef}>
-          <div
-            onClick={() => setShowNotifications((prev) => !prev)}
-            className="relative"
-          >
-            <Bell className="w-6 h-6 text-gray-600 hover:text-blue-600" />
-            {notifications.length > 0 && (
-              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-600 rounded-full">
-                {notifications.length}
-              </span>
-            )}
-          </div>
+        <div
+  onClick={() => setShowNotifications((prev) => !prev)}
+  className="relative"
+>
+  <Bell className="w-6 h-6 text-gray-600 hover:text-blue-600" />
+  {notifications.length > 0 && (
+    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold text-white bg-red-600 rounded-full">
+      {notifications.length > 9 ? "9+" : notifications.length}
+    </span>
+  )}
+</div>
 
           {showNotifications && (
             <div className="absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl z-50 p-4">

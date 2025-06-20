@@ -201,6 +201,7 @@ class Event(models.Model):
     title = models.CharField(max_length=255)
     date = models.DateField()
     description = models.TextField(blank=True)
+    status = models.CharField(max_length=50)
     active = models.BooleanField(default=True)  # New field
 
     # Audit fields

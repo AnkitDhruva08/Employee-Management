@@ -16,28 +16,11 @@ from django.conf import settings
 from core.utils.utils import get_user_by_email, get_employee_by_email, get_company_by_email
 from core.utils.kafka_producer import send_to_kafka  
 from datetime import datetime
-from core.async_task.tasks import send_welcome_email_task, send_generic_email_task
+from core.async_task.tasks import send_email_task
 User = get_user_model()
 
 def to_bool(value):
     return str(value).lower() == 'true'
-
-
-
-
-
-
-
-# Employee ModelViewSet for Employee CRUD operations
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.db.models import F, Value, CharField
-from django.db.models.functions import Concat
-from django.utils.timezone import now as datetime
-from django.conf import settings
-
 
 
 
@@ -186,7 +169,8 @@ class EmployeeViewSet(APIView):
                 f"Please change your password after logging in.\n\n"
                 f"- {company.company_name} HR Team"
             )
-            send_welcome_email_task.delay(subject, message, email)
+
+            send_email_task.delay(subject, message, email)
 
             return Response({'success': 'Employee created and email sent.'}, status=201)
 
@@ -216,7 +200,7 @@ class EmployeeViewSet(APIView):
                             updated_fields['role'] = role.role_name
                             changes_summary.append(f"Role changed to: {role.role_name}")
                     else:
-                        if str(old_value) != str(value):  # Compare string values to avoid false positives
+                        if str(old_value) != str(value):
                             setattr(employee, field, value)
                             updated_fields[field] = value
                             changes_summary.append(f"{field.replace('_', ' ').title()} changed to: {value}")
@@ -226,7 +210,7 @@ class EmployeeViewSet(APIView):
 
             employee.save()
 
-            # Compose the email
+            # Compose the email in asychronuous way
             subject = f"Profile Update Notification - {employee.first_name} {employee.last_name}"
             message = (
                 f"Hi {employee.first_name},\n\n"
@@ -238,10 +222,7 @@ class EmployeeViewSet(APIView):
             )
 
             # Send update email via Celery
-            print('subject ==<<>>>', subject)
-            print('message ==<<<>>', message)
-            print('employee.company_email ==<<>>', employee.company_email)
-            send_welcome_email_task.delay(subject, message, employee.company_email)
+            send_email_task.delay(subject, message, employee.company_email)
 
             return Response({'message': 'Employee updated successfully!', 'id': employee.id}, status=200)
 
@@ -272,7 +253,7 @@ class EmployeeViewSet(APIView):
                 f"Please contact HR for more information.\n\n"
                 f"- HR Team"
             )
-            send_welcome_email_task.delay(subject, message, employee.company_email)
+            send_email_task.delay(subject, message, employee.company_email)
 
             return Response({'success': 'Employee deactivated.'}, status=200)
 
@@ -325,7 +306,7 @@ class EmployeeViewSet(APIView):
 
             # Send activation/deactivation email
             email = employee.company_email
-            send_welcome_email_task.delay(subject, message, email)
+            send_email_task.delay(subject, message, email)
 
             return Response({'success': f"Employee {status_text}."}, status=200)
 

@@ -26,7 +26,6 @@ from core.views.notification_views import NotificationView, UnreadNotificationVi
 router = DefaultRouter()
 
 # Registering all our ViewSets
-router.register(r'events', EventViewSet)
 
 # HR Dashboard
 
@@ -149,7 +148,11 @@ urlpatterns = [
     # task tags
     path("task-tags/<int:pk>/", TagListCreateView.as_view(), name="tag-list"),
     path("task-tags/", TagListCreateView.as_view(), name="tag-list-create"),
-    path("get_user_avatar/<int:pk>/", get_user_avatar, name="mmber-profile")
+    path("get_user_avatar/<int:pk>/", get_user_avatar, name="mmber-profile"),
+
+
+    # events 
+    path('events/', EventViewSet.as_view(), name='events'),
 
 ]
 

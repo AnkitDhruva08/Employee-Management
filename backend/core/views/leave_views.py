@@ -13,7 +13,7 @@ from core.utils.utils import is_profile_complete
 from django.core.mail import send_mail
 from django.utils import timezone
 from django.conf import settings
-
+from core.async_task.tasks import send_email_task
 
 User = get_user_model()  
 
@@ -104,10 +104,9 @@ class LeaveRequestViewSet(APIView):
 
             # Add HR (if not already the employee)
             role_id = employee.role_id
-           
             hr_user = Employee.objects.filter(role_id=2, company_id=company_id).first()
             if hr_user and hr_user.company_email not in recipients and hr_user.company_email != employee.company_email:
-                recipients.append(hr_user.email)
+                recipients.append(hr_user.company_email)
 
             # Add Admin
             admin_user = Employee.objects.filter(role_id=1, company_id=company_id).first()
@@ -139,8 +138,8 @@ class LeaveRequestViewSet(APIView):
                 f"Employee Management System\n"
                 f"Support Team"
             )
-
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, recipients)
+            # recipients use when send actuall one
+            send_email_task.delay(subject, message, recipients)
 
             # --- Save the request ---
             if serializer.is_valid():
@@ -159,17 +158,98 @@ class LeaveRequestViewSet(APIView):
     def put(self, request, pk, *args, **kwargs):
         try:
             leave_request = LeaveRequest.objects.get(pk=pk)
-            data = request.data.copy()  
-            # Automatically set hr_reviewed = True if status is HR Approved
-            if data.get('status') == 'HR Approved':
-                data['hr_reviewed'] = True 
+            data = request.data.copy()
+            print('data ===>>>', data)
+            leave_status = request.data.get('status')
+            leave_comments = request.data.get('comment')
 
-            if data.get('status') == 'Admin Approved':
-                data['admin_reviewed'] = True 
+            # Get current user
+            user_data = User.objects.get(email=request.user.email)
+            company_id = None
+            recipients = []
 
+            # Superuser email
+            try:
+                super_user = User.objects.get(is_superuser=True)
+                recipients.append(super_user.email)
+            except User.DoesNotExist:
+                pass  # Optional: Log or handle missing superuser
+
+            # Determine company ID and add HR/Admin emails
+            if user_data.is_company:
+                company_data = Company.objects.get(user_id=user_data)
+                company_id = company_data.id
+
+            elif user_data.is_employee:
+                employee_data = Employee.objects.get(user_id=user_data.id)
+                company_id = employee_data.company_id
+
+                # Add Admin & HR (only if not the same user)
+                admin_user = Employee.objects.filter(company_id=company_id, role_id=1, active=True).exclude(id=employee_data.id).first()
+                hr_user = Employee.objects.filter(company_id=company_id, role_id=2, active=True).exclude(id=employee_data.id).first()
+
+                if admin_user:
+                    recipients.append(admin_user.company_email)
+                if hr_user:
+                    recipients.append(hr_user.company_email)
+
+            # Set review flags based on status
+            status_val = data.get('status')
+            if status_val == 'HR Approved':
+                data['hr_reviewed'] = True
+            if status_val == 'Admin Approved':
+                data['admin_reviewed'] = True
+                data['hr_reviewed'] = True
+
+            # Get leave and employee data
+            leave_data = LeaveRequest.objects.get(id=pk)
+            leave_applicant = Employee.objects.get(id=leave_data.employee_id)
+            recipients.append(leave_applicant.company_email)
+
+            # Get company info
+            company_user = Company.objects.get(id=company_id)
+
+            # Update the leave request
             serializer = LeaveRequestSerializer(leave_request, data=data, partial=True)
             if serializer.is_valid():
                 serializer.save()
+
+                # Get full name of the employee
+                employee_name = f"{leave_applicant.first_name} {leave_applicant.last_name}"
+                leave_status = data.get("status", "Updated")
+                leave_comments = data.get("comments", "").strip()
+
+                # Format the subject
+                subject = f"📢 Leave Request {leave_status} Notification"
+
+                # Format the message body
+                message = (
+                    f"Dear {employee_name},\n\n"
+                    f"This is to inform you that the status of your leave request has been updated in the Employee Management System.\n\n"
+                    f"📝 **Leave Details**:\n"
+                    f"• Type: {leave_data.leave_type}\n"
+                    f"• From: {leave_data.from_date}\n"
+                    f"• To: {leave_data.to_date}\n"
+                    f"• Reason: {leave_data.reason}\n"
+                )
+
+                # Add comments if available
+                if leave_comments:
+                    message += f"• Reviewer Comments: {leave_comments}\n"
+
+                # Add status and login info
+                message += (
+                    f"\n📌 **Updated Status**: {leave_status}\n\n"
+                    f"You can log in to your account for more details or to take further action:\n"
+                    f"🔗 http://localhost:5173/login\n\n"
+                    f"Best regards,\n"
+                    f"{company_user.company_name} HR Team\n"
+                    f"Employee Management System"
+                )
+
+                # Send to the specific employee only
+                send_email_task.delay(subject, message, [leave_applicant.company_email])
+
                 return Response({'success': 'Leave request updated successfully.'}, status=status.HTTP_200_OK)
             else:
                 print("Serializer errors:", serializer.errors)
@@ -181,6 +261,7 @@ class LeaveRequestViewSet(APIView):
         except Exception as e:
             print("Error during update:", str(e))
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
         
 

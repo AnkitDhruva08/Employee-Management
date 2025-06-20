@@ -19,6 +19,7 @@ import traceback
 from django.utils.timezone import now
 from datetime import timedelta
 import json
+from core.async_task.tasks import send_email_task
 # User Model
 User = get_user_model() 
 
@@ -113,7 +114,10 @@ class CompanyRegisterView(APIView):
                     f"💼 {company_name} Support Team\n"
                     f"🌟 Empowering Your Company’s Success"
                 )
-                send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [super_user_email])
+
+                 # Send update email via Celery
+                send_email_task.delay(subject, message, super_user_email)
+                # send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [super_user_email])
 
             # Generate JWT tokens
             refresh = RefreshToken.for_user(user)

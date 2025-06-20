@@ -44,8 +44,11 @@ const ProjectCreationModal = ({
 
   const employeeOptions = employees.map((emp) => ({
     value: emp.id,
-    label: isEmployee ? `${emp.first_name} ${emp.last_name}` : emp.username,
+    label:  emp.username,
   }));
+
+
+  console.log('employeeOptions ==<<<>>', employeeOptions)
 
   function getInitialFormData(data = null, isEdit = false) {
     if (isEdit && data) {
@@ -405,7 +408,7 @@ const ProjectCreationModal = ({
               }
               classNamePrefix="react-select"
               placeholder="Select employees"
-              isDisabled={Number(roleId) === 3}
+              // isDisabled={Number(roleId) === 3}
             />
           </div>
 

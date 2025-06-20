@@ -51,6 +51,7 @@ const EmployeeTasksToday = () => {
       const dashboard = await fetchDashboard(token);
       const tags = await loadTaskTags(token);
       const allEmployees = await fetchEmployees(token);
+      console.log('allEmployees =<<<>>>', allEmployees)
       const tasks = await fecthTasks(
         token,
         filterTagId,
@@ -200,6 +201,7 @@ const EmployeeTasksToday = () => {
                   <th className="py-3 px-6 text-left">Employee</th>
                   <th className="py-3 px-6 text-left">Project</th>
                   <th className="py-3 px-6 text-left">Task</th>
+                  <th className="py-3 px-6 text-left">Project Lead</th>
                   <th className="py-3 px-6 text-left">Status</th>
                 </tr>
               </thead>
@@ -211,24 +213,33 @@ const EmployeeTasksToday = () => {
                     </td>
                   </tr>
                 )}
+
                 {taskData.map((task) => {
                   const tag = taskTags.find((t) => t.id === task.status);
-                  return (
-                    <tr key={task.id} className="border-b border-gray-200 hover:bg-gray-100">
+                  const memberNames = task.member_names
+                    ? task.member_names.split(",").map((name) => name.trim())
+                    : [];
+
+                  return memberNames.map((member, idx) => (
+                    <tr key={`${task.id}-member-${idx}`} className="border-b border-gray-200 hover:bg-gray-100">
                       <td className="py-3 px-6 flex items-center">
-                        <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-semibold mr-3">
-                          {task.team_lead_name?.split(" ").map((word) => word[0]).join("")}
+                        <div className="bg-indigo-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-semibold mr-3">
+                          {member
+                            .split(" ")
+                            .map((word) => word[0])
+                            .join("")
+                            .toUpperCase()}
                         </div>
-                        {task.team_lead_name || "-"}
+                        {member}
                       </td>
                       <td className="py-3 px-6">{task.project_name || "-"}</td>
                       <td className="py-3 px-6">{task.task_name}</td>
+                      <td className="py-3 px-6">{task.team_lead_name}</td>
                       <td className="py-3 px-6">
                         {tag ? (
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${tag.color}`}
                           >
-
                             {tag.name}
                           </span>
                         ) : (
@@ -236,9 +247,10 @@ const EmployeeTasksToday = () => {
                         )}
                       </td>
                     </tr>
-                  );
+                  ));
                 })}
               </tbody>
+
             </table>
           </div>
         </main>

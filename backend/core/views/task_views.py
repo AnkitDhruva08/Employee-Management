@@ -17,7 +17,6 @@ class TaskManagementViews(APIView):
         
     def get(self, request, pk=None):
         user = request.user
-        print('pk ==<<>>', pk)
         try:
             user_data = User.objects.get(email=user.email)
         except User.DoesNotExist:
@@ -65,7 +64,6 @@ class TaskManagementViews(APIView):
         base_tasks = Task.objects.filter(company_id=company_id, active=True).order_by('-id')
 
         if pk:
-            print('yes pk is there')
             task = base_tasks.filter(id=pk).first()
             if not task:
                 return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -295,9 +293,7 @@ class TaskManagementViews(APIView):
             return Response({"detail": "Unauthorized user type"}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            print('company_id ==<<>>', company_id)
             task = Task.objects.get(id=pk, company_id=company_id, active=True)
-            print('task ==<<>>', task)
         except Task.DoesNotExist:
             return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
 
