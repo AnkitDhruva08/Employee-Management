@@ -143,15 +143,16 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
   
       if (response.ok) {
         const result = await response.json();
-  
-        Swal.fire({
-          title: "Success!",
-          text: id ? "Employee record updated successfully." : "Employee created successfully.",
-          icon: "success",
-          confirmButtonText: "OK",
-        }).then(() => {
-          Navigate("/employee-details");
-        });
+        if (isCompany) {
+          Swal.fire({
+            title: "Success!",
+            text: id ? "Employee record updated successfully." : "Employee created successfully.",
+            icon: "success",
+            confirmButtonText: "OK",
+          }).then(() => {
+            Navigate("/employee-details");
+          });
+        }
   
         // Optional: Reset form if creating new
         if (!id) {
@@ -166,6 +167,11 @@ export default function PersonalInfoForm({ onNext, onPrev }) {
             job_role: "",
           });
         }
+
+        if (onNext) onNext();
+        setSuccess(
+          isUpdating ? "Employee details updated." : "Employee details added."
+        );
       } else {
         const errorData = await response.json();
         const message = errorData?.message || "Something went wrong.";

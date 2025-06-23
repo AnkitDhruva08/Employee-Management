@@ -70,9 +70,11 @@ const Dashboard = () => {
     try {
       if (!isSuperUser) {
         const links = await fetchDashboardLink(token);
+        console.log('links =<<>>', links)
         setQuickLinks(links.data || links);
       }
       const empDashboard = await fetchDashboard(token);
+      console.log('empDashboard ==<<>>', empDashboard)
       setDashboardData(empDashboard);
     } catch (err) {
       console.error("Error fetching dashboard:", err);
@@ -196,6 +198,7 @@ const Dashboard = () => {
   }
 
   let statCards = [];
+
   if (isSuperUser && dashboardData?.companies) {
     statCards = dashboardData.companies.map((company, index) => {
       const companyLogoUrl = company.company_logo
@@ -203,6 +206,7 @@ const Dashboard = () => {
           ? company.company_logo
           : `${baseUrl}${company.company_logo}`
         : null;
+  
       const addressParts = [
         company.address?.street_address,
         company.address?.city,
@@ -210,17 +214,18 @@ const Dashboard = () => {
         company.address?.zip_code,
         company.address?.country,
       ].filter(Boolean);
-      const fullAddress =
-        addressParts.length > 0
-          ? addressParts.join(", ")
-          : "Address not available";
+  
+      const fullAddress = addressParts.length > 0
+        ? addressParts.join(", ")
+        : "Address not available";
+  
       return {
         id: company.company_id,
         companyName: company.company_name,
         teamSize: company.team_size,
-        companyEmail: company.company_email,
-        contactNumber: company.contact_number,
-        company_size: company.company_size,
+        companyEmail: company.email || "Email not available",
+        contactNumber: company.contact_number || "Not provided",
+        company_size: company.company_size || "Unknown",
         companyLogo: companyLogoUrl,
         address: fullAddress,
         icon: <FaIcons.FaBuilding className="text-white text-4xl" />,
@@ -233,7 +238,7 @@ const Dashboard = () => {
       {
         id: "total-employees",
         label: "Total Employees",
-        value: dashboardData.total_employees,
+        value: dashboardData.total_employees ?? 0,
         icon: <FaIcons.FaUsers className="text-white text-3xl" />,
         gradient: getColorByIndex(0),
         url: "/employee-details",
@@ -241,7 +246,7 @@ const Dashboard = () => {
       {
         id: "total-leave",
         label: "Leave Requests",
-        value: dashboardData.total_leave_requests,
+        value: dashboardData.total_leave_requests ?? 0,
         icon: <FaIcons.FaClipboardList className="text-white text-3xl" />,
         gradient: getColorByIndex(1),
         url: "/leave-table",
@@ -249,7 +254,9 @@ const Dashboard = () => {
       {
         id: "upcoming-events",
         label: "Upcoming Events",
-        value: dashboardData.upcoming_events,
+        value: Array.isArray(dashboardData.upcoming_events)
+          ? dashboardData.upcoming_events.length
+          : 0,
         icon: <FaIcons.FaCalendarAlt className="text-white text-3xl" />,
         gradient: getColorByIndex(2),
         url: "/events",
@@ -257,7 +264,7 @@ const Dashboard = () => {
       {
         id: "total-project",
         label: "Total Projects",
-        value: dashboardData.total_projects,
+        value: quickLinks.total_projects ?? 0,
         icon: <FaIcons.FaProjectDiagram className="text-white text-3xl" />,
         gradient: getColorByIndex(3),
         url: "/projects",
@@ -265,21 +272,24 @@ const Dashboard = () => {
       {
         id: "total-task",
         label: "Total Tasks",
-        value: dashboardData.total_tasks,
+        value: quickLinks.total_tasks ?? 0,
         icon: <FaIcons.FaTasks className="text-white text-3xl" />,
         gradient: getColorByIndex(4),
-        url: "//create-task",
+        url: "/create-task",
       },
       {
         id: "departments",
         label: "Departments",
-        value: dashboardData.departments,
+        value: Array.isArray(dashboardData.departments)
+          ? dashboardData.departments.length
+          : (dashboardData.departments ?? 0),
         icon: <FaIcons.FaSitemap className="text-white text-3xl" />,
         gradient: getColorByIndex(5),
         url: "/departments",
       },
     ];
   }
+  
 
   return (
     <div className="flex h-screen bg-gray-100">

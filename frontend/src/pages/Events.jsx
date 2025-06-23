@@ -7,12 +7,7 @@ import Sidebar from "../components/sidebar/Sidebar";
 import { fetchDashboardLink, fetchDashboard, fecthevents } from "../utils/api";
 import CompanyLogo from "../components/CompanyLogo";
 
-const sampleEvents = [
-  { id: 1, type: "Training", date: "2024-07-12", title: "Leadership Workshop", employee: "John Doe", description: "A one-day workshop focused on developing leadership skills.", status: "upcoming" },
-  { id: 2, type: "Meeting", date: "2024-06-28", title: "Quarterly Review", employee: "Sarah Lee", description: "Discuss the goals achieved in Q2 and align plans for Q3.", status: "completed" },
-  { id: 3, type: "Appraisal", date: "2024-07-05", title: "Performance Review", employee: "Emily Chen", description: "Annual employee performance evaluations.", status: "upcoming" },
-  { id: 4, type: "Offboarding", date: "2024-06-20", title: "Exit Interview", employee: "Mike Johnson", description: "Conduct exit interview and knowledge transfer.", status: "cancelled" },
-];
+
 
 const statusStyles = {
   upcoming: "bg-blue-100 text-blue-700",
@@ -125,8 +120,6 @@ const Events = () => {
   
       const result = await response.json();
   
-      setEvents((prev) => [...prev, result]); // If server returns full event object
-  
       setShowModal(false);
       setNewEvent({
         eventType: "",
@@ -144,6 +137,7 @@ const Events = () => {
         timer: 2000,
         showConfirmButton: false,
       });
+      window.location.reload();
   
     } catch (error) {
       console.error("Add Event Error:", error);

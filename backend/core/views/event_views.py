@@ -35,6 +35,7 @@ class EventViewSet(APIView):
             employee_data = Employee.objects.get(user_id=user_data.id)
             company_id = employee_data.company_id 
 
+        print('company_id =<<<>>', company_id)
         event_data = Event.objects.filter(company_id=company_id, active=True)
         print('event_data =<<<>>', event_data)
 
@@ -56,14 +57,12 @@ class EventViewSet(APIView):
                 employee_data = Employee.objects.get(user_id= user_data.id)
                 company_id = employee_data.company_id 
 
-            
-            data_tobe_save['company_id'] = company_id
+            data_tobe_save['company'] = company_id
             data_tobe_save['event'] = request.data.get('eventType')
             data_tobe_save['title'] = request.data.get('eventTitle')
             data_tobe_save['date'] = request.data.get('eventDate')
             data_tobe_save['description'] = request.data.get('eventDescription')
             data_tobe_save['status'] = request.data.get('eventStatus')
-            data_tobe_save['company_id'] = request.data.get('eventStatus')
             data_tobe_save['created_by'] = user_data.id
             data_tobe_save['created_at'] = timezone.now()
             
